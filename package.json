@@ -14,7 +14,8 @@
     "db:studio": "drizzle-kit studio",
     "admin:grant": "tsx scripts/set-admin.mts grant",
     "admin:revoke": "tsx scripts/set-admin.mts revoke",
-    "photos:backfill-clean": "tsx scripts/backfill-clean-previews.mts"
+    "photos:backfill-clean": "tsx scripts/backfill-clean-previews.mts",
+    "brand:assets": "tsx scripts/generate-brand-assets.mts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",

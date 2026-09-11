@@ -47,30 +47,40 @@ Tu código para entrar a La Casa de Grado
 
 ### Body (paste into both templates)
 
+Same frame as the app's own emails. The logo is served by the app, so
+replace `https://lacasadegrado.com` with the deployed origin if it differs.
+
 ```html
-<div style="font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #135065; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
-  <p style="font-size: 20px; font-weight: 700; margin: 0 0 24px;">La Casa de Grado</p>
-
-  <p style="font-size: 16px; line-height: 24px; margin: 0 0 16px;">
-    Tu código para entrar es:
-  </p>
-
-  <p style="font-size: 36px; font-weight: 700; letter-spacing: 0.25em; margin: 0 0 24px; font-variant-numeric: tabular-nums;">
-    {{ .Token }}
-  </p>
-
-  <p style="font-size: 14px; line-height: 22px; color: #4B6772; margin: 0 0 8px;">
-    Escríbelo en la pantalla de inicio de sesión. Vence en 10 minutos y solo sirve una vez.
-  </p>
-
-  <p style="font-size: 14px; line-height: 22px; color: #4B6772; margin: 0;">
-    Si no pediste este código, puedes ignorar este correo. Nadie puede entrar sin él.
-  </p>
-</div>
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Tu código para entrar</title></head>
+<body style="margin:0;padding:0;background:#F1ECE8;">
+<div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#F1ECE8;">Tu código: {{ .Token }}. Vence en 10 minutos.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;</div>
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#F1ECE8;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:560px;">
+      <tr><td style="background:#135065;border-radius:16px 16px 0 0;padding:24px 32px;">
+        <img src="https://lacasadegrado.com/brand/logo-cream.png" width="200" height="62" alt="La Casa de Grado" style="display:block;width:200px;height:auto;border:0;">
+      </td></tr>
+      <tr><td style="background:#FBF8F5;border-radius:0 0 16px 16px;padding:32px;font-family:'Fira Sans',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+        <h1 style="margin:0 0 20px;font-size:22px;line-height:30px;font-weight:700;color:#135065;">Tu código para entrar</h1>
+        <p style="margin:0 0 16px;font-size:16px;line-height:25px;color:#0F2F3A;">Escríbelo en la pantalla de inicio de sesión:</p>
+        <p style="margin:0 0 20px;font-size:34px;line-height:40px;font-weight:700;letter-spacing:0.2em;color:#135065;">{{ .Token }}</p>
+        <p style="margin:0 0 16px;font-size:16px;line-height:25px;color:#4B6772;">Vence en 10 minutos y solo sirve una vez.</p>
+        <p style="margin:0;font-size:16px;line-height:25px;color:#4B6772;">Si no pediste este código, puedes ignorar este correo. Nadie puede entrar sin él.</p>
+      </td></tr>
+      <tr><td style="padding:20px 8px 0;font-family:'Fira Sans',-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#4B6772;">
+        Recibes este correo porque alguien pidió entrar a La Casa de Grado con esta dirección.
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>
 ```
 
-The email is intentionally monochrome and text-first: it renders in
-every client, and the code is the only thing the reader needs.
+The same frame (teal header with the logo, cream page, one button) is
+what the app's own emails use, so the inbox reads as one sender.
 
 ## After changing any of the above
 

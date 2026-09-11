@@ -1,19 +1,10 @@
+import {
+  emailButton,
+  emailParagraph,
+  emailQuote,
+  renderEmailLayout,
+} from "@/common/lib/email/email-layout.util";
 import { formatUsd } from "@/common/lib/utils/money.util";
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function wrap(bodyHtml: string): string {
-  return `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#135065;max-width:480px;margin:0 auto;padding:32px 24px;">
-  <p style="font-size:20px;font-weight:700;margin:0 0 24px;">La Casa de Grado</p>
-  ${bodyHtml}
-</div>`;
-}
 
 type ApprovedInput = {
   orderId: string;
@@ -38,11 +29,20 @@ export function buildPaymentApprovedEmail(input: ApprovedInput) {
     `Gracias por confiar en La Casa de Grado.`,
   ].join("\n");
 
-  const html = wrap(`
-  <p style="font-size:16px;line-height:24px;margin:0 0 16px;">Confirmamos tu pago del pedido <strong>${shortId}</strong> (${formatUsd(input.totalCents)}).</p>
-  <p style="font-size:16px;line-height:24px;margin:0 0 24px;">Ya puedes descargar ${photos} en alta resolución, sin marca de agua.</p>
-  <p style="margin:0 0 24px;"><a href="${purchasesUrl}" style="display:inline-block;background:#135065;color:#F1ECE8;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:6px;">Descargar mis fotos</a></p>
-  <p style="font-size:14px;line-height:22px;color:#4B6772;margin:0;">Gracias por confiar en La Casa de Grado.</p>`);
+  const html = renderEmailLayout({
+    preheader: `Pago confirmado. Ya puedes descargar ${photos} en alta resolución.`,
+    title: "Tus fotos están listas",
+    appUrl: input.appUrl,
+    bodyHtml:
+      emailParagraph(
+        `Confirmamos tu pago del pedido <strong>${shortId}</strong> (${formatUsd(input.totalCents)}).`,
+      ) +
+      emailParagraph(
+        `Ya puedes descargar ${photos} en alta resolución, sin marca de agua. Quedan en tu cuenta, así que puedes volver por ellas cuando quieras.`,
+      ) +
+      emailButton(purchasesUrl, "Descargar mis fotos") +
+      emailParagraph("Gracias por confiar en La Casa de Grado.", { muted: true }),
+  });
 
   return { subject, html, text };
 }
@@ -70,12 +70,23 @@ export function buildPaymentRejectedEmail(input: RejectedInput) {
     `Si tienes dudas, responde a este correo o escríbenos por WhatsApp.`,
   ].join("\n");
 
-  const html = wrap(`
-  <p style="font-size:16px;line-height:24px;margin:0 0 16px;">Revisamos los datos de pago del pedido <strong>${shortId}</strong> y no pudimos confirmarlo.</p>
-  <p style="font-size:16px;line-height:24px;margin:0 0 24px;padding:12px 16px;border-left:3px solid #FF9E20;">${escapeHtml(input.reason)}</p>
-  <p style="font-size:14px;line-height:22px;color:#4B6772;margin:0 0 16px;">Si ya pagaste, revisa la referencia y el monto y vuelve a enviarnos los datos.</p>
-  <p style="margin:0 0 24px;"><a href="${paymentUrl}" style="display:inline-block;background:#135065;color:#F1ECE8;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:6px;">Enviar nuevos datos de pago</a></p>
-  <p style="font-size:14px;line-height:22px;color:#4B6772;margin:0;">Si tienes dudas, responde a este correo o escríbenos por WhatsApp.</p>`);
+  const html = renderEmailLayout({
+    preheader: `Motivo: ${input.reason}`,
+    title: "No pudimos confirmar tu pago",
+    appUrl: input.appUrl,
+    bodyHtml:
+      emailParagraph(
+        `Revisamos los datos de pago del pedido <strong>${shortId}</strong> y no pudimos confirmarlo.`,
+      ) +
+      emailQuote(input.reason) +
+      emailParagraph(
+        "Si ya pagaste, revisa la referencia y el monto y vuelve a enviarnos los datos.",
+      ) +
+      emailButton(paymentUrl, "Enviar nuevos datos de pago") +
+      emailParagraph("Si tienes dudas, responde a este correo o escríbenos por WhatsApp.", {
+        muted: true,
+      }),
+  });
 
   return { subject, html, text };
 }

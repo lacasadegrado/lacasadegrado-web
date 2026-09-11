@@ -1,3 +1,12 @@
+import {
+  emailButton,
+  emailDetails,
+  emailParagraph,
+  emailQuote,
+  escapeHtml,
+  renderEmailLayout,
+} from "@/common/lib/email/email-layout.util";
+
 type SupportNotificationInput = {
   name: string;
   email: string;
@@ -6,14 +15,6 @@ type SupportNotificationInput = {
   message: string;
   appUrl: string;
 };
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 /** Internal notification to the business. Reply-to is the customer. */
 export function buildSupportNotificationEmail(input: SupportNotificationInput) {
@@ -33,17 +34,24 @@ export function buildSupportNotificationEmail(input: SupportNotificationInput) {
     `Responde a este correo para contestarle directamente.`,
   ].filter((line): line is string => line !== null);
 
-  const html = `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#135065;max-width:560px;margin:0 auto;padding:24px;">
-  <p style="font-size:18px;font-weight:700;margin:0 0 16px;">Nuevo mensaje de soporte</p>
-  <table style="border-collapse:collapse;font-size:14px;line-height:22px;margin:0 0 16px;">
-    <tr><td style="padding:2px 16px 2px 0;color:#4B6772;">Nombre</td><td>${escapeHtml(input.name)}</td></tr>
-    <tr><td style="padding:2px 16px 2px 0;color:#4B6772;">Correo</td><td>${escapeHtml(input.email)}</td></tr>
-    <tr><td style="padding:2px 16px 2px 0;color:#4B6772;">Teléfono</td><td>${escapeHtml(input.phone ?? "no indicado")}</td></tr>
-    ${shortOrder ? `<tr><td style="padding:2px 16px 2px 0;color:#4B6772;">Pedido</td><td>${shortOrder}</td></tr>` : ""}
-  </table>
-  <p style="font-size:15px;line-height:23px;white-space:pre-wrap;margin:0 0 16px;padding:12px 16px;border-left:3px solid #FF9E20;">${escapeHtml(input.message)}</p>
-  <p style="font-size:13px;color:#4B6772;margin:0;">Responde a este correo para contestarle directamente.</p>
-</div>`;
+  const rows = [
+    { label: "Nombre", value: escapeHtml(input.name) },
+    { label: "Correo", value: `<a href="mailto:${escapeHtml(input.email)}" style="color:#135065;">${escapeHtml(input.email)}</a>` },
+    { label: "Teléfono", value: escapeHtml(input.phone ?? "no indicado") },
+  ];
+  if (shortOrder) rows.push({ label: "Pedido", value: shortOrder });
+
+  const html = renderEmailLayout({
+    preheader: input.message.slice(0, 90),
+    title: "Nuevo mensaje de soporte",
+    appUrl: input.appUrl,
+    footerNote: "Notificación interna del formulario de ayuda.",
+    bodyHtml:
+      emailDetails(rows) +
+      emailQuote(input.message) +
+      (shortOrder ? emailButton(`${input.appUrl}/admin/payments`, "Abrir la cola de pagos") : "") +
+      emailParagraph("Responde a este correo para contestarle directamente.", { muted: true }),
+  });
 
   return { subject, html, text: lines.join("\n") };
 }
