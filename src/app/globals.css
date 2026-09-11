@@ -1,26 +1,259 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
+@custom-variant dark (&:is(.dark *));
+
+/* ------------------------------------------------------------------
+   1. Brand primitives. Three colors from the identity, fixed in both
+   themes, plus the derived tints that everything else is built from.
+   ------------------------------------------------------------------ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --teal: #135065;
+  --cream: #f1ece8;
+  --amber: #ff9e20;
+
+  /* Teal-side ramp (ink, surfaces in dark mode). */
+  --teal-950: #0a2530;
+  --teal-900: #0f2f3a;
+  --teal-800: #103642;
+  --teal-700: #123a47;
+  --teal-600: #164b5d;
+  --teal-500: #135065;
+  --teal-400: #1a5468;
+  --teal-300: #21556a;
+  --teal-200: #2a6378;
+  --teal-100: #a9c1c9;
+  --teal-50: #dce7ea;
+
+  /* Cream-side ramp (surfaces in light mode). */
+  --cream-50: #fbf8f5;
+  --cream-100: #f1ece8;
+  --cream-200: #e8e1da;
+  --cream-300: #e3dbd3;
+  --cream-400: #d6ccc3;
+  --cream-500: #c9bdb2;
+
+  --ink-muted: #4b6772;
+  --danger: #b42318;
+  --danger-dark: #ff7a5c;
 }
 
+/* ------------------------------------------------------------------
+   2. Semantic tokens. Light: cream ground, teal ink, teal actions,
+   amber for the ring, focus and "live" markers.
+   ------------------------------------------------------------------ */
+:root {
+  --background: var(--cream-100);
+  --foreground: var(--teal-900);
+  --card: var(--cream-50);
+  --card-foreground: var(--teal-900);
+  --popover: var(--cream-50);
+  --popover-foreground: var(--teal-900);
+  --primary: var(--teal-500);
+  --primary-foreground: var(--cream-100);
+  --secondary: var(--cream-300);
+  --secondary-foreground: var(--teal-500);
+  --muted: var(--cream-200);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--teal-50);
+  --accent-foreground: var(--teal-500);
+  --destructive: var(--danger);
+  --border: var(--cream-400);
+  --input: var(--cream-500);
+  --ring: var(--teal-500);
+  --chart-1: var(--teal-500);
+  --chart-2: var(--amber);
+  --chart-3: var(--teal-100);
+  --chart-4: var(--cream-400);
+  --chart-5: var(--teal-900);
+  --sidebar: var(--cream-50);
+  --sidebar-foreground: var(--teal-900);
+  --sidebar-primary: var(--teal-500);
+  --sidebar-primary-foreground: var(--cream-100);
+  --sidebar-accent: var(--cream-200);
+  --sidebar-accent-foreground: var(--teal-500);
+  --sidebar-border: var(--cream-400);
+  --sidebar-ring: var(--teal-500);
+
+  --brand-amber-foreground: var(--teal-900);
+  --radius: 0.75rem;
+}
+
+/* Dark: deep teal ground, cream ink, amber actions. Not an inversion:
+   the same brand, lit differently. */
+.dark {
+  --background: var(--teal-950);
+  --foreground: var(--cream-100);
+  --card: var(--teal-800);
+  --card-foreground: var(--cream-100);
+  --popover: var(--teal-800);
+  --popover-foreground: var(--cream-100);
+  --primary: var(--amber);
+  --primary-foreground: var(--teal-950);
+  --secondary: var(--teal-600);
+  --secondary-foreground: var(--cream-100);
+  --muted: var(--teal-700);
+  --muted-foreground: var(--teal-100);
+  --accent: var(--teal-400);
+  --accent-foreground: var(--cream-100);
+  --destructive: var(--danger-dark);
+  --border: var(--teal-300);
+  --input: var(--teal-200);
+  --ring: var(--amber);
+  --chart-1: var(--amber);
+  --chart-2: var(--cream-100);
+  --chart-3: var(--teal-100);
+  --chart-4: var(--teal-200);
+  --chart-5: var(--teal-600);
+  --sidebar: var(--teal-800);
+  --sidebar-foreground: var(--cream-100);
+  --sidebar-primary: var(--amber);
+  --sidebar-primary-foreground: var(--teal-950);
+  --sidebar-accent: var(--teal-700);
+  --sidebar-accent-foreground: var(--cream-100);
+  --sidebar-border: var(--teal-300);
+  --sidebar-ring: var(--amber);
+}
+
+/* ------------------------------------------------------------------
+   3. Theme: expose tokens to Tailwind, type families and scale.
+   ------------------------------------------------------------------ */
 @theme inline {
+  --color-teal: var(--teal);
+  --color-cream: var(--cream);
+  --color-amber: var(--amber);
+  --color-amber-foreground: var(--brand-amber-foreground);
+  --color-teal-950: var(--teal-950);
+  --color-teal-900: var(--teal-900);
+  --color-teal-800: var(--teal-800);
+  --color-teal-600: var(--teal-600);
+  --color-teal-100: var(--teal-100);
+  --color-cream-50: var(--cream-50);
+  --color-cream-200: var(--cream-200);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-3xl: calc(var(--radius) * 2.5);
+  --radius-4xl: calc(var(--radius) * 3);
+
+  /* Fira Sans for everything that is read; Boldonse for titles only. Both
+     loaded in the root layout. Literal names on purpose: @theme inline
+     resolves at parse time and cannot see next/font's runtime variables. */
+  --font-sans: "Fira Sans", "Fira Sans Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Boldonse", "Boldonse Fallback", "Fira Sans", ui-sans-serif, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.55rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.65rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.625rem;
+  --text-2xl--line-height: 2.25rem;
+  --text-3xl: 2rem;
+  --text-3xl--line-height: 2.7rem;
+  --text-4xl: 2.5rem;
+  --text-4xl--line-height: 1.28;
+  --text-5xl: 3.25rem;
+  --text-5xl--line-height: 1.22;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ------------------------------------------------------------------
+   4. Base
+   ------------------------------------------------------------------ */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  html {
+    @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Boldonse has one weight and is wide: titles only, never synthesized
+     bolder, and a little more room per line. */
+  h1,
+  h2 {
+    font-family: var(--font-heading);
+    font-synthesis: none;
+    letter-spacing: 0.005em;
+    text-wrap: balance;
+  }
+
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Visible keyboard focus, everywhere, always. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--amber);
+    color: var(--teal-900);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }

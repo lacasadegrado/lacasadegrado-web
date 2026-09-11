@@ -1,0 +1,1 @@
+ALTER TABLE "photos" ADD COLUMN "clean_key" text;

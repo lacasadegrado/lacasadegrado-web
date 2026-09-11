@@ -1,0 +1,2 @@
+ALTER TABLE "photos" ADD COLUMN "original_filename" text NOT NULL;--> statement-breakpoint
+CREATE INDEX "photos_event_id_original_filename_idx" ON "photos" USING btree ("event_id","original_filename");

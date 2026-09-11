@@ -1,1 +1,127 @@
 @AGENTS.md
+
+# La Casa de Grado
+
+Public web app for a graduation-photography business in Venezuela. The
+full product brief is at `docs/build-brief.md`. Read it before touching
+anything; it is the source of truth for stack, data model, security rules,
+flows, visual direction and build order.
+
+## Stack (locked)
+
+Next.js 16 App Router (TypeScript, `src/`), Tailwind v4 + shadcn/ui,
+Supabase Postgres via Drizzle, Supabase Auth (email OTP only), Resend,
+Cloudflare R2 (S3 SDK), sharp, TanStack Query, Zustand, Zod.
+
+## Architecture
+
+Screaming Architecture. `src/app/` holds thin route files that import a
+screen from `src/modules/<module>/screens/`. Shared code lives in
+`src/common/`.
+
+- kebab-case files and folders; PascalCase component exports.
+- Typed suffixes on every non-component file: `.hook.ts`, `.service.ts`,
+  `.action.ts`, `.schema.ts` (Zod), `.types.ts`, `.store.ts`, `.util.ts`,
+  `.provider.tsx`. Drizzle tables use `.table.ts` (assumption: keeps them
+  distinct from Zod `.schema.ts`).
+- `constants/` and `types/` inside any `lib/` are always folders.
+- Route Handlers in `src/app/api/` are thin too: they call a
+  `lib/handlers/<name>.handler.ts` in the owning module (assumption; the
+  brief only lists actions, but preview/download/upload need handlers).
+- Server Components by default. `"use client"` only for browser APIs,
+  events or state.
+- Server Actions: Zod validate, then call a service. No DB logic in
+  actions. `revalidatePath` lives in the action.
+- Query keys live in `src/common/lib/constants/<module>/index.ts` as
+  `<MODULE>_QUERY_KEYS`, aggregated in `src/common/lib/constants/index.ts`.
+- Never edit `src/common/components/ui/` (shadcn output). Wrap instead.
+  shadcn aliases are already pointed at `src/common/` in `components.json`.
+- Next.js 16 calls middleware `proxy.ts` (see `node_modules/next/dist/docs`).
+
+## Security rules that must survive every change
+
+- All DB access is server-side through `src/common/lib/db` (imports
+  `server-only`). Browser `supabase-js` is for auth only.
+- `original_key` never reaches the client. Grep for it before finishing a
+  slice.
+- Entitlements are the only source of download rights.
+- Order totals are recomputed server-side from `photos.price_cents`.
+
+## Visual direction
+
+Branded since 2026-09-11. Three brand colors, fixed in both themes:
+teal `#135065`, cream `#F1ECE8`, amber `#FF9E20` (tokens `--color-teal`,
+`--color-cream`, `--color-amber`). Light mode: cream ground, teal ink,
+teal primary. Dark mode: deep teal ground, cream ink, amber primary.
+Amber is for the logo ring, focus/selection and "live" markers (cart
+badge, active nav, selected photo), never for body surfaces. Semantic
+tokens live in `src/app/globals.css`; `.dark` is set by next-themes
+(class strategy, system default, toggle in the header).
+Type: Boldonse for `h1`/`h2` only (one weight, wide, applied in the base
+layer with `font-synthesis: none`), Fira Sans for everything else.
+Logo: `src/common/components/logo/logo.tsx` with `kind` (full/house) and
+`variant` from `LOGO_VARIANTS` (auto follows text color; teal, cream,
+onAmber, mono*). Path data lives in `src/common/assets/logo/logo-paths.ts`
+(generated from the SVG export; do not hand-edit). Patterns:
+`BrandPattern` (rings/houses) as a masked `currentColor` surface.
+Spanish copy, sentence case, buttons say what happens. Visible focus,
+reduced-motion respected, real loading and error states.
+
+## Commands
+
+```bash
+npm run dev          # next dev
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint .
+npm run db:generate  # drizzle-kit generate (needs .env.local for migrate/push)
+npm run db:migrate   # apply migrations to DATABASE_URL
+```
+
+Env is validated with Zod in `src/common/lib/config/env.config.ts` and
+asserted at boot by `src/instrumentation.ts`. Copy `.env.example` to
+`.env.local`.
+
+## Build order
+
+Work slice by slice per section 8 of the brief and stop for review after
+each. Done: slice 1 (scaffold, tokens, schema), slice 2 (OTP auth, proxy,
+protected shell), slice 3 (admin events, R2 ingest with preview
+derivative, tagging; gated preview route), slice 4 (gallery at
+`/dashboard`, cart Zustand store persisted to localStorage), slice 5
+(`/cart`, `/checkout` with the payment-method union, `/checkout/[id]/payment`
+with proof upload to R2 `proofs/`, `/orders/[id]` status, `/admin/rates`
+with DolarApi BCV refresh), slice 6 (`/admin/payments` queue; approve
+grants entitlements in one locked transaction and emails "fotos listas",
+reject stores a reason and emails it; admin-only proof route), slice 7
+(`/dashboard/purchases` with a clean 1400px derivative under R2 `clean/`
+served by `/api/photos/[id]/view`; `/api/photos/[id]/download` with 60 s
+presigned attachment + download_logs; `/api/purchases/download-all`
+streams a stored zip via archiver), slice 8 (support: floating "Ayuda"
+launcher on signed-in pages with a WhatsApp deep link and a message form;
+both write `support_messages`, the form emails `SUPPORT_NOTIFY_EMAIL`
+with reply-to set to the customer), slice 9 (landing at `/`: hero, three
+steps, list of published events, FAQ; CTA switches when signed in). All
+nine slices of phase 1 are built. Session checks use `getClaims()` in
+both proxy and `getSessionUser` so they can never disagree and loop.
+Post-review additions: shared `PhotoLightbox` (eye button; owned or
+admin sees the clean derivative, otherwise the watermarked preview),
+admin photo delete (blocked when the photo is in any order) and inline
+price edit, event edit dialog and delete (blocked when it has photos),
+and a single "copy all" button on the payment page that copies
+label:value lines with digits-only phone, id and amount.
+Business payment details are placeholders in
+`src/common/lib/config/business.config.ts`. Support form notifications
+go to `SUPPORT_NOTIFY_EMAIL` (one address, unrelated to admins). Grant admin with
+`npm run admin:grant -- <email>` after that person has logged in once.
+
+Only one `next dev` per directory: Next 16 refuses a second one and
+points at `.next/dev/logs/next-development.log` for the running server.
+
+## Testing gotcha
+
+When driving the app through the hidden Browser pane, React 19 batches
+Suspense reveals behind `requestAnimationFrame`, which never fires while
+the pane is hidden. Content under a `loading.tsx` boundary stays in a
+hidden `S:0` div and never hydrates until something forces a paint (a
+screenshot does). Not an app bug; take a screenshot before asserting on
+streamed content.
