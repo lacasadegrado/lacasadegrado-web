@@ -1,19 +1,19 @@
-import { formatDateOnly } from "@/common/lib/utils/date.util";
+import { formatDateOnly } from "@/common/lib/utils/date.util"
 
-import type { GalleryEvent, GalleryMode } from "../lib/types/gallery.types";
-import { PhotoCard } from "./photo-card/photo-card";
+import type { GalleryEvent, GalleryMode } from "../lib/types/gallery.types"
+import { PhotoCard } from "./photo-card/photo-card"
 
 type GalleryEventSectionProps = {
-  event: GalleryEvent;
-  mode: GalleryMode;
-};
+  event: GalleryEvent
+  mode: GalleryMode
+}
 
 /**
  * Masonry by CSS columns. Every card knows its aspect ratio up front, so
  * column heights are final before any preview has loaded.
  */
 export function GalleryEventSection({ event, mode }: GalleryEventSectionProps) {
-  const headingId = `event-${event.id}`;
+  const headingId = `event-${event.id}`
 
   return (
     <section aria-labelledby={headingId} className="space-y-4">
@@ -21,7 +21,7 @@ export function GalleryEventSection({ event, mode }: GalleryEventSectionProps) {
         <h2 id={headingId} className="text-xl">
           {event.name}
         </h2>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground mt-1">
           {event.institution} · {formatDateOnly(event.eventDate)} ·{" "}
           {event.photos.length} foto{event.photos.length === 1 ? "" : "s"}
         </p>
@@ -34,5 +34,5 @@ export function GalleryEventSection({ event, mode }: GalleryEventSectionProps) {
         ))}
       </ul>
     </section>
-  );
+  )
 }

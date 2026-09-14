@@ -93,7 +93,12 @@ export async function getUserDetail(profileId: string): Promise<AdminUserDetail 
         and(eq(entitlements.photoId, photos.id), eq(entitlements.profileId, profile.id)),
       )
       .where(eq(photoTags.email, profile.email))
-      .orderBy(desc(events.eventDate), asc(photos.originalFilename)),
+      // Bought photos first, then by event and filename.
+      .orderBy(
+        desc(sql`${entitlements.id} is not null`),
+        desc(events.eventDate),
+        asc(photos.originalFilename),
+      ),
     db
       .select({
         id: orders.id,

@@ -128,6 +128,9 @@ o borrarlos desde el Table Editor.
 - Espera: la tarjeta desaparece y en R2 se borran sus tres objetos. En una
   foto que ya esté en un pedido el diálogo responde "Esta foto está en un
   pedido y no se puede borrar."
+- Las fotos que alguien ya compró llevan la etiqueta **Vendida** (o
+  "Vendida ×2" si la tienen varias personas) y van primero en la
+  cuadrícula.
 
 ### A5. Etiquetar
 
@@ -199,7 +202,7 @@ o borrarlos desde el Table Editor.
   nombre o rol.
 - Pulsa **Ver** en el cliente de prueba.
 - Espera: su ficha con permisos a la izquierda y, a la derecha, sus fotos
-  etiquetadas (con "Comprada" en las que ya tiene), sus pedidos con estado
+  etiquetadas (las compradas primero, con "Comprada"), sus pedidos con estado
   y referencia, y sus mensajes de soporte.
 - Marca **Descargar gratis**, escribe un rol como "Coordinador" y guarda.
 - Espera: "Permisos guardados." y el badge "Descarga gratis" arriba. En tu

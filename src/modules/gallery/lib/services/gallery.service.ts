@@ -34,7 +34,14 @@ export async function listGalleryForUser(viewer: SessionUser): Promise<GalleryEv
       and(eq(entitlements.photoId, photos.id), eq(entitlements.profileId, viewer.id)),
     )
     .where(eq(photoTags.email, viewer.email))
-    .orderBy(desc(events.eventDate), desc(events.createdAt), asc(photos.createdAt), asc(photos.id));
+        // Newest event first; inside an event, photos already bought come first.
+    .orderBy(
+      desc(events.eventDate),
+      desc(events.createdAt),
+      desc(sql`${entitlements.id} is not null`),
+      asc(photos.createdAt),
+      asc(photos.id),
+    );
 
   const byEvent = new Map<string, GalleryEvent>();
   for (const row of rows) {

@@ -118,7 +118,9 @@ label:value lines with digits-only phone, id and amount).
 The payment page is two steps on one URL, selected by `?paso=pagar|reportar`
 (`PAYMENT_STEPS` in the checkout constants): pay first (amount, receiving
 details, "Ya pagué" link), then report (reference, payer, proof). A
-rejected order opens on the report step.
+rejected order opens on the report step. Every photo listing puts bought
+photos first: the gallery (per event), the Personas detail, and the admin
+Fotos grid, which shows a "Vendida" badge from `soldCount` (entitlements).
 Admin shell is the shadcn sidebar (`variant="inset"`, teal via the
 `--sidebar-*` tokens) in `src/modules/admin/components/admin-shell/`;
 `ADMIN_SECTIONS` there drives both the nav and the breadcrumb. The

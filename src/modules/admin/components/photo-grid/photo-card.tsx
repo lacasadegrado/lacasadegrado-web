@@ -1,6 +1,7 @@
 "use client"
 
 import { PhotoLightbox } from "@/common/components/photo-lightbox/photo-lightbox"
+import { Badge } from "@/common/components/ui/badge"
 import { Button } from "@/common/components/ui/button"
 import { Checkbox } from "@/common/components/ui/checkbox"
 import { cn } from "@/common/lib/utils/cn.util"
@@ -75,10 +76,17 @@ export function PhotoCard({
           >
             {photo.originalFilename}
           </p>
-          <DeletePhotoButton
-            photoId={photo.id}
-            filename={photo.originalFilename}
-          />
+          <div className="flex shrink-0 items-center gap-1.5">
+            {photo.soldCount > 0 ? (
+              <Badge variant="secondary">
+                {photo.soldCount === 1 ? "Vendida" : `Vendida ×${photo.soldCount}`}
+              </Badge>
+            ) : null}
+            <DeletePhotoButton
+              photoId={photo.id}
+              filename={photo.originalFilename}
+            />
+          </div>
         </div>
 
         {/* Keyed on the server value so a bulk price change resets the local draft. */}

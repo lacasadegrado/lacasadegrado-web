@@ -1,9 +1,9 @@
 import "server-only";
 
-import { asc, count, eq, inArray } from "drizzle-orm";
+import { asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/common/lib/db";
-import { orderItems, photoTags, photos } from "@/common/lib/db/schema";
+import { entitlements, orderItems, photoTags, photos } from "@/common/lib/db/schema";
 import { deleteObject } from "@/common/lib/storage/storage.service";
 
 import type { AdminPhoto, BulkActionResult } from "../types/admin.types";
@@ -21,10 +21,15 @@ export async function listPhotosForEvent(eventId: string): Promise<AdminPhoto[]>
       height: photos.height,
       priceCents: photos.priceCents,
       createdAt: photos.createdAt,
+      /** How many people own it; a sold photo cannot be deleted. */
+      soldCount: count(entitlements.id),
     })
     .from(photos)
+    .leftJoin(entitlements, eq(entitlements.photoId, photos.id))
     .where(eq(photos.eventId, eventId))
-    .orderBy(asc(photos.originalFilename), asc(photos.createdAt));
+    .groupBy(photos.id)
+    // Sold photos first, then by filename.
+    .orderBy(desc(sql`count(${entitlements.id}) > 0`), asc(photos.originalFilename), asc(photos.createdAt));
 
   if (rows.length === 0) return [];
 

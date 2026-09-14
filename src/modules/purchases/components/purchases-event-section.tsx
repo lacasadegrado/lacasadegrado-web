@@ -1,18 +1,19 @@
-import { formatDateOnly } from "@/common/lib/utils/date.util";
+import { formatDateOnly } from "@/common/lib/utils/date.util"
 
-import type { PurchasedEvent } from "../lib/types/purchases.types";
-import { PurchasedPhotoCard } from "./purchased-photo-card";
+import type { PurchasedEvent } from "../lib/types/purchases.types"
+import { PurchasedPhotoCard } from "./purchased-photo-card"
 
 export function PurchasesEventSection({ event }: { event: PurchasedEvent }) {
-  const headingId = `purchased-${event.id}`;
+  const headingId = `purchased-${event.id}`
   return (
     <section aria-labelledby={headingId} className="space-y-4">
       <div>
         <h2 id={headingId} className="text-xl font-bold">
           {event.name}
         </h2>
-        <p className="text-sm text-muted-foreground">
-          {event.institution} · {formatDateOnly(event.eventDate)} · {event.photos.length} foto
+        <p className="text-sm text-muted-foreground mt-1">
+          {event.institution} · {formatDateOnly(event.eventDate)} ·{" "}
+          {event.photos.length} foto
           {event.photos.length === 1 ? "" : "s"}
         </p>
       </div>
@@ -24,5 +25,5 @@ export function PurchasesEventSection({ event }: { event: PurchasedEvent }) {
         ))}
       </ul>
     </section>
-  );
+  )
 }

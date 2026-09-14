@@ -31,6 +31,8 @@ export type AdminPhoto = {
   height: number;
   priceCents: number;
   createdAt: Date;
+  /** Entitlements granted for this photo (people who bought it). */
+  soldCount: number;
   tags: AdminPhotoTag[];
 };
 
