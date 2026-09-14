@@ -4,6 +4,8 @@ export const ADMIN_PATHS = {
   photos: "/admin/photos",
   payments: "/admin/payments",
   rates: "/admin/rates",
+  users: "/admin/users",
+  user: (profileId: string) => `/admin/users/${profileId}`,
   paymentProofApi: (paymentId: string) => `/api/admin/payments/${paymentId}/proof`,
 } as const;
 
@@ -42,10 +44,8 @@ export const STORAGE_PREFIXES = {
  */
 export const DEFAULT_PHOTO_PRICE_CENTS = 500;
 
-export const BULK_TAG_CSV = {
-  maxChars: 200_000,
-  /** Accepted column separators. */
-  separators: /[,;\t]/,
-  /** Header cells we silently skip. */
-  headerNames: ["filename", "archivo", "file", "nombre"],
+/** Selection-based bulk actions on the photo grid. */
+export const BULK_LIMITS = {
+  maxPhotos: 500,
+  maxEmails: 50,
 } as const;

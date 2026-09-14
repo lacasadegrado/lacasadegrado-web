@@ -1,8 +1,20 @@
 import type { PaymentMethodDefinition } from "../types/checkout.types";
 
+/** The payment page has two steps: pay first, then report what you paid. */
+export const PAYMENT_STEPS = {
+  pay: "pagar",
+  report: "reportar",
+} as const;
+
+export type PaymentStep = (typeof PAYMENT_STEPS)[keyof typeof PAYMENT_STEPS];
+
+/** Query param that selects the step, so refresh and back keep the place. */
+export const PAYMENT_STEP_PARAM = "paso";
+
 export const CHECKOUT_PATHS = {
   checkout: "/checkout",
-  payment: (orderId: string) => `/checkout/${orderId}/payment`,
+  payment: (orderId: string, step?: PaymentStep) =>
+    `/checkout/${orderId}/payment${step ? `?${PAYMENT_STEP_PARAM}=${step}` : ""}`,
 } as const;
 
 /**

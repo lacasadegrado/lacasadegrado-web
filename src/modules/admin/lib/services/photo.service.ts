@@ -6,8 +6,7 @@ import { db } from "@/common/lib/db";
 import { orderItems, photoTags, photos } from "@/common/lib/db/schema";
 import { deleteObject } from "@/common/lib/storage/storage.service";
 
-import type { AdminPhoto, BulkTagResult } from "../types/admin.types";
-import { filenameKey, type TagCsvRow } from "../utils/tag-csv.util";
+import type { AdminPhoto, BulkActionResult } from "../types/admin.types";
 
 /**
  * Admin listing. Selects explicit columns: `original_key` is not among
@@ -115,51 +114,52 @@ export async function removeTag(tagId: string): Promise<void> {
   await db.delete(photoTags).where(eq(photoTags.id, tagId));
 }
 
-/**
- * Matches each CSV filename against the event's photos (case-insensitive,
- * extension optional) and tags them. Reports what did not match so the
- * admin can fix the sheet rather than guess.
- */
-export async function bulkTagByFilename(
-  eventId: string,
-  rows: TagCsvRow[],
-  invalidLines: BulkTagResult["invalidLines"],
-): Promise<BulkTagResult> {
-  const eventPhotos = await db
-    .select({ id: photos.id, originalFilename: photos.originalFilename })
-    .from(photos)
-    .where(eq(photos.eventId, eventId));
-
-  const idByKey = new Map<string, string>();
-  for (const photo of eventPhotos) {
-    idByKey.set(filenameKey(photo.originalFilename), photo.id);
-  }
-
-  const values: { photoId: string; email: string }[] = [];
-  const unmatched = new Set<string>();
-  for (const row of rows) {
-    const photoId = idByKey.get(filenameKey(row.filename));
-    if (!photoId) {
-      unmatched.add(row.filename);
-      continue;
-    }
-    values.push({ photoId, email: row.email });
-  }
-
-  let added = 0;
+/** Tags every selected photo with every email; existing pairs are skipped. */
+export async function bulkTagPhotos(
+  photoIds: string[],
+  emails: string[],
+  invalid: string[],
+): Promise<BulkActionResult> {
+  const values = photoIds.flatMap((photoId) => emails.map((email) => ({ photoId, email })));
+  let affected = 0;
   if (values.length > 0) {
     const inserted = await db
       .insert(photoTags)
       .values(values)
       .onConflictDoNothing({ target: [photoTags.photoId, photoTags.email] })
       .returning({ id: photoTags.id });
-    added = inserted.length;
+    affected = inserted.length;
   }
+  return { affected, skipped: values.length - affected, blocked: [], invalid };
+}
 
-  return {
-    added,
-    alreadyTagged: values.length - added,
-    unmatchedFilenames: [...unmatched],
-    invalidLines,
-  };
+/** One price for every selected photo. Future orders only. */
+export async function bulkUpdatePrice(photoIds: string[], priceCents: number): Promise<BulkActionResult> {
+  const updated = await db
+    .update(photos)
+    .set({ priceCents })
+    .where(inArray(photos.id, photoIds))
+    .returning({ id: photos.id });
+  return { affected: updated.length, skipped: photoIds.length - updated.length, blocked: [], invalid: [] };
+}
+
+/**
+ * Deletes each selected photo through the single-photo rule set, so
+ * photos that sit in an order are reported as blocked, never removed.
+ */
+export async function bulkDeletePhotos(photoIds: string[]): Promise<BulkActionResult> {
+  const names = await db
+    .select({ id: photos.id, originalFilename: photos.originalFilename })
+    .from(photos)
+    .where(inArray(photos.id, photoIds));
+  const nameById = new Map(names.map((row) => [row.id, row.originalFilename]));
+
+  let affected = 0;
+  const blocked: string[] = [];
+  for (const photoId of photoIds) {
+    const result = await deletePhoto(photoId);
+    if (result.ok) affected += 1;
+    else if (result.reason === "has_orders") blocked.push(nameById.get(photoId) ?? photoId);
+  }
+  return { affected, skipped: photoIds.length - affected - blocked.length, blocked, invalid: [] };
 }

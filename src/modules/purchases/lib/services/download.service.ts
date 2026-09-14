@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/common/lib/db";
-import { downloadLogs, entitlements, events, photos } from "@/common/lib/db/schema";
+import { downloadLogs, entitlements, events, photoTags, photos } from "@/common/lib/db/schema";
 import type { SessionUser } from "@/modules/auth/lib/types/auth.types";
 
 /**
@@ -53,6 +53,47 @@ export async function getPhotoKeysAsAdmin(
     .where(eq(photos.id, photoId))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Keys for a photo the viewer is tagged in (active event). For people
+ * with free access; callers must check `getViewerAccess` first.
+ */
+export async function getTaggedPhotoKeys(
+  viewer: SessionUser,
+  photoId: string,
+): Promise<EntitledPhotoKeys | null> {
+  const [row] = await db
+    .select({
+      photoId: photos.id,
+      originalKey: photos.originalKey,
+      cleanKey: photos.cleanKey,
+      originalFilename: photos.originalFilename,
+      eventSlug: events.slug,
+    })
+    .from(photoTags)
+    .innerJoin(photos, eq(photos.id, photoTags.photoId))
+    .innerJoin(events, and(eq(events.id, photos.eventId), eq(events.isActive, true)))
+    .where(and(eq(photoTags.email, viewer.email), eq(photoTags.photoId, photoId)))
+    .limit(1)
+  return row ?? null
+}
+
+/** Every tagged photo in an active event, for free-download zips. */
+export async function listTaggedPhotoKeys(viewer: SessionUser): Promise<EntitledPhotoKeys[]> {
+  return db
+    .select({
+      photoId: photos.id,
+      originalKey: photos.originalKey,
+      cleanKey: photos.cleanKey,
+      originalFilename: photos.originalFilename,
+      eventSlug: events.slug,
+    })
+    .from(photoTags)
+    .innerJoin(photos, eq(photos.id, photoTags.photoId))
+    .innerJoin(events, and(eq(events.id, photos.eventId), eq(events.isActive, true)))
+    .where(eq(photoTags.email, viewer.email))
+    .orderBy(asc(events.eventDate), asc(photos.originalFilename), asc(photos.createdAt))
 }
 
 /** Every entitled photo, for the zip. Ordered by event then filename. */

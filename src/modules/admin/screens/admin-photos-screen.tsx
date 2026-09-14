@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Button } from "@/common/components/ui/button";
 import { formatDateOnly } from "@/common/lib/utils/date.util";
 
-import { BulkTagForm } from "../components/bulk-tag-form";
 import { EventPicker } from "../components/event-picker";
 import { PhotoGrid } from "../components/photo-grid/photo-grid";
 import { PhotoUploader } from "../components/photo-uploader/photo-uploader";
@@ -59,17 +58,16 @@ export async function AdminPhotosScreen({ eventId }: AdminPhotosScreenProps) {
             <PhotoUploader eventId={event.id} defaultPriceCents={DEFAULT_PHOTO_PRICE_CENTS} />
           </section>
 
-          <section aria-labelledby="bulk-heading" className="space-y-4 rounded-md border p-4 sm:p-6">
-            <h2 id="bulk-heading" className="text-lg font-semibold">
-              Etiquetar en lote
-            </h2>
-            <BulkTagForm eventId={event.id} />
-          </section>
-
           <section aria-labelledby="grid-heading" className="space-y-4">
-            <h2 id="grid-heading" className="text-lg font-semibold">
-              {photos.length} foto{photos.length === 1 ? "" : "s"}
-            </h2>
+            <div>
+              <h2 id="grid-heading" className="text-lg font-semibold">
+                {photos.length} foto{photos.length === 1 ? "" : "s"}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Marca varias fotos para etiquetarlas, cambiarles el precio o eliminarlas de una
+                vez. Cada tarjeta también acepta un correo, un precio o borrarse por separado.
+              </p>
+            </div>
             <PhotoGrid photos={photos} />
           </section>
         </>

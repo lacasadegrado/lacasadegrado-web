@@ -67,14 +67,16 @@
   --chart-3: var(--teal-100);
   --chart-4: var(--cream-400);
   --chart-5: var(--teal-900);
-  --sidebar: var(--cream-50);
-  --sidebar-foreground: var(--teal-900);
-  --sidebar-primary: var(--teal-500);
-  --sidebar-primary-foreground: var(--cream-100);
-  --sidebar-accent: var(--cream-200);
-  --sidebar-accent-foreground: var(--teal-500);
-  --sidebar-border: var(--cream-400);
-  --sidebar-ring: var(--teal-500);
+  /* Admin sidebar: the brand's teal in both themes, so the admin area
+     reads as its own space. Active items light up in amber. */
+  --sidebar: var(--teal-500);
+  --sidebar-foreground: var(--cream-100);
+  --sidebar-primary: var(--amber);
+  --sidebar-primary-foreground: var(--teal-950);
+  --sidebar-accent: var(--teal-400);
+  --sidebar-accent-foreground: var(--cream-100);
+  --sidebar-border: var(--teal-300);
+  --sidebar-ring: var(--amber);
 
   --brand-amber-foreground: var(--teal-900);
   --radius: 0.75rem;
@@ -110,7 +112,7 @@
   --sidebar-foreground: var(--cream-100);
   --sidebar-primary: var(--amber);
   --sidebar-primary-foreground: var(--teal-950);
-  --sidebar-accent: var(--teal-700);
+  --sidebar-accent: var(--teal-600);
   --sidebar-accent-foreground: var(--cream-100);
   --sidebar-border: var(--teal-300);
   --sidebar-ring: var(--amber);

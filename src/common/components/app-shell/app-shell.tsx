@@ -12,15 +12,17 @@ type AppShellProps = {
   cartBadge?: ReactNode;
   /** Floating help entry point, rendered after the footer. */
   support?: ReactNode;
+  /** False for people with free access: no cart, no purchases. */
+  showCommerce?: boolean;
   children: ReactNode;
 };
 
 /** Layout for every signed-in page: header, primary nav, content, footer. */
-export function AppShell({ actions, cartBadge, support, children }: AppShellProps) {
+export function AppShell({ actions, cartBadge, support, showCommerce = true, children }: AppShellProps) {
   return (
     <>
       <SiteHeader>{actions}</SiteHeader>
-      <AppNav cartBadge={cartBadge} />
+      <AppNav cartBadge={showCommerce ? cartBadge : null} showCommerce={showCommerce} />
       <main
         id="contenido"
         className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-24 sm:px-6"

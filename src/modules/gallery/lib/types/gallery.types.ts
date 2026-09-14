@@ -19,3 +19,9 @@ export type GalleryEvent = {
   eventDate: string;
   photos: GalleryPhoto[];
 };
+
+/**
+ * How cards behave for this viewer. `buy` is the normal customer flow;
+ * the other two are granted by an admin in Personas.
+ */
+export type GalleryMode = "buy" | "free-view" | "free-download";

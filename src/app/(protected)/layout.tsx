@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { AppShell } from "@/common/components/app-shell/app-shell";
 import { SignOutButton } from "@/modules/auth/components/sign-out-button";
+import { getViewerAccess } from "@/modules/auth/lib/services/access.service";
 import { requireSessionUser } from "@/modules/auth/lib/services/session.service";
 import { CartCount } from "@/modules/cart/components/cart-count";
 import { SupportLauncher } from "@/modules/support/components/support-launcher/support-launcher";
@@ -14,12 +15,14 @@ export default async function ProtectedLayout({
   // Second check after the proxy: layouts are not a security boundary on
   // their own, but this keeps the shell from rendering for anonymous hits.
   const user = await requireSessionUser();
+  const access = await getViewerAccess(user);
 
   return (
     <AppShell
       actions={<SignOutButton />}
       cartBadge={<CartCount />}
       support={<SupportLauncher email={user.email} />}
+      showCommerce={!access.complimentary}
     >
       {children}
     </AppShell>

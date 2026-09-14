@@ -1,32 +1,29 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { SiteHeader } from "@/common/components/site-header/site-header";
-import { Badge } from "@/common/components/ui/badge";
-import { Button } from "@/common/components/ui/button";
-import { SignOutButton } from "@/modules/auth/components/sign-out-button";
+import { SidebarInset, SidebarProvider } from "@/common/components/ui/sidebar";
+import { TooltipProvider } from "@/common/components/ui/tooltip";
+import { getSessionUser } from "@/modules/auth/lib/services/session.service";
 
-import { AdminNav } from "./admin-nav";
+import { countPendingReviews } from "../../lib/services/payment-review.service";
+import { AdminHeader } from "./admin-header";
+import { AdminSidebar } from "./admin-sidebar";
 
-export function AdminShell({ children }: { children: ReactNode }) {
+/**
+ * Admin frame: teal sidebar with the sections, content in an inset card.
+ * The layout above has already verified the session is an admin.
+ */
+export async function AdminShell({ children }: { children: ReactNode }) {
+  const [user, pendingPayments] = await Promise.all([getSessionUser(), countPendingReviews()]);
+
   return (
-    <>
-      <SiteHeader>
-        <Badge variant="outline" className="hidden sm:inline-flex">
-          Administración
-        </Badge>
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/dashboard">Ver sitio</Link>
-        </Button>
-        <SignOutButton />
-      </SiteHeader>
-      <AdminNav />
-      <main
-        id="contenido"
-        className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6"
-      >
-        {children}
-      </main>
-    </>
+    <TooltipProvider>
+      <SidebarProvider>
+        <AdminSidebar email={user?.email ?? ""} pendingPayments={pendingPayments} />
+        <SidebarInset id="contenido" className="min-w-0">
+          <AdminHeader />
+          <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</div>
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
   );
 }

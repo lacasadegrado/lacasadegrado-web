@@ -1,7 +1,7 @@
 import { BUSINESS } from "@/common/lib/config/business.config";
 import type { PaymentMethod } from "@/common/lib/db/schema";
 
-import { CopyAllButton } from "./copy-all-button";
+import { CopyButton } from "./copy-button";
 
 type Row = { label: string; value: string; /** What goes on the clipboard; defaults to value. */ copy?: string };
 
@@ -54,11 +54,33 @@ function rowsFor(method: PaymentMethod): Row[] {
 
 type PaymentDetailsProps = {
   method: PaymentMethod;
-  /** Amount in bolívares as "8.137,36"; included in the copied block. */
+  /** Amount in bolívares as "8.137,36"; last row and part of the copied block. */
   amountVes: string | null;
 };
 
-/** The business's receiving details for a manual method, with one copy-everything button. */
+function DetailRow({ label, value, copy, strong }: Row & { strong?: boolean }) {
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5">
+      <div className="min-w-0 flex-1">
+        <dt className="text-xs text-muted-foreground">{label}</dt>
+        <dd className={`text-sm tabular-nums break-all ${strong ? "font-semibold" : "font-medium"}`}>
+          {value}
+        </dd>
+      </div>
+      <CopyButton
+        text={copy ?? value}
+        label="Copiar"
+        copiedLabel="Copiado"
+        ariaLabel={`Copiar ${label.toLowerCase()}`}
+        variant="ghost"
+        size="sm"
+        className="shrink-0 underline-offset-4 hover:underline"
+      />
+    </div>
+  );
+}
+
+/** The business's receiving details for a manual method: one copy per row, plus copy-everything. */
 export function PaymentDetails({ method, amountVes }: PaymentDetailsProps) {
   const rows = rowsFor(method);
   if (rows.length === 0) return null;
@@ -70,19 +92,18 @@ export function PaymentDetails({ method, amountVes }: PaymentDetailsProps) {
     <div className="space-y-3">
       <dl className="divide-y rounded-md border">
         {rows.map((row) => (
-          <div key={row.label} className="flex items-center gap-3 px-3 py-2.5">
-            <dt className="w-28 shrink-0 text-sm text-muted-foreground">{row.label}</dt>
-            <dd className="min-w-0 flex-1 text-sm font-medium tabular-nums break-all">{row.value}</dd>
-          </div>
+          <DetailRow key={row.label} {...row} />
         ))}
-        {amountVes ? (
-          <div className="flex items-center gap-3 px-3 py-2.5">
-            <dt className="w-28 shrink-0 text-sm text-muted-foreground">Monto</dt>
-            <dd className="min-w-0 flex-1 text-sm font-semibold tabular-nums">Bs. {amountVes}</dd>
-          </div>
-        ) : null}
+        {amountVes ? <DetailRow label="Monto" value={`Bs. ${amountVes}`} copy={amountVes} strong /> : null}
       </dl>
-      <CopyAllButton text={lines.join("\n")} />
+      <CopyButton
+        text={lines.join("\n")}
+        label="Copiar todos los datos"
+        copiedLabel="Datos copiados"
+        variant="outline"
+        size="lg"
+        className="h-11 w-full"
+      />
       <p className="text-xs text-muted-foreground">
         Pega el texto en tu app bancaria: la mayoría rellena destino, cédula y monto de una vez.
       </p>

@@ -34,17 +34,21 @@ export type AdminPhoto = {
   tags: AdminPhotoTag[];
 };
 
-export type BulkTagResult = {
-  added: number;
-  alreadyTagged: number;
-  unmatchedFilenames: string[];
-  invalidLines: { line: number; reason: string }[];
+/** Outcome of a selection-based bulk action. */
+export type BulkActionResult = {
+  /** Photos (or tags) actually changed. */
+  affected: number;
+  /** Rows that already had the value and were left alone. */
+  skipped: number;
+  /** Filenames that could not be changed (e.g. photos in an order). */
+  blocked: string[];
+  /** Inputs that did not validate (e.g. malformed emails). */
+  invalid: string[];
 };
 
-export type BulkTagState =
-  | { status: "idle" }
-  | { status: "success"; result: BulkTagResult }
-  | { status: "error"; message: string };
+export type BulkActionOutcome =
+  | { ok: true; result: BulkActionResult; message: string }
+  | { ok: false; message: string };
 
 export type UploadResponse =
   | { ok: true; id: string; filename: string }

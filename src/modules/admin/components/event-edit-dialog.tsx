@@ -1,10 +1,10 @@
-"use client";
+"use client"
 
-import { useActionState, useState } from "react";
+import { useActionState, useState } from "react"
 
-import { Alert, AlertDescription } from "@/common/components/ui/alert";
-import { Button } from "@/common/components/ui/button";
-import { Checkbox } from "@/common/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/common/components/ui/alert"
+import { Button } from "@/common/components/ui/button"
+import { Checkbox } from "@/common/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -12,50 +12,51 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/common/components/ui/dialog";
-import { Input } from "@/common/components/ui/input";
-import { Label } from "@/common/components/ui/label";
+} from "@/common/components/ui/dialog"
+import { Input } from "@/common/components/ui/input"
+import { Label } from "@/common/components/ui/label"
 
-import { updateEventAction } from "../lib/actions/event.action";
-import type { ActionState, AdminEvent } from "../lib/types/admin.types";
+import { updateEventAction } from "../lib/actions/event.action"
+import type { ActionState, AdminEvent } from "../lib/types/admin.types"
+import { Edit } from "lucide-react"
 
-const IDLE: ActionState = { status: "idle" };
+const IDLE: ActionState = { status: "idle" }
 
 function FieldError({ id, message }: { id: string; message?: string }) {
-  if (!message) return null;
+  if (!message) return null
   return (
     <p id={id} className="text-sm font-medium">
       {message}
     </p>
-  );
+  )
 }
 
 export function EventEditDialog({ event }: { event: AdminEvent }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false)
   const [state, action, pending] = useActionState(
     async (previous: ActionState, formData: FormData) => {
-      const result = await updateEventAction(previous, formData);
-      if (result.status === "success") setOpen(false);
-      return result;
+      const result = await updateEventAction(previous, formData)
+      if (result.status === "success") setOpen(false)
+      return result
     },
     IDLE,
-  );
-  const errors = state.status === "error" ? (state.fieldErrors ?? {}) : {};
-  const prefix = `edit-${event.id}`;
+  )
+  const errors = state.status === "error" ? (state.fieldErrors ?? {}) : {}
+  const prefix = `edit-${event.id}`
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="ghost" size="sm">
-          Editar
+        <Button type="button" variant="ghost" size="icon-sm">
+          <Edit />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Editar evento</DialogTitle>
           <DialogDescription>
-            Los cambios se ven de inmediato en la galería y en la portada. Cambiar el identificador
-            no afecta a las fotos ya subidas.
+            Los cambios se ven de inmediato en la galería y en la portada.
+            Cambiar el identificador no afecta a las fotos ya subidas.
           </DialogDescription>
         </DialogHeader>
         <form action={action} className="space-y-4" noValidate>
@@ -69,7 +70,9 @@ export function EventEditDialog({ event }: { event: AdminEvent }) {
               defaultValue={event.name}
               required
               aria-invalid={Boolean(errors.name) || undefined}
-              aria-describedby={errors.name ? `${prefix}-name-error` : undefined}
+              aria-describedby={
+                errors.name ? `${prefix}-name-error` : undefined
+              }
             />
             <FieldError id={`${prefix}-name-error`} message={errors.name} />
           </div>
@@ -83,7 +86,10 @@ export function EventEditDialog({ event }: { event: AdminEvent }) {
               required
               aria-invalid={Boolean(errors.institution) || undefined}
             />
-            <FieldError id={`${prefix}-institution-error`} message={errors.institution} />
+            <FieldError
+              id={`${prefix}-institution-error`}
+              message={errors.institution}
+            />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -97,7 +103,10 @@ export function EventEditDialog({ event }: { event: AdminEvent }) {
                 required
                 aria-invalid={Boolean(errors.eventDate) || undefined}
               />
-              <FieldError id={`${prefix}-date-error`} message={errors.eventDate} />
+              <FieldError
+                id={`${prefix}-date-error`}
+                message={errors.eventDate}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor={`${prefix}-slug`}>Identificador</Label>
@@ -115,8 +124,14 @@ export function EventEditDialog({ event }: { event: AdminEvent }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Checkbox id={`${prefix}-active`} name="isActive" defaultChecked={event.isActive} />
-            <Label htmlFor={`${prefix}-active`}>Activo (visible para los estudiantes)</Label>
+            <Checkbox
+              id={`${prefix}-active`}
+              name="isActive"
+              defaultChecked={event.isActive}
+            />
+            <Label htmlFor={`${prefix}-active`}>
+              Activo (visible para los estudiantes)
+            </Label>
           </div>
 
           {state.status === "error" && !state.fieldErrors ? (
@@ -126,7 +141,12 @@ export function EventEditDialog({ event }: { event: AdminEvent }) {
           ) : null}
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={pending}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={pending}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={pending}>
@@ -136,5 +156,5 @@ export function EventEditDialog({ event }: { event: AdminEvent }) {
         </form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

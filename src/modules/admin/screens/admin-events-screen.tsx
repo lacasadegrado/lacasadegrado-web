@@ -15,7 +15,7 @@ export async function AdminEventsScreen() {
         </p>
       </div>
 
-      <div className="grid gap-10 lg:grid-cols-[22rem_minmax(0,1fr)]">
+      <div className="flex flex-col gap-10">
         <section aria-labelledby="new-event-heading" className="space-y-4">
           <h2 id="new-event-heading" className="text-lg font-semibold">
             Nuevo evento

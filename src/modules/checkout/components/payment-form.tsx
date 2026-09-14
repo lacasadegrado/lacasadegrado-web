@@ -145,7 +145,7 @@ export function PaymentForm({ orderId, isResubmission }: PaymentFormProps) {
           ? "Enviando…"
           : isResubmission
             ? "Enviar nuevos datos de pago"
-            : "Ya pagué, enviar datos"}
+            : "Enviar datos del pago"}
       </Button>
     </form>
   );

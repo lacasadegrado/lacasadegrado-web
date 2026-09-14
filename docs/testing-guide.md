@@ -63,8 +63,12 @@ o borrarlos desde el Table Editor.
 - Escribe el código. Al sexto dígito se envía solo.
 - Espera: aterrizas en `/dashboard` ("Mis fotos"). Ve a
   `http://localhost:3000/admin`.
-- Espera: redirige a `/admin/events`, con la barra Eventos · Fotos · Pagos ·
-  Tasa y el distintivo "Administración".
+- Espera: redirige a `/admin/events`. El panel de admin tiene una barra
+  lateral en teal con Eventos · Fotos · Pagos · Personas · Tasa (Pagos muestra cuántos
+  hay por verificar), un enlace "Ver el sitio como cliente" y tu cuenta
+  abajo, con "Cerrar sesión" en su menú. Arriba, el botón de ocultar la
+  barra, la ruta actual y el cambio de tema. En el teléfono la barra se
+  abre desde ese botón.
 
 ### A2. Eventos
 
@@ -132,20 +136,22 @@ o borrarlos desde el Table Editor.
 - Espera: "Ese correo ya está en esta foto."
 - Pulsa la **×** del chip. Desaparece (puede tardar unos segundos en
   refrescar).
-- En **Etiquetar en lote**, pega algo así (usa nombres reales de tus archivos):
-
-  ```
-  archivo,correo
-  IMG_0412.jpg,samd.development+cliente@gmail.com
-  img_0412,OTRO@correo.com
-  IMG_9999.jpg,alguien@correo.com
-  IMG_0413.jpg,esto-no-es-correo
-  ```
-
-- Espera: resumen con cuántas etiquetas nuevas, cuántas ya existían, la
-  lista de archivos no encontrados (`IMG_9999.jpg`) y las líneas inválidas
-  con su número. La cabecera se ignora, las mayúsculas y la extensión no
-  importan.
+- Marca la casilla de la esquina de dos o más fotos.
+- Espera: aparece una barra fija con "N de M seleccionadas", "Seleccionar
+  todas", "Limpiar" y tres acciones: **Etiquetar**, **Precio**,
+  **Eliminar**. Las tarjetas marcadas llevan borde ámbar.
+- Pulsa **Etiquetar**, pega varios correos separados por comas o saltos de
+  línea (mete uno inválido a propósito) y confirma.
+- Espera: mensaje "N etiquetas nuevas en M fotos" (más "ya existían" si
+  repetiste alguno) y la lista de correos ignorados por inválidos. Cada foto
+  marcada muestra los chips nuevos y la selección se limpia.
+- Selecciona todas, pulsa **Precio**, escribe un valor y aplica.
+- Espera: "Precio actualizado en M fotos" y todos los campos de precio
+  muestran el nuevo valor. Solo afecta a pedidos futuros.
+- Selecciona una foto que esté en un pedido junto a otra que no, pulsa
+  **Eliminar** y confirma.
+- Espera: se borra solo la que no está en pedidos; el mensaje dice cuántas
+  se eliminaron y lista por nombre las que se conservaron.
 - Deja al menos dos fotos etiquetadas con el correo del cliente antes de
   pasar a la guía B.
 
@@ -184,6 +190,32 @@ o borrarlos desde el Table Editor.
 - En `support_messages` hay una fila por cada contacto: `channel = form` para
   el formulario y `channel = whatsapp` cuando el cliente pulsó el enlace de
   WhatsApp, aunque nunca llegue a escribir.
+
+### A7b. Personas y accesos especiales
+
+- Ve a **Personas**. Verás a todas las personas que han entrado alguna vez,
+  con su acceso (Cliente, Admin, Ve sin marca, Descarga gratis) y cuántas
+  fotos etiquetadas, pedidos y mensajes tiene cada una. Busca por correo,
+  nombre o rol.
+- Pulsa **Ver** en el cliente de prueba.
+- Espera: su ficha con permisos a la izquierda y, a la derecha, sus fotos
+  etiquetadas (con "Comprada" en las que ya tiene), sus pedidos con estado
+  y referencia, y sus mensajes de soporte.
+- Marca **Descargar gratis**, escribe un rol como "Coordinador" y guarda.
+- Espera: "Permisos guardados." y el badge "Descarga gratis" arriba. En tu
+  propia ficha la casilla de Administrador está apagada: nadie puede
+  quitarse a sí mismo.
+- Entra como ese cliente (guía B) y mira `/dashboard`.
+- Espera: la barra ya no muestra Carrito ni Compras; el texto dice que tiene
+  acceso especial; cada foto se ve **sin marca de agua** y tiene botón
+  **Descargar**; arriba, **Descargar todas (.zip)**. Cada descarga queda en
+  `download_logs`. Si entra a `/cart` o `/checkout` a mano, vuelve a
+  `/dashboard`.
+- Con solo **Ver sin marca de agua** marcado, ve las fotos limpias con la
+  etiqueta "Cortesía" pero sin botón de descarga, y la ruta de descarga
+  responde 404.
+- Quita los permisos y guarda: vuelve a ser cliente normal, con carrito y
+  precios.
 
 ### A8. Accesos
 
@@ -285,19 +317,32 @@ una ventana privada, para no mezclar sesiones con el admin.
   `pending_payment` con `exchange_rate` congelada y en `order_items` una
   fila por foto con su precio de ese momento.
 
-### B6. Enviar los datos del pago
+### B6. Pagar y reportar el pago
 
-- Espera: **monto exacto en Bs** (total × tasa), los datos del negocio con
-  el monto como última fila (hoy son marcadores de posición: teléfono
-  0412-0000000, cuenta 0102-0000…), un solo botón **Copiar todos los
-  datos**, y el formulario.
-- Pulsa **Copiar todos los datos** y pega en cualquier sitio.
-- Espera: el botón dice "Datos copiados" dos segundos. Lo pegado es un
-  bloque de líneas `Banco: 0102`, `Teléfono: 04120000000`, `Cédula:
-  V00000000`, `Monto: 8.137,36` (solo dígitos en teléfono y cédula, para que
-  la app del banco los reconozca). En transferencia: banco, cuenta, titular,
-  RIF y monto.
-- Pulsa **Ya pagué, enviar datos** con todo vacío.
+El pago tiene dos pasos en la misma dirección: primero pagas, luego
+reportas. El paso va en la URL (`?paso=pagar` o `?paso=reportar`), así
+que recargar o volver atrás no te pierde.
+
+- Espera (paso 1, "Paga con Pago Móvil"): **monto exacto en Bs** (total ×
+  tasa), los datos del negocio con el monto como última fila (hoy son
+  marcadores de posición: teléfono 0412-0000000, cuenta 0102-0000…), un
+  botón **Copiar** al lado de cada dato, **Copiar todos los datos** debajo
+  y el botón grande **Ya pagué**. Todavía no hay formulario.
+- Pulsa **Copiar** junto al teléfono y pega en cualquier sitio.
+- Espera: el botón dice "Copiado" dos segundos y lo pegado es
+  `04120000000` (solo dígitos, para que la app del banco lo reconozca).
+  El banco copia su código (`0102`), la cédula `V00000000` y el monto
+  `8.137,36`.
+- Pulsa **Copiar todos los datos** y pega.
+- Espera: "Datos copiados" dos segundos. Lo pegado es un bloque de líneas
+  `Banco: 0102`, `Teléfono: 04120000000`, `Cédula: V00000000`,
+  `Monto: 8.137,36`. En transferencia: banco, cuenta, titular, RIF y monto.
+- Pulsa **Ya pagué**.
+- Espera (paso 2, "Reporta tu pago"): la URL termina en `?paso=reportar`,
+  arriba el enlace **Ver los datos de pago** (vuelve al paso 1), el pedido
+  con su monto y el formulario de referencia, nombre, teléfono, banco y
+  captura.
+- Pulsa **Enviar datos del pago** con todo vacío.
 - Espera: "Revisa los campos marcados." y un mensaje bajo cada campo.
 - Rellena: referencia (solo letras, números y guiones), nombre, teléfono,
   banco (hay sugerencias), y adjunta la captura.

@@ -6,11 +6,16 @@ import { ZipArchive } from "archiver";
 import { NextResponse } from "next/server";
 
 import { getObjectStream } from "@/common/lib/storage/storage.service";
+import { getViewerAccess } from "@/modules/auth/lib/services/access.service";
 import { getSessionUser } from "@/modules/auth/lib/services/session.service";
 import { getClientIp } from "@/modules/auth/lib/utils/auth.util";
 
 import { ZIP_FILENAME } from "../constants/purchases.constants";
-import { listEntitledPhotoKeys, recordDownloads } from "../services/download.service";
+import {
+  listEntitledPhotoKeys,
+  listTaggedPhotoKeys,
+  recordDownloads,
+} from "../services/download.service";
 import { attachmentDisposition, dedupeNames, zipSafeName } from "../utils/filename.util";
 
 const NO_STORE = { "Cache-Control": "private, no-store" };
@@ -25,7 +30,15 @@ export async function downloadAllHandler(request: Request): Promise<Response> {
   const user = await getSessionUser();
   if (!user) return new NextResponse(null, { status: 401, headers: NO_STORE });
 
-  const items = await listEntitledPhotoKeys(user);
+  const access = await getViewerAccess(user);
+  const entitled = await listEntitledPhotoKeys(user);
+  const tagged = access.freeDownload ? await listTaggedPhotoKeys(user) : [];
+  const seen = new Set<string>();
+  const items = [...entitled, ...tagged].filter((item) => {
+    if (seen.has(item.photoId)) return false;
+    seen.add(item.photoId);
+    return true;
+  });
   if (items.length === 0) return new NextResponse(null, { status: 404, headers: NO_STORE });
 
   await recordDownloads(

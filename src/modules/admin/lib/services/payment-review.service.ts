@@ -100,6 +100,15 @@ export async function listPendingReviews(): Promise<PaymentReviewItem[]> {
   return items;
 }
 
+/** For the sidebar badge. */
+export async function countPendingReviews(): Promise<number> {
+  const [row] = await db
+    .select({ total: count() })
+    .from(orders)
+    .where(eq(orders.status, "pending_verification"));
+  return row?.total ?? 0;
+}
+
 /** Last decisions, newest first, so an admin can double-check what they did. */
 export async function listRecentReviews(limit = 10): Promise<ReviewedPaymentItem[]> {
   const rows = await db

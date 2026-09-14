@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireSessionUser } from "@/modules/auth/lib/services/session.service";
 import { ORDERS_PATHS } from "@/modules/orders/lib/constants/orders.constants";
 
-import { CHECKOUT_PATHS } from "../constants/checkout.constants";
+import { CHECKOUT_PATHS, PAYMENT_STEPS } from "../constants/checkout.constants";
 import { proofFileSchema, submitPaymentSchema } from "../schemas/checkout.schema";
 import { submitPayment } from "../services/payment.service";
 import type { PaymentFormState } from "../types/checkout.types";
@@ -24,7 +24,7 @@ export async function submitPaymentAction(
   formData: FormData,
 ): Promise<PaymentFormState> {
   const orderId = String(formData.get("orderId") ?? "");
-  const user = await requireSessionUser(CHECKOUT_PATHS.payment(orderId));
+  const user = await requireSessionUser(CHECKOUT_PATHS.payment(orderId, PAYMENT_STEPS.report));
 
   const parsed = submitPaymentSchema.safeParse({
     orderId,

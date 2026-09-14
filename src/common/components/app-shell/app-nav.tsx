@@ -7,9 +7,9 @@ import type { ReactNode } from "react";
 import { cn } from "@/common/lib/utils/cn.util";
 
 const LINKS = [
-  { href: "/dashboard", label: "Mis fotos", exact: true, slot: null },
-  { href: "/cart", label: "Carrito", exact: false, slot: "cart" },
-  { href: "/dashboard/purchases", label: "Compras", exact: false, slot: null },
+  { href: "/dashboard", label: "Mis fotos", exact: true, slot: null, commerce: false },
+  { href: "/cart", label: "Carrito", exact: false, slot: "cart", commerce: true },
+  { href: "/dashboard/purchases", label: "Compras", exact: false, slot: null, commerce: true },
 ] as const;
 
 function isActive(pathname: string, href: string, exact: boolean): boolean {
@@ -20,16 +20,19 @@ function isActive(pathname: string, href: string, exact: boolean): boolean {
 type AppNavProps = {
   /** Rendered inside the cart link, e.g. an item count. */
   cartBadge?: ReactNode;
+  /** Hide the cart and purchases links, for people with free access. */
+  showCommerce?: boolean;
 };
 
 /** Primary navigation for signed-in pages. Sits under the site header. */
-export function AppNav({ cartBadge }: AppNavProps) {
+export function AppNav({ cartBadge, showCommerce = true }: AppNavProps) {
   const pathname = usePathname();
+  const links = LINKS.filter((link) => showCommerce || !link.commerce);
 
   return (
     <nav aria-label="Principal" className="border-b">
       <ul className="mx-auto flex w-full max-w-6xl gap-1 overflow-x-auto px-2 sm:px-4">
-        {LINKS.map((link) => {
+        {links.map((link) => {
           const active = isActive(pathname, link.href, link.exact);
           return (
             <li key={link.href}>

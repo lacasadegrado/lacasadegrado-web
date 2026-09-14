@@ -2,11 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 
-import { ADMIN_PATHS } from "../constants/admin.constants";
 import { usdToCents } from "@/common/lib/utils/money.util";
 
+import { ADMIN_PATHS } from "../constants/admin.constants";
 import {
-  bulkTagSchema,
+  bulkDeleteSchema,
+  bulkPriceSchema,
+  bulkTagPhotosSchema,
   deletePhotoSchema,
   removeTagSchema,
   tagPhotoSchema,
@@ -15,13 +17,19 @@ import {
 import { requireAdmin } from "../services/admin-access.service";
 import {
   addTag,
-  bulkTagByFilename,
+  bulkDeletePhotos,
+  bulkTagPhotos,
+  bulkUpdatePrice,
   deletePhoto,
   removeTag,
   updatePhotoPrice,
 } from "../services/photo.service";
-import type { ActionState, BulkTagState } from "../types/admin.types";
-import { parseTagCsv } from "../utils/tag-csv.util";
+import type { ActionState, BulkActionOutcome } from "../types/admin.types";
+import { parseEmailList } from "../utils/email-list.util";
+
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
 
 export async function tagPhotoAction(
   _previous: ActionState,
@@ -103,29 +111,75 @@ export async function removeTagAction(formData: FormData): Promise<void> {
   revalidatePath(ADMIN_PATHS.photos);
 }
 
-export async function bulkTagAction(
-  _previous: BulkTagState,
-  formData: FormData,
-): Promise<BulkTagState> {
+/* ---------------- Selection-based bulk actions ---------------- */
+
+export async function bulkTagPhotosAction(input: {
+  photoIds: string[];
+  emails: string;
+}): Promise<BulkActionOutcome> {
   await requireAdmin();
 
-  const parsed = bulkTagSchema.safeParse({
-    eventId: formData.get("eventId"),
-    csv: formData.get("csv"),
+  const parsed = bulkTagPhotosSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Revisa la selección." };
+  }
+
+  const { emails, invalid } = parseEmailList(parsed.data.emails);
+  if (emails.length === 0) {
+    return { ok: false, message: "Ninguno de los correos es válido." };
+  }
+
+  const result = await bulkTagPhotos(parsed.data.photoIds, emails, invalid);
+  revalidatePath(ADMIN_PATHS.photos);
+  return {
+    ok: true,
+    result,
+    message: `${plural(result.affected, "etiqueta nueva", "etiquetas nuevas")} en ${plural(parsed.data.photoIds.length, "foto", "fotos")}${result.skipped > 0 ? `, ${result.skipped} ya existían` : ""}.`,
+  };
+}
+
+export async function bulkUpdatePriceAction(input: {
+  photoIds: string[];
+  priceUsd: string;
+}): Promise<BulkActionOutcome> {
+  await requireAdmin();
+
+  const parsed = bulkPriceSchema.safeParse({
+    photoIds: input.photoIds,
+    priceUsd: input.priceUsd.replace(",", "."),
   });
   if (!parsed.success) {
-    return {
-      status: "error",
-      message: parsed.error.issues[0]?.message ?? "Revisa el texto pegado.",
-    };
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Revisa el precio." };
   }
 
-  const { rows, invalid } = parseTagCsv(parsed.data.csv);
-  if (rows.length === 0 && invalid.length === 0) {
-    return { status: "error", message: "No encontramos líneas con archivo,correo." };
-  }
-
-  const result = await bulkTagByFilename(parsed.data.eventId, rows, invalid);
+  const result = await bulkUpdatePrice(parsed.data.photoIds, usdToCents(parsed.data.priceUsd));
   revalidatePath(ADMIN_PATHS.photos);
-  return { status: "success", result };
+  return {
+    ok: true,
+    result,
+    message: `Precio actualizado en ${plural(result.affected, "foto", "fotos")}.`,
+  };
+}
+
+export async function bulkDeletePhotosAction(input: {
+  photoIds: string[];
+}): Promise<BulkActionOutcome> {
+  await requireAdmin();
+
+  const parsed = bulkDeleteSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Revisa la selección." };
+  }
+
+  const result = await bulkDeletePhotos(parsed.data.photoIds);
+  revalidatePath(ADMIN_PATHS.photos);
+  revalidatePath(ADMIN_PATHS.events);
+  return {
+    ok: true,
+    result,
+    message:
+      result.blocked.length > 0
+        ? `${plural(result.affected, "foto eliminada", "fotos eliminadas")}. ${plural(result.blocked.length, "foto está", "fotos están")} en un pedido y no se ${result.blocked.length === 1 ? "borró" : "borraron"}.`
+        : `${plural(result.affected, "foto eliminada", "fotos eliminadas")}.`,
+  };
 }

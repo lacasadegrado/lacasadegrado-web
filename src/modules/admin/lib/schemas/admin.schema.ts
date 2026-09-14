@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { emailSchema } from "@/modules/auth/lib/schemas/auth.schema";
 
-import { BULK_TAG_CSV, PHOTO_UPLOAD } from "../constants/admin.constants";
+import { BULK_LIMITS, PHOTO_UPLOAD } from "../constants/admin.constants";
 
 const slugSchema = z
   .string()
@@ -80,14 +80,43 @@ export const removeTagSchema = z.object({
   tagId: z.uuid(),
 });
 
-export const bulkTagSchema = z.object({
-  eventId: z.uuid(),
-  csv: z
-    .string()
-    .trim()
-    .min(1, { error: "Pega al menos una línea con archivo,correo." })
-    .max(BULK_TAG_CSV.maxChars, { error: "El texto es demasiado largo." }),
+const photoIdsSchema = z
+  .array(z.uuid())
+  .min(1, { error: "Selecciona al menos una foto." })
+  .max(BULK_LIMITS.maxPhotos, { error: `Máximo ${BULK_LIMITS.maxPhotos} fotos por acción.` })
+  .transform((ids) => [...new Set(ids)]);
+
+export const bulkTagPhotosSchema = z.object({
+  photoIds: photoIdsSchema,
+  emails: z.string().trim().min(3, { error: "Escribe al menos un correo." }).max(5000),
 });
 
+export const bulkPriceSchema = z.object({
+  photoIds: photoIdsSchema,
+  priceUsd: z.coerce
+    .number({ error: "Escribe un precio válido." })
+    .min(0, { error: "El precio no puede ser negativo." })
+    .max(10_000, { error: "El precio es demasiado alto." }),
+});
+
+export const bulkDeleteSchema = z.object({
+  photoIds: photoIdsSchema,
+});
+
+export const updateUserPermissionsSchema = z.object({
+  profileId: z.uuid(),
+  roleLabel: z
+    .string()
+    .trim()
+    .max(60, { error: "Máximo 60 caracteres." })
+    .transform((value) => (value ? value : null)),
+  freeView: checkboxSchema,
+  freeDownload: checkboxSchema,
+  isAdmin: checkboxSchema,
+});
+
+export const userSearchSchema = z.string().trim().max(120).optional();
+
 export type CreateEventInput = z.infer<typeof createEventSchema>;
+export type UpdateUserPermissionsInput = z.infer<typeof updateUserPermissionsSchema>;
 export type UploadPhotoFields = z.infer<typeof uploadPhotoFieldsSchema>;

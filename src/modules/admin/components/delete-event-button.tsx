@@ -1,6 +1,6 @@
-"use client";
+"use client"
 
-import { useActionState, useState } from "react";
+import { useActionState, useState } from "react"
 
 import {
   AlertDialog,
@@ -11,25 +11,26 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/common/components/ui/alert-dialog";
-import { Button } from "@/common/components/ui/button";
+} from "@/common/components/ui/alert-dialog"
+import { Button } from "@/common/components/ui/button"
 
-import { deleteEventAction } from "../lib/actions/event.action";
-import type { ActionState, AdminEvent } from "../lib/types/admin.types";
+import { deleteEventAction } from "../lib/actions/event.action"
+import type { ActionState, AdminEvent } from "../lib/types/admin.types"
+import { Trash2 } from "lucide-react"
 
-const IDLE: ActionState = { status: "idle" };
+const IDLE: ActionState = { status: "idle" }
 
 export function DeleteEventButton({ event }: { event: AdminEvent }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false)
   const [state, action, pending] = useActionState(
     async (previous: ActionState, formData: FormData) => {
-      const result = await deleteEventAction(previous, formData);
-      if (result.status === "success") setOpen(false);
-      return result;
+      const result = await deleteEventAction(previous, formData)
+      if (result.status === "success") setOpen(false)
+      return result
     },
     IDLE,
-  );
-  const blocked = event.photoCount > 0;
+  )
+  const blocked = event.photoCount > 0
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -37,11 +38,15 @@ export function DeleteEventButton({ event }: { event: AdminEvent }) {
         <Button
           type="button"
           variant="ghost"
-          size="sm"
+          size="icon-sm"
           disabled={blocked}
-          title={blocked ? "Tiene fotos. Bórralas primero o desactiva el evento." : "Eliminar evento"}
+          title={
+            blocked
+              ? "Tiene fotos. Bórralas primero o desactiva el evento."
+              : "Eliminar evento"
+          }
         >
-          Eliminar
+          <Trash2 aria-hidden="true" />
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
@@ -50,7 +55,8 @@ export function DeleteEventButton({ event }: { event: AdminEvent }) {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar «{event.name}»?</AlertDialogTitle>
             <AlertDialogDescription>
-              El evento no tiene fotos, así que no afecta a nadie. Esto no se puede deshacer.
+              El evento no tiene fotos, así que no afecta a nadie. Esto no se
+              puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {state.status === "error" ? (
@@ -69,5 +75,5 @@ export function DeleteEventButton({ event }: { event: AdminEvent }) {
         </form>
       </AlertDialogContent>
     </AlertDialog>
-  );
+  )
 }

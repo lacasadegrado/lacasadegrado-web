@@ -19,6 +19,12 @@ export const profiles = pgTable(
     fullName: text("full_name"),
     phone: text("phone"),
     isAdmin: boolean("is_admin").notNull().default(false),
+    /** Admin-facing label such as "Coordinadora" or "Profesor". */
+    roleLabel: text("role_label"),
+    /** Sees their tagged photos clean, without buying. */
+    freeView: boolean("free_view").notNull().default(false),
+    /** Downloads originals of their tagged photos without buying. */
+    freeDownload: boolean("free_download").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

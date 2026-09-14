@@ -113,8 +113,29 @@ Post-review additions: shared `PhotoLightbox` (eye button; owned or
 admin sees the clean derivative, otherwise the watermarked preview),
 admin photo delete (blocked when the photo is in any order) and inline
 price edit, event edit dialog and delete (blocked when it has photos),
-and a single "copy all" button on the payment page that copies
-label:value lines with digits-only phone, id and amount.
+and copy buttons on the payment page (one per row plus "copy all",
+label:value lines with digits-only phone, id and amount).
+The payment page is two steps on one URL, selected by `?paso=pagar|reportar`
+(`PAYMENT_STEPS` in the checkout constants): pay first (amount, receiving
+details, "Ya pagué" link), then report (reference, payer, proof). A
+rejected order opens on the report step.
+Admin shell is the shadcn sidebar (`variant="inset"`, teal via the
+`--sidebar-*` tokens) in `src/modules/admin/components/admin-shell/`;
+`ADMIN_SECTIONS` there drives both the nav and the breadcrumb. The
+photo grid is selection-based: `PhotoGrid` holds the selected ids and
+`BulkActionsBar` runs tag / price / delete through object-argument
+server actions (`bulk*Action`). The CSV paste tagging was removed.
+`src/common/lib/hooks/use-mobile.ts` is shadcn's sidebar hook rewritten
+with `useSyncExternalStore`; keep the filename, the ui imports it.
+Special access (2026-09-14): `profiles.free_view`, `profiles.free_download`
+and `profiles.role_label`, edited at `/admin/users/[id]`. Read through
+`getViewerAccess()` in the auth module (per-request cache). Free viewers
+get the clean derivative for tagged photos via `/api/photos/[id]/view`;
+free downloaders also pass `/api/photos/[id]/download` and get their tagged
+photos in the zip. The gallery renders in a `GalleryMode`
+(buy / free-view / free-download); the protected shell hides Carrito and
+Compras for complimentary users and the cart/checkout screens redirect
+them. Entitlements remain the only purchase-based download right.
 Business payment details are placeholders in
 `src/common/lib/config/business.config.ts`. Support form notifications
 go to `SUPPORT_NOTIFY_EMAIL` (one address, unrelated to admins). Grant admin with
