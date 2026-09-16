@@ -54,7 +54,8 @@ export function BulkActionsBar({ selectedIds, total, onSelectAll, onClear }: Bul
   const [priceOpen, setPriceOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [emails, setEmails] = useState("");
-  const [priceUsd, setPriceUsd] = useState("5.00");
+  const [priceEur, setPriceEur] = useState("5.00");
+  const [printPriceEur, setPrintPriceEur] = useState("7.00");
   const count = selectedIds.length;
 
   function run(action: () => Promise<BulkActionOutcome>, close: () => void) {
@@ -144,20 +145,33 @@ export function BulkActionsBar({ selectedIds, total, onSelectAll, onClear }: Bul
               </DialogTrigger>
               <DialogContent className="sm:max-w-sm">
                 <DialogHeader>
-                  <DialogTitle>Precio para {count} foto{count === 1 ? "" : "s"}</DialogTitle>
+                  <DialogTitle>Precios para {count} foto{count === 1 ? "" : "s"}</DialogTitle>
                   <DialogDescription>
                     Solo aplica a pedidos futuros. Los pedidos ya creados conservan su precio.
                   </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-2">
-                  <Label htmlFor="bulk-price">Precio por foto (USD)</Label>
-                  <Input
-                    id="bulk-price"
-                    inputMode="decimal"
-                    value={priceUsd}
-                    onChange={(event) => setPriceUsd(event.target.value)}
-                    className="tabular-nums"
-                  />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="bulk-price">Digital (EUR)</Label>
+                    <Input
+                      id="bulk-price"
+                      inputMode="decimal"
+                      value={priceEur}
+                      onChange={(event) => setPriceEur(event.target.value)}
+                      className="tabular-nums"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bulk-print-price">Impresa (EUR)</Label>
+                    <Input
+                      id="bulk-print-price"
+                      inputMode="decimal"
+                      value={printPriceEur}
+                      onChange={(event) => setPrintPriceEur(event.target.value)}
+                      className="tabular-nums"
+                    />
+                    <p className="text-xs text-muted-foreground">Incluye la digital.</p>
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setPriceOpen(false)} disabled={pending}>
@@ -168,12 +182,12 @@ export function BulkActionsBar({ selectedIds, total, onSelectAll, onClear }: Bul
                     disabled={pending}
                     onClick={() =>
                       run(
-                        () => bulkUpdatePriceAction({ photoIds: selectedIds, priceUsd }),
+                        () => bulkUpdatePriceAction({ photoIds: selectedIds, priceEur, printPriceEur }),
                         () => setPriceOpen(false),
                       )
                     }
                   >
-                    {pending ? "Guardando…" : "Aplicar precio"}
+                    {pending ? "Guardando…" : "Aplicar precios"}
                   </Button>
                 </DialogFooter>
               </DialogContent>

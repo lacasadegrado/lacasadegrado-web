@@ -23,6 +23,8 @@ export async function getOrderForUser(
       exchangeRate: orders.exchangeRate,
       createdAt: orders.createdAt,
       paidAt: orders.paidAt,
+      printStatus: orders.printStatus,
+      printDeliveredAt: orders.printDeliveredAt,
     })
     .from(orders)
     .where(and(eq(orders.id, orderId), eq(orders.profileId, viewer.id)))
@@ -35,6 +37,7 @@ export async function getOrderForUser(
         photoId: orderItems.photoId,
         width: photos.width,
         height: photos.height,
+        format: orderItems.format,
         unitPriceCents: orderItems.unitPriceCents,
         eventName: events.name,
       })
@@ -66,9 +69,11 @@ export async function getOrderForUser(
     paymentMethod: order.paymentMethod,
     subtotalCents: order.subtotalCents,
     totalCents: order.totalCents,
-    usdToVes: order.exchangeRate ? Number(order.exchangeRate) : null,
+    eurToVes: order.exchangeRate ? Number(order.exchangeRate) : null,
     createdAt: order.createdAt,
     paidAt: order.paidAt,
+    printStatus: order.printStatus,
+    printDeliveredAt: order.printDeliveredAt,
     items,
     payments: paymentRows.map(({ proofKey, ...payment }) => ({
       ...payment,

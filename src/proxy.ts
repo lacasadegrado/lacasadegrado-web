@@ -52,7 +52,10 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthenticated && pathname === AUTH_PATHS.login) {
-    return NextResponse.redirect(new URL(AUTH_PATHS.afterLogin, request.url));
+    const home = (await isAdminUser(String(data?.claims.sub)))
+      ? ADMIN_PATHS.root
+      : AUTH_PATHS.afterLogin;
+    return NextResponse.redirect(new URL(home, request.url));
   }
 
   // Admin gate, first pass. The admin layout and every admin action and

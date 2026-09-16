@@ -1,6 +1,6 @@
 import { Badge } from "@/common/components/ui/badge";
 import { formatDateTime } from "@/common/lib/utils/date.util";
-import { formatRate, formatUsd, formatVes } from "@/common/lib/utils/money.util";
+import { formatRate, formatEur, formatVes } from "@/common/lib/utils/money.util";
 import { PAYMENT_METHODS } from "@/modules/checkout/lib/constants/checkout.constants";
 
 import { ADMIN_PATHS } from "../../lib/constants/admin.constants";
@@ -42,13 +42,20 @@ export function PaymentReviewCard({ item }: { item: PaymentReviewItem }) {
         <div className="grid gap-x-8 sm:grid-cols-2">
           <dl className="divide-y">
             <Row label="Cliente" value={item.customerEmail} />
-            <Row label="Fotos" value={String(item.itemCount)} />
+            <Row
+              label="Fotos"
+              value={
+                item.printCount > 0
+                  ? `${item.itemCount} (${item.printCount} impresa${item.printCount === 1 ? "" : "s"})`
+                  : String(item.itemCount)
+              }
+            />
             <Row
               label="Debe pagar"
               value={
-                item.usdToVes
-                  ? `${formatVes(item.totalCents, item.usdToVes)} (${formatUsd(item.totalCents)} a ${formatRate(item.usdToVes)})`
-                  : formatUsd(item.totalCents)
+                item.eurToVes
+                  ? `${formatVes(item.totalCents, item.eurToVes)} (${formatEur(item.totalCents)} a ${formatRate(item.eurToVes)})`
+                  : formatEur(item.totalCents)
               }
             />
           </dl>
@@ -62,7 +69,7 @@ export function PaymentReviewCard({ item }: { item: PaymentReviewItem }) {
 
         {amountMismatch ? (
           <p className="text-sm font-medium">
-            El monto declarado ({formatUsd(item.payment.amountCents)}) no coincide con el total del
+            El monto declarado ({formatEur(item.payment.amountCents)}) no coincide con el total del
             pedido.
           </p>
         ) : null}

@@ -29,7 +29,10 @@ export type AdminPhoto = {
   originalFilename: string;
   width: number;
   height: number;
+  /** Digital download, EUR cents. */
   priceCents: number;
+  /** Printed copy, EUR cents. */
+  printPriceCents: number;
   createdAt: Date;
   /** Entitlements granted for this photo (people who bought it). */
   soldCount: number;

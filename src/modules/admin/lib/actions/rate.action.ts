@@ -17,7 +17,7 @@ export async function setManualRateAction(
   const admin = await requireAdmin();
 
   const parsed = manualRateSchema.safeParse({
-    usdToVes: String(formData.get("usdToVes") ?? "").replace(",", "."),
+    eurToVes: String(formData.get("eurToVes") ?? "").replace(",", "."),
   });
   if (!parsed.success) {
     return {
@@ -27,12 +27,12 @@ export async function setManualRateAction(
   }
 
   const rate = await insertRate({
-    usdToVes: parsed.data.usdToVes,
+    eurToVes: parsed.data.eurToVes,
     source: "manual",
     createdBy: admin.id,
   });
   revalidatePath(ADMIN_PATHS.rates);
-  return { status: "success", message: `Tasa fijada en ${formatRate(rate.usdToVes)}.` };
+  return { status: "success", message: `Tasa fijada en ${formatRate(rate.eurToVes)}.` };
 }
 
 export async function refreshRateAction(): Promise<ActionState> {
@@ -42,7 +42,7 @@ export async function refreshRateAction(): Promise<ActionState> {
     revalidatePath(ADMIN_PATHS.rates);
     return {
       status: "success",
-      message: `Tasa actualizada desde DolarApi: ${formatRate(rate.usdToVes)}.`,
+      message: `Tasa actualizada desde DolarApi: ${formatRate(rate.eurToVes)}.`,
     };
   } catch (error) {
     console.error("[rates] manual refresh failed", {

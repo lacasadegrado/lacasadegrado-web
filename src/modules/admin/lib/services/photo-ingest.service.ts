@@ -13,6 +13,7 @@ import { generatePreview } from "./preview.service";
 type IngestInput = {
   eventId: string;
   priceCents: number;
+  printPriceCents: number;
   filename: string;
   contentType: string;
   buffer: Buffer;
@@ -49,6 +50,7 @@ export async function ingestPhoto(input: IngestInput): Promise<{ id: string }> {
       width: derivative.original.width,
       height: derivative.original.height,
       priceCents: input.priceCents,
+      printPriceCents: input.printPriceCents,
     });
   } catch (error) {
     // Do not leave orphaned objects if the row could not be written.

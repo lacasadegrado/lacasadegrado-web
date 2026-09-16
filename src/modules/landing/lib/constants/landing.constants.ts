@@ -27,7 +27,7 @@ export const LANDING_FAQ = [
   {
     question: "¿Cuánto cuesta cada foto?",
     answer:
-      "El precio aparece en cada foto, en dólares, con su equivalente en bolívares al momento de pagar. No hay costo por entrar ni por mirar.",
+      "El precio aparece en cada foto, en euros, con su equivalente en bolívares al momento de pagar. Puedes elegir la foto digital o la impresa, que incluye la digital. No hay costo por entrar ni por mirar.",
   },
   {
     question: "¿Qué recibo al pagar?",

@@ -82,6 +82,7 @@ export async function getUserDetail(profileId: string): Promise<AdminUserDetail 
         height: photos.height,
         originalFilename: photos.originalFilename,
         priceCents: photos.priceCents,
+        printPriceCents: photos.printPriceCents,
         eventName: events.name,
         owned: sql<boolean>`${entitlements.id} is not null`,
       })
@@ -108,6 +109,7 @@ export async function getUserDetail(profileId: string): Promise<AdminUserDetail 
         createdAt: orders.createdAt,
         paidAt: orders.paidAt,
         itemCount: countDistinct(orderItems.id),
+        printCount: sql<number>`count(distinct case when ${orderItems.format} = 'print' then ${orderItems.id} end)::int`,
         latestReference: sql<string | null>`(
           select ${payments.reference} from ${payments}
           where ${payments.orderId} = ${orders.id}

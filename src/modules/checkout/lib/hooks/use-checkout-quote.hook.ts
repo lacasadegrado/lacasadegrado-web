@@ -13,25 +13,25 @@ import { getCheckoutQuoteAction } from "../actions/checkout.action";
  * so the order request only ever carries purchasable ids.
  */
 export function useCheckoutQuote() {
-  const { photoIds, hydrated, remove } = useCart();
+  const { lines, hydrated, remove } = useCart();
 
   const query = useQuery({
-    queryKey: CHECKOUT_QUERY_KEYS.quote(photoIds),
+    queryKey: CHECKOUT_QUERY_KEYS.quote(lines),
     queryFn: async () => {
-      const quote = await getCheckoutQuoteAction(photoIds);
+      const quote = await getCheckoutQuoteAction(lines);
       for (const id of quote.unavailableIds) remove(id);
       for (const item of quote.items) if (item.owned) remove(item.id);
       return quote;
     },
-    enabled: hydrated && photoIds.length > 0,
+    enabled: hydrated && lines.length > 0,
     staleTime: 60 * 1000,
   });
 
   return {
     hydrated,
-    photoIds,
+    lines,
     quote: query.data,
-    isLoading: hydrated && photoIds.length > 0 && query.isPending,
+    isLoading: hydrated && lines.length > 0 && query.isPending,
     isError: query.isError,
     refetch: query.refetch,
   };

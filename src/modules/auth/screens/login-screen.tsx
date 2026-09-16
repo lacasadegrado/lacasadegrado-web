@@ -3,6 +3,8 @@ import Link from "next/link";
 import { BrandPattern } from "@/common/components/brand-pattern/brand-pattern";
 import { Logo } from "@/common/components/logo/logo";
 
+import { LEGAL_PATHS } from "@/modules/legal/lib/constants/legal.constants";
+
 import { LoginForm } from "../components/login-form/login-form";
 import { sanitizeNextPath } from "../lib/utils/auth.util";
 
@@ -43,6 +45,17 @@ export function LoginScreen({ next }: LoginScreenProps) {
           <div className="mt-8">
             <LoginForm next={safeNext || undefined} />
           </div>
+          <p className="mt-6 text-xs text-muted-foreground">
+            Al continuar aceptas los{" "}
+            <Link href={LEGAL_PATHS.terms} className="underline underline-offset-4">
+              términos y condiciones
+            </Link>{" "}
+            y la{" "}
+            <Link href={LEGAL_PATHS.privacy} className="underline underline-offset-4">
+              política de privacidad
+            </Link>
+            .
+          </p>
         </div>
       </div>
     </main>

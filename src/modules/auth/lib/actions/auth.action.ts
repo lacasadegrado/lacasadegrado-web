@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { AUTH_MESSAGES, AUTH_PATHS } from "../constants/auth.constants";
 import { requestOtpSchema, verifyOtpSchema } from "../schemas/auth.schema";
+import { getHomePath } from "../services/access.service";
 import { requestOtp, signOut, verifyOtp } from "../services/auth.service";
 import type {
   RequestOtpErrorCode,
@@ -83,7 +84,9 @@ export async function verifyOtpAction(
     return { status: "error", code: outcome.code, message: AUTH_MESSAGES[outcome.code] };
   }
 
-  redirect(sanitizeNextPath(parsed.data.next, AUTH_PATHS.afterLogin));
+  // An explicit ?next wins; otherwise admins land on the panel, customers on their photos.
+  const explicitNext = sanitizeNextPath(parsed.data.next, "");
+  redirect(explicitNext || (await getHomePath(outcome.user)));
 }
 
 export async function signOutAction(): Promise<void> {

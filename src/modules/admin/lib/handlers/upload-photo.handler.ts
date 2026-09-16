@@ -31,9 +31,10 @@ export async function uploadPhotoHandler(request: Request): Promise<Response> {
   const fields = uploadPhotoFieldsSchema.safeParse({
     eventId: formData.get("eventId"),
     priceCents: formData.get("priceCents"),
+    printPriceCents: formData.get("printPriceCents"),
   });
   if (!fields.success) {
-    return reply({ ok: false, error: "Elige un evento y un precio válidos." }, 400);
+    return reply({ ok: false, error: "Elige un evento y precios válidos." }, 400);
   }
 
   const file = formData.get("file");
@@ -60,6 +61,7 @@ export async function uploadPhotoHandler(request: Request): Promise<Response> {
     const { id } = await ingestPhoto({
       eventId: event.id,
       priceCents: fields.data.priceCents,
+      printPriceCents: fields.data.printPriceCents,
       filename: checked.data.name,
       contentType: checked.data.type,
       buffer: Buffer.from(await file.arrayBuffer()),

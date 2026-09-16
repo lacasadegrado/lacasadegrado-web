@@ -24,6 +24,7 @@ export async function listGalleryForUser(viewer: SessionUser): Promise<GalleryEv
       width: photos.width,
       height: photos.height,
       priceCents: photos.priceCents,
+      printPriceCents: photos.printPriceCents,
       owned: sql<boolean>`${entitlements.id} is not null`,
     })
     .from(photoTags)
@@ -61,6 +62,7 @@ export async function listGalleryForUser(viewer: SessionUser): Promise<GalleryEv
       width: row.width,
       height: row.height,
       priceCents: row.priceCents,
+      printPriceCents: row.printPriceCents,
       owned: row.owned,
     });
   }

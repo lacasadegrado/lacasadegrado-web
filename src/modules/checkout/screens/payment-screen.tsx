@@ -5,7 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { Alert, AlertDescription } from "@/common/components/ui/alert";
 import { Button } from "@/common/components/ui/button";
 import { BUSINESS } from "@/common/lib/config/business.config";
-import { formatRate, formatUsd, formatVes, formatVesNumber } from "@/common/lib/utils/money.util";
+import { formatRate, formatEur, formatVes, formatVesNumber } from "@/common/lib/utils/money.util";
 import { requireSessionUser } from "@/modules/auth/lib/services/session.service";
 import { ORDERS_PATHS } from "@/modules/orders/lib/constants/orders.constants";
 import { getOrderForUser } from "@/modules/orders/lib/services/order.service";
@@ -50,7 +50,7 @@ export async function PaymentScreen({ orderId, step: rawStep }: PaymentScreenPro
   const step = resolveStep(rawStep, isResubmission);
   const shortId = order.id.slice(0, 8).toUpperCase();
   const photoCount = `${order.items.length} foto${order.items.length === 1 ? "" : "s"}`;
-  const amountVes = order.usdToVes ? formatVesNumber(order.totalCents, order.usdToVes) : null;
+  const amountVes = order.eurToVes ? formatVesNumber(order.totalCents, order.eurToVes) : null;
 
   if (step === PAYMENT_STEPS.pay) {
     return (
@@ -65,17 +65,17 @@ export async function PaymentScreen({ orderId, step: rawStep }: PaymentScreenPro
 
         <section className="rounded-md border p-4">
           <p className="text-sm text-muted-foreground">Monto exacto a pagar</p>
-          {order.usdToVes ? (
+          {order.eurToVes ? (
             <>
               <p className="mt-1 text-3xl font-extrabold tabular-nums">
-                {formatVes(order.totalCents, order.usdToVes)}
+                {formatVes(order.totalCents, order.eurToVes)}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {formatUsd(order.totalCents)} a {formatRate(order.usdToVes)}
+                {formatEur(order.totalCents)} a {formatRate(order.eurToVes)}
               </p>
             </>
           ) : (
-            <p className="mt-1 text-3xl font-extrabold tabular-nums">{formatUsd(order.totalCents)}</p>
+            <p className="mt-1 text-3xl font-extrabold tabular-nums">{formatEur(order.totalCents)}</p>
           )}
         </section>
 
@@ -118,7 +118,7 @@ export async function PaymentScreen({ orderId, step: rawStep }: PaymentScreenPro
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Pedido {shortId} · {photoCount}
-          {amountVes ? ` · Bs. ${amountVes}` : ` · ${formatUsd(order.totalCents)}`}
+          {amountVes ? ` · Bs. ${amountVes}` : ` · ${formatEur(order.totalCents)}`}
         </p>
       </div>
 

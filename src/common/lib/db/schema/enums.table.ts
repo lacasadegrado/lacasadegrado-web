@@ -27,6 +27,15 @@ export const paymentStatusEnum = pgEnum("payment_status", [
   "rejected",
 ]);
 
+/** What a person buys for a photo. A print always includes the digital file. */
+export const photoFormatEnum = pgEnum("photo_format", ["digital", "print"]);
+
+/**
+ * Print fulfilment on an order with print items. Null on orders without
+ * prints. Delivery goes to the institution, not the person.
+ */
+export const printStatusEnum = pgEnum("print_status", ["pending", "delivered"]);
+
 export const supportChannelEnum = pgEnum("support_channel", ["form", "whatsapp"]);
 
 export const supportStatusEnum = pgEnum("support_status", [
@@ -40,3 +49,5 @@ export type PaymentMethod = (typeof paymentMethodEnum.enumValues)[number];
 export type PaymentStatus = (typeof paymentStatusEnum.enumValues)[number];
 export type SupportChannel = (typeof supportChannelEnum.enumValues)[number];
 export type SupportStatus = (typeof supportStatusEnum.enumValues)[number];
+export type PhotoFormat = (typeof photoFormatEnum.enumValues)[number];
+export type PrintStatus = (typeof printStatusEnum.enumValues)[number];

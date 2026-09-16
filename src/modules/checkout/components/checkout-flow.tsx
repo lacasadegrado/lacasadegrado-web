@@ -7,13 +7,17 @@ import { useState } from "react";
 
 import { Alert, AlertDescription } from "@/common/components/ui/alert";
 import { Button } from "@/common/components/ui/button";
+import { Checkbox } from "@/common/components/ui/checkbox";
+import { Label } from "@/common/components/ui/label";
+import { BUSINESS } from "@/common/lib/config/business.config";
 import { CHECKOUT_QUERY_KEYS } from "@/common/lib/constants";
 import { formatDateTime } from "@/common/lib/utils/date.util";
-import { formatRate, formatUsd, formatVes } from "@/common/lib/utils/money.util";
+import { formatRate, formatEur, formatVes } from "@/common/lib/utils/money.util";
 import { CartLine } from "@/modules/cart/components/cart-line";
 import { CartListSkeleton } from "@/modules/cart/components/cart-list-skeleton";
 import { useCart } from "@/modules/cart/lib/hooks/use-cart.hook";
 import { GALLERY_PATHS } from "@/modules/gallery/lib/constants/gallery.constants";
+import { LEGAL_PATHS } from "@/modules/legal/lib/constants/legal.constants";
 
 import { createOrderAction } from "../lib/actions/checkout.action";
 import { CHECKOUT_PATHS, PAYMENT_METHODS } from "../lib/constants/checkout.constants";
@@ -26,9 +30,10 @@ export function CheckoutFlow() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { clear, remove } = useCart();
-  const { hydrated, photoIds, quote, isLoading, isError, refetch } = useCheckoutQuote();
+  const { hydrated, lines, quote, isLoading, isError, refetch } = useCheckoutQuote();
   const [method, setMethod] = useState<string>(DEFAULT_METHOD);
   const [message, setMessage] = useState<string | null>(null);
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
 
   const createOrder = useMutation({
@@ -48,6 +53,10 @@ export function CheckoutFlow() {
         setMessage(
           "Algunas fotos ya no están disponibles y las quitamos del carrito. Revisa el total antes de continuar.",
         );
+        return;
+      }
+      if (result.reason === "terms") {
+        setMessage("Acepta los términos y condiciones para continuar.");
         return;
       }
       if (result.reason === "no_rate") {
@@ -91,7 +100,7 @@ export function CheckoutFlow() {
   }
 
   const items = quote?.items.filter((item) => !item.owned) ?? [];
-  if (photoIds.length === 0 || items.length === 0) {
+  if (lines.length === 0 || items.length === 0) {
     return (
       <section className="max-w-xl rounded-md border border-dashed p-6 sm:p-8">
         <h2 className="text-xl font-bold">No hay nada que pagar todavía</h2>
@@ -109,7 +118,8 @@ export function CheckoutFlow() {
 
   const rate = quote?.rate ?? null;
   const total = quote?.totalCents ?? 0;
-  const canContinue = Boolean(rate) && !createOrder.isPending;
+  const printCount = quote?.printCount ?? 0;
+  const canContinue = Boolean(rate) && acceptTerms && !createOrder.isPending;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -138,20 +148,20 @@ export function CheckoutFlow() {
         <dl className="space-y-2 text-sm">
           <div className="flex justify-between">
             <dt className="text-muted-foreground">Subtotal</dt>
-            <dd className="tabular-nums">{formatUsd(quote?.subtotalCents ?? 0)}</dd>
+            <dd className="tabular-nums">{formatEur(quote?.subtotalCents ?? 0)}</dd>
           </div>
           <div className="flex justify-between border-t pt-2 text-base font-semibold">
-            <dt>Total en dólares</dt>
-            <dd className="tabular-nums">{formatUsd(total)}</dd>
+            <dt>Total en euros</dt>
+            <dd className="tabular-nums">{formatEur(total)}</dd>
           </div>
           {rate ? (
             <>
               <div className="flex justify-between text-base font-semibold">
                 <dt>Total en bolívares</dt>
-                <dd className="tabular-nums">{formatVes(total, rate.usdToVes)}</dd>
+                <dd className="tabular-nums">{formatVes(total, rate.eurToVes)}</dd>
               </div>
               <p className="text-xs text-muted-foreground">
-                Tasa {formatRate(rate.usdToVes)} ({formatDateTime(rate.effectiveAt)}). Se fija
+                Tasa {formatRate(rate.eurToVes)} ({formatDateTime(rate.effectiveAt)}). Se fija
                 al crear el pedido.
               </p>
             </>
@@ -168,6 +178,29 @@ export function CheckoutFlow() {
           </Alert>
         ) : null}
 
+        <div className="flex items-start gap-2.5">
+          <Checkbox
+            id="accept-terms"
+            checked={acceptTerms}
+            onCheckedChange={(value) => setAcceptTerms(value === true)}
+            disabled={createOrder.isPending}
+            className="mt-0.5"
+          />
+          <Label htmlFor="accept-terms" className="text-sm leading-snug font-normal">
+            <span>
+              Acepto los{" "}
+              <Link href={LEGAL_PATHS.terms} target="_blank" className="underline underline-offset-4">
+                términos y condiciones
+              </Link>{" "}
+              y la{" "}
+              <Link href={LEGAL_PATHS.privacy} target="_blank" className="underline underline-offset-4">
+                política de privacidad
+              </Link>
+              .
+            </span>
+          </Label>
+        </div>
+
         <Button
           type="button"
           size="lg"
@@ -175,7 +208,11 @@ export function CheckoutFlow() {
           disabled={!canContinue}
           onClick={() => {
             setMessage(null);
-            createOrder.mutate({ photoIds: items.map((item) => item.id), paymentMethod: method });
+            createOrder.mutate({
+              lines: items.map((item) => ({ photoId: item.id, format: item.format })),
+              paymentMethod: method,
+              acceptTerms,
+            });
           }}
         >
           {createOrder.isPending ? "Creando pedido…" : "Continuar al pago"}
@@ -183,6 +220,14 @@ export function CheckoutFlow() {
         <p className="text-xs text-muted-foreground">
           En el siguiente paso verás los datos para pagar y podrás enviar tu comprobante.
         </p>
+        {printCount > 0 ? (
+          <p className="text-xs text-muted-foreground">
+            {printCount === 1 ? "Tu foto impresa se entrega" : `Tus ${printCount} fotos impresas se entregan`}{" "}
+            en tu institución en unos {BUSINESS.print.deliveryDays} días después de aprobar el
+            pago. Pasados {BUSINESS.print.responsibilityDays} días desde esa entrega, la
+            responsabilidad sobre la foto es de la institución.
+          </p>
+        ) : null}
       </aside>
     </div>
   );

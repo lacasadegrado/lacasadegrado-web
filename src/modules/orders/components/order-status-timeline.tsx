@@ -1,3 +1,4 @@
+import { BUSINESS } from "@/common/lib/config/business.config";
 import { cn } from "@/common/lib/utils/cn.util";
 import { formatDateTime } from "@/common/lib/utils/date.util";
 
@@ -9,6 +10,32 @@ type Step = {
   detail?: string;
   state: "done" | "current" | "todo";
 };
+
+/** Extra steps for orders with prints: on their way, then handed to the institution. */
+function printSteps(order: OrderDetail): Step[] {
+  if (!order.printStatus) return [];
+  if (order.status !== "paid") {
+    return [{ key: "print", title: "Foto impresa en tu institución", state: "todo" }];
+  }
+  if (order.printStatus === "delivered") {
+    return [
+      {
+        key: "print",
+        title: "Foto impresa entregada a tu institución",
+        detail: `${order.printDeliveredAt ? `${formatDateTime(order.printDeliveredAt)} · ` : ""}Retírala allí. Tienes ${BUSINESS.print.responsibilityDays} días desde la entrega para cualquier reclamo.`,
+        state: "done",
+      },
+    ];
+  }
+  return [
+    {
+      key: "print",
+      title: "Foto impresa en camino",
+      detail: `La entregamos en tu institución en unos ${BUSINESS.print.deliveryDays} días. Te avisamos por correo.`,
+      state: "current",
+    },
+  ];
+}
 
 function buildSteps(order: OrderDetail): Step[] {
   const latest = order.payments[0];
@@ -25,6 +52,7 @@ function buildSteps(order: OrderDetail): Step[] {
       { key: "pay", title: "Pago pendiente", detail: "Aún no recibimos tus datos de pago.", state: "current" },
       { key: "review", title: "Revisión", state: "todo" },
       { key: "result", title: "Fotos listas", state: "todo" },
+      ...printSteps(order),
     ];
   }
 
@@ -41,15 +69,23 @@ function buildSteps(order: OrderDetail): Step[] {
       submitted,
       { key: "review", title: "En revisión", detail: "Estamos confirmando el pago con el banco.", state: "current" },
       { key: "result", title: "Fotos listas", state: "todo" },
+      ...printSteps(order),
     ];
   }
 
   if (order.status === "paid") {
+    const prints = printSteps(order);
     return [
       created,
       submitted,
       { key: "review", title: "Pago verificado", detail: order.paidAt ? formatDateTime(order.paidAt) : undefined, state: "done" },
-      { key: "result", title: "Fotos listas para descargar", state: "current" },
+      {
+        key: "result",
+        title: "Fotos digitales listas para descargar",
+        // With prints pending, the print step is the live one.
+        state: prints.some((step) => step.state === "current") ? "done" : "current",
+      },
+      ...prints,
     ];
   }
 
@@ -64,6 +100,7 @@ function buildSteps(order: OrderDetail): Step[] {
         state: "current",
       },
       { key: "result", title: "Fotos listas", state: "todo" },
+      ...printSteps(order),
     ];
   }
 

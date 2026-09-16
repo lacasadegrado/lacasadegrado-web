@@ -12,13 +12,13 @@ const quoteSchema = z.object({
 
 export type DolarApiRate = {
   source: "oficial" | "paralelo";
-  usdToVes: number;
+  eurToVes: number;
   updatedAt: Date;
 };
 
 /**
- * DolarApi Venezuela (https://dolarapi.com/docs/venezuela/). Unofficial
- * aggregator; we only take `promedio`. Never cached by Next: the caller
+ * DolarApi Venezuela, euro quotes (https://dolarapi.com/docs/venezuela/operations/get-euros.html).
+ * Unofficial aggregator; we only take `promedio`. Never cached by Next: the caller
  * decides freshness against the stored rate.
  */
 export async function fetchDolarApiRates(): Promise<DolarApiRate[]> {
@@ -39,7 +39,7 @@ export async function fetchDolarApiRates(): Promise<DolarApiRate[]> {
     )
     .map((quote) => ({
       source: quote.fuente as "oficial" | "paralelo",
-      usdToVes: quote.promedio,
+      eurToVes: quote.promedio,
       updatedAt: new Date(quote.fechaActualizacion),
     }));
 }

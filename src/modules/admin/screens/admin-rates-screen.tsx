@@ -47,7 +47,7 @@ export async function AdminRatesScreen() {
             {latest ? (
               <>
                 <p className="mt-1 text-3xl font-extrabold tabular-nums">
-                  {formatRate(latest.usdToVes)}
+                  {formatRate(latest.eurToVes)}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {SOURCE_LABELS[latest.source]} · {formatDateTime(latest.effectiveAt)}
@@ -68,7 +68,7 @@ export async function AdminRatesScreen() {
                 {apiRates.map((rate) => (
                   <div key={rate.source} className="flex justify-between gap-3">
                     <dt className="capitalize">{rate.source === "oficial" ? "BCV oficial" : "Paralelo"}</dt>
-                    <dd className="tabular-nums">{formatRate(rate.usdToVes)}</dd>
+                    <dd className="tabular-nums">{formatRate(rate.eurToVes)}</dd>
                   </div>
                 ))}
               </dl>
@@ -103,7 +103,7 @@ export async function AdminRatesScreen() {
                     <TableRow key={row.id}>
                       <TableCell className="whitespace-nowrap">{formatDateTime(row.effectiveAt)}</TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatRate(Number(row.usdToVes))}
+                        {formatRate(Number(row.eurToVes))}
                       </TableCell>
                       <TableCell>{SOURCE_LABELS[row.source]}</TableCell>
                     </TableRow>

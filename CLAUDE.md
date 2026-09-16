@@ -83,6 +83,9 @@ npm run db:generate  # drizzle-kit generate (needs .env.local for migrate/push)
 npm run db:migrate   # apply migrations to DATABASE_URL
 ```
 
+The full list (purge, admin grant/revoke, backfill, brand assets) with
+usage notes is in `docs/commands.md`; keep it current when adding a script.
+
 Env is validated with Zod in `src/common/lib/config/env.config.ts` and
 asserted at boot by `src/instrumentation.ts`. Copy `.env.example` to
 `.env.local`.
@@ -142,6 +145,33 @@ Business payment details are placeholders in
 `src/common/lib/config/business.config.ts`. Support form notifications
 go to `SUPPORT_NOTIFY_EMAIL` (one address, unrelated to admins). Grant admin with
 `npm run admin:grant -- <email>` after that person has logged in once.
+Admins land on `/admin` after login (and when they hit `/login` or the
+landing CTA while signed in); `getHomePath()` in the auth access service
+decides, an explicit `?next` still wins. `npm run db:purge -- --keep
+<email> --yes` wipes every record and R2 object except that account and
+the exchange-rate history (dry run without `--yes`; `--rates` wipes the
+rates too); the database was purged this way on 2026-09-15 with
+lacasadegrado@gmail.com as the only account.
+Prices are EUR cents (migration 0006/0007, 2026-09-15): `formatEur`,
+`eurToCents`, `eurToVes`; DolarApi is read at `/v1/euros` (BCV official
+euro). Each photo has `price_cents` (digital) and `print_price_cents`
+(print, which includes the digital file). The cart stores
+`{ photoId, format }` lines (`lcg-cart-v2`), one per photo; the gallery
+card offers the two formats as toggle buttons; `order_items.format`
+snapshots the choice and its price. Orders with prints get
+`print_status = pending` and show up in `/admin/prints` (Impresiones,
+badge from `countPendingPrints`); "Marcar entregada" sets `delivered` +
+`print_delivered_at` and emails the person. Policy in
+`BUSINESS.print`: ~5 days to the institution, 15 days of responsibility
+after that. Format labels live in `src/common/lib/constants/catalog`.
+Legal (2026-09-15): `/terminos` and `/privacidad` are server screens in
+`src/modules/legal` that read the business config, linked from the site
+footer, every email footer and the login screen. Checkout requires the
+terms checkbox (`acceptTerms: z.literal(true)`); the order stores
+`terms_version` (`TERMS_VERSION` in the legal constants, bump when the
+text changes) and `terms_accepted_at` (migration 0008). No cookie banner:
+only the session cookie plus localStorage. The texts still need a
+Venezuelan lawyer's review, and the RIF/legal name are placeholders.
 
 Only one `next dev` per directory: Next 16 refuses a second one and
 points at `.next/dev/logs/next-development.log` for the running server.

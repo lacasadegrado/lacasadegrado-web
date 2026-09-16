@@ -8,8 +8,10 @@ export type PaymentReviewItem = {
   customerName: string | null;
   method: PaymentMethod;
   totalCents: number;
-  usdToVes: number | null;
+  eurToVes: number | null;
   itemCount: number;
+  /** Lines bought as prints. */
+  printCount: number;
   /** How many earlier payments on this order were rejected. */
   previousRejections: number;
   payment: {

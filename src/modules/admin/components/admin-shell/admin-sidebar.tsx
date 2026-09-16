@@ -7,6 +7,7 @@ import {
   Globe,
   Images,
   LogOut,
+  Printer,
   Users,
   Wallet,
 } from "lucide-react"
@@ -44,6 +45,7 @@ export const ADMIN_SECTIONS = [
   { href: ADMIN_PATHS.events, label: "Eventos", icon: CalendarDays },
   { href: ADMIN_PATHS.photos, label: "Fotos", icon: Images },
   { href: ADMIN_PATHS.payments, label: "Pagos", icon: Wallet },
+  { href: ADMIN_PATHS.prints, label: "Impresiones", icon: Printer },
   { href: ADMIN_PATHS.rates, label: "Tasa", icon: ArrowLeftRight },
   { href: ADMIN_PATHS.users, label: "Personas", icon: Users },
 ] as const
@@ -51,9 +53,10 @@ export const ADMIN_SECTIONS = [
 type AdminSidebarProps = {
   email: string
   pendingPayments: number
+  pendingPrints: number
 }
 
-export function AdminSidebar({ email, pendingPayments }: AdminSidebarProps) {
+export function AdminSidebar({ email, pendingPayments, pendingPrints }: AdminSidebarProps) {
   const pathname = usePathname()
   const { isMobile, setOpenMobile } = useSidebar()
 
@@ -95,6 +98,12 @@ export function AdminSidebar({ email, pendingPayments }: AdminSidebarProps) {
                 const active =
                   pathname === section.href ||
                   pathname.startsWith(`${section.href}/`)
+                const badge =
+                  section.href === ADMIN_PATHS.payments
+                    ? pendingPayments
+                    : section.href === ADMIN_PATHS.prints
+                      ? pendingPrints
+                      : 0
                 return (
                   <SidebarMenuItem key={section.href}>
                     <SidebarMenuButton
@@ -112,17 +121,16 @@ export function AdminSidebar({ email, pendingPayments }: AdminSidebarProps) {
                         <span>{section.label}</span>
                       </Link>
                     </SidebarMenuButton>
-                    {section.href === ADMIN_PATHS.payments &&
-                    pendingPayments > 0 ? (
+                    {badge > 0 ? (
                       <SidebarMenuBadge
                         className={
                           active
                             ? "bg-teal-950/20 text-teal-950"
                             : "bg-amber text-teal-950"
                         }
-                        aria-label={`${pendingPayments} pagos por verificar`}
+                        aria-label={`${badge} ${section.href === ADMIN_PATHS.payments ? "pagos por verificar" : "impresiones por entregar"}`}
                       >
-                        {pendingPayments}
+                        {badge}
                       </SidebarMenuBadge>
                     ) : null}
                   </SidebarMenuItem>

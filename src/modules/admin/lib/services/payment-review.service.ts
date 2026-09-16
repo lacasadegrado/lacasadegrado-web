@@ -54,13 +54,17 @@ export async function listPendingReviews(): Promise<PaymentReviewItem[]> {
       .where(inArray(payments.orderId, orderIds))
       .orderBy(desc(payments.submittedAt)),
     db
-      .select({ orderId: orderItems.orderId, total: count() })
+      .select({
+        orderId: orderItems.orderId,
+        total: count(),
+        prints: sql<number>`count(*) filter (where ${orderItems.format} = 'print')::int`,
+      })
       .from(orderItems)
       .where(inArray(orderItems.orderId, orderIds))
       .groupBy(orderItems.orderId),
   ]);
 
-  const countByOrder = new Map(itemCounts.map((row) => [row.orderId, row.total]));
+  const countByOrder = new Map(itemCounts.map((row) => [row.orderId, row]));
   const latestByOrder = new Map<string, (typeof paymentRows)[number]>();
   const rejectionsByOrder = new Map<string, number>();
   for (const payment of paymentRows) {
@@ -82,8 +86,9 @@ export async function listPendingReviews(): Promise<PaymentReviewItem[]> {
       customerName: row.customerName,
       method: row.method,
       totalCents: row.totalCents,
-      usdToVes: row.exchangeRate ? Number(row.exchangeRate) : null,
-      itemCount: countByOrder.get(row.orderId) ?? 0,
+      eurToVes: row.exchangeRate ? Number(row.exchangeRate) : null,
+      itemCount: countByOrder.get(row.orderId)?.total ?? 0,
+      printCount: countByOrder.get(row.orderId)?.prints ?? 0,
       previousRejections: rejectionsByOrder.get(row.orderId) ?? 0,
       payment: {
         id: latest.id,
@@ -146,6 +151,8 @@ type ApprovedOrder = {
   customerEmail: string;
   totalCents: number;
   entitlementsGranted: number;
+  /** Lines bought as prints, for the confirmation email. */
+  printCount: number;
 };
 
 /**
@@ -193,9 +200,10 @@ export async function approvePayment(
       .where(eq(orders.id, order.id));
 
     const items = await tx
-      .select({ photoId: orderItems.photoId })
+      .select({ photoId: orderItems.photoId, format: orderItems.format })
       .from(orderItems)
       .where(eq(orderItems.orderId, order.id));
+    const printCount = items.filter((item) => item.format === "print").length;
 
     const granted = await tx
       .insert(entitlements)
@@ -217,6 +225,7 @@ export async function approvePayment(
         customerEmail: order.customerEmail,
         totalCents: order.totalCents,
         entitlementsGranted: granted.length,
+        printCount,
       },
     };
   });

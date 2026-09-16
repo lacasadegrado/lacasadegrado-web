@@ -20,6 +20,7 @@ export type AdminUserPhoto = {
   height: number
   originalFilename: string
   priceCents: number
+  printPriceCents: number
   eventName: string
   /** The person holds an entitlement (bought, or granted by an approval). */
   owned: boolean
@@ -31,6 +32,8 @@ export type AdminUserOrder = {
   paymentMethod: PaymentMethod
   totalCents: number
   itemCount: number
+  /** Lines bought as prints. */
+  printCount: number
   createdAt: Date
   paidAt: Date | null
   latestReference: string | null

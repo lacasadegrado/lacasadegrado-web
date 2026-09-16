@@ -77,7 +77,7 @@ export async function submitPayment(
   const email = buildPaymentSubmittedEmail({
     orderId: order.id,
     totalCents: order.totalCents,
-    usdToVes: order.exchangeRate ? Number(order.exchangeRate) : null,
+    eurToVes: order.exchangeRate ? Number(order.exchangeRate) : null,
     reference: input.reference,
     paymentMethod: order.paymentMethod,
     slaHours: BUSINESS.verificationSlaHours,

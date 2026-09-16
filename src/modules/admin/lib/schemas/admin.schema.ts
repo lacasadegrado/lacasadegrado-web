@@ -41,12 +41,15 @@ export const deleteEventSchema = z.object({
   eventId: z.uuid(),
 });
 
+const priceEurSchema = z.coerce
+  .number({ error: "Escribe un precio válido." })
+  .min(0, { error: "El precio no puede ser negativo." })
+  .max(10_000, { error: "El precio es demasiado alto." });
+
 export const updatePhotoPriceSchema = z.object({
   photoId: z.uuid(),
-  priceUsd: z.coerce
-    .number({ error: "Escribe un precio válido." })
-    .min(0, { error: "El precio no puede ser negativo." })
-    .max(10_000, { error: "El precio es demasiado alto." }),
+  priceEur: priceEurSchema,
+  printPriceEur: priceEurSchema,
 });
 
 export const deletePhotoSchema = z.object({
@@ -56,6 +59,7 @@ export const deletePhotoSchema = z.object({
 export const uploadPhotoFieldsSchema = z.object({
   eventId: z.uuid({ error: "Elige un evento." }),
   priceCents: z.coerce.number().int().min(0).max(1_000_000),
+  printPriceCents: z.coerce.number().int().min(0).max(1_000_000),
 });
 
 export const uploadFileSchema = z.object({
@@ -93,10 +97,12 @@ export const bulkTagPhotosSchema = z.object({
 
 export const bulkPriceSchema = z.object({
   photoIds: photoIdsSchema,
-  priceUsd: z.coerce
-    .number({ error: "Escribe un precio válido." })
-    .min(0, { error: "El precio no puede ser negativo." })
-    .max(10_000, { error: "El precio es demasiado alto." }),
+  priceEur: priceEurSchema,
+  printPriceEur: priceEurSchema,
+});
+
+export const markPrintsDeliveredSchema = z.object({
+  orderId: z.uuid(),
 });
 
 export const bulkDeleteSchema = z.object({

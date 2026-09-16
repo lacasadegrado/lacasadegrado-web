@@ -5,7 +5,9 @@ import { cache } from "react"
 
 import { db } from "@/common/lib/db"
 import { profiles } from "@/common/lib/db/schema"
+import { ADMIN_PATHS } from "@/modules/admin/lib/constants/admin.constants"
 
+import { AUTH_PATHS } from "../constants/auth.constants"
 import type { SessionUser } from "../types/auth.types"
 
 /**
@@ -50,3 +52,12 @@ export const getViewerAccess = cache(
     }
   },
 )
+
+/**
+ * Where a signed-in person lands when no specific page was requested:
+ * admins go to the panel, everyone else to their photos.
+ */
+export async function getHomePath(viewer: SessionUser): Promise<string> {
+  const access = await getViewerAccess(viewer)
+  return access.isAdmin ? ADMIN_PATHS.root : AUTH_PATHS.afterLogin
+}

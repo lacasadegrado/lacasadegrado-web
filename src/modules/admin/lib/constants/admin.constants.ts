@@ -3,6 +3,7 @@ export const ADMIN_PATHS = {
   events: "/admin/events",
   photos: "/admin/photos",
   payments: "/admin/payments",
+  prints: "/admin/prints",
   rates: "/admin/rates",
   users: "/admin/users",
   user: (profileId: string) => `/admin/users/${profileId}`,
@@ -42,7 +43,10 @@ export const STORAGE_PREFIXES = {
  * Assumption (brief, open decision 1): flat price per photo, editable per
  * upload batch. $5.00 is a placeholder until the business sets it.
  */
+/** Digital download, EUR cents. */
 export const DEFAULT_PHOTO_PRICE_CENTS = 500;
+/** Printed copy (includes the digital file), EUR cents. */
+export const DEFAULT_PRINT_PRICE_CENTS = 700;
 
 /** Selection-based bulk actions on the photo grid. */
 export const BULK_LIMITS = {

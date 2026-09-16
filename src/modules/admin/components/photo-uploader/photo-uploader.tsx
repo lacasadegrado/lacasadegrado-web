@@ -6,7 +6,7 @@ import { useId, useRef, useState } from "react";
 import { Button } from "@/common/components/ui/button";
 import { Input } from "@/common/components/ui/input";
 import { Label } from "@/common/components/ui/label";
-import { usdToCents } from "@/common/lib/utils/money.util";
+import { eurToCents } from "@/common/lib/utils/money.util";
 
 import { PHOTO_UPLOAD } from "../../lib/constants/admin.constants";
 import type { UploadResponse } from "../../lib/types/admin.types";
@@ -15,6 +15,7 @@ import { UploadQueue, type QueueItem } from "./upload-queue";
 type PhotoUploaderProps = {
   eventId: string;
   defaultPriceCents: number;
+  defaultPrintPriceCents: number;
 };
 
 let nextItemId = 0;
@@ -25,16 +26,19 @@ let nextItemId = 0;
  * its own outcome. When a batch finishes the server-rendered grid is
  * refreshed.
  */
-export function PhotoUploader({ eventId, defaultPriceCents }: PhotoUploaderProps) {
+export function PhotoUploader({ eventId, defaultPriceCents, defaultPrintPriceCents }: PhotoUploaderProps) {
   const router = useRouter();
   const inputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [priceUsd, setPriceUsd] = useState((defaultPriceCents / 100).toFixed(2));
+  const [priceEur, setPriceEur] = useState((defaultPriceCents / 100).toFixed(2));
+  const [printPriceEur, setPrintPriceEur] = useState((defaultPrintPriceCents / 100).toFixed(2));
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [busy, setBusy] = useState(false);
 
-  const priceCents = usdToCents(Number(priceUsd.replace(",", ".")) || 0);
-  const priceValid = Number.isFinite(priceCents) && priceCents >= 0;
+  const priceCents = eurToCents(Number(priceEur.replace(",", ".")) || 0);
+  const printPriceCents = eurToCents(Number(printPriceEur.replace(",", ".")) || 0);
+  const priceValid =
+    Number.isFinite(priceCents) && priceCents >= 0 && Number.isFinite(printPriceCents) && printPriceCents >= 0;
 
   function updateItem(id: number, patch: Partial<QueueItem>) {
     setQueue((items) => items.map((item) => (item.id === id ? { ...item, ...patch } : item)));
@@ -46,6 +50,7 @@ export function PhotoUploader({ eventId, defaultPriceCents }: PhotoUploaderProps
     body.set("file", item.file);
     body.set("eventId", eventId);
     body.set("priceCents", String(priceCents));
+    body.set("printPriceCents", String(printPriceCents));
 
     try {
       const response = await fetch("/api/admin/photos/upload", { method: "POST", body });
@@ -88,7 +93,7 @@ export function PhotoUploader({ eventId, defaultPriceCents }: PhotoUploaderProps
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_12rem]">
+      <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_9rem_9rem]">
         <div className="space-y-2">
           <Label htmlFor={inputId}>Archivos</Label>
           <Input
@@ -108,20 +113,36 @@ export function PhotoUploader({ eventId, defaultPriceCents }: PhotoUploaderProps
           </p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor={`${inputId}-price`}>Precio por foto (USD)</Label>
+          <Label htmlFor={`${inputId}-price`}>Digital (EUR)</Label>
           <Input
             id={`${inputId}-price`}
             type="number"
             inputMode="decimal"
             min={0}
             step="0.01"
-            value={priceUsd}
-            onChange={(event) => setPriceUsd(event.target.value)}
+            value={priceEur}
+            onChange={(event) => setPriceEur(event.target.value)}
             disabled={busy}
             aria-invalid={!priceValid || undefined}
             className="tabular-nums"
           />
           <p className="text-sm text-muted-foreground">Se aplica a este lote.</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={`${inputId}-print-price`}>Impresa (EUR)</Label>
+          <Input
+            id={`${inputId}-print-price`}
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="0.01"
+            value={printPriceEur}
+            onChange={(event) => setPrintPriceEur(event.target.value)}
+            disabled={busy}
+            aria-invalid={!priceValid || undefined}
+            className="tabular-nums"
+          />
+          <p className="text-sm text-muted-foreground">Incluye la digital.</p>
         </div>
       </div>
 

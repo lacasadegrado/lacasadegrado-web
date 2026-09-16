@@ -3,20 +3,25 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import type { PhotoFormat } from "@/common/lib/db/schema";
+
 import { CART_MAX_ITEMS, CART_STORAGE_KEY } from "../constants/cart.constants";
+import type { CartLineInput } from "../types/cart.types";
 
 /**
- * The cart is photo ids only, persisted in localStorage. Prices and
- * ownership are never trusted from here: checkout re-reads both on the
- * server. `hydrated` lets components render a neutral state during SSR
- * and the first client paint, before localStorage has been read.
+ * The cart is photo ids plus the chosen format, persisted in
+ * localStorage. Prices and ownership are never trusted from here:
+ * checkout re-reads both on the server. One line per photo: a print
+ * already includes the digital file, so the two formats never coexist.
+ * `hydrated` lets components render a neutral state during SSR and the
+ * first client paint, before localStorage has been read.
  */
 type CartState = {
-  photoIds: string[];
+  lines: CartLineInput[];
   hydrated: boolean;
-  add: (photoId: string) => void;
+  /** Adds the photo, or switches its format if it is already in the cart. */
+  add: (photoId: string, format: PhotoFormat) => void;
   remove: (photoId: string) => void;
-  toggle: (photoId: string) => void;
   clear: () => void;
   markHydrated: () => void;
 };
@@ -24,26 +29,29 @@ type CartState = {
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
-      photoIds: [],
+      lines: [],
       hydrated: false,
-      add: (photoId) => {
-        const { photoIds } = get();
-        if (photoIds.includes(photoId) || photoIds.length >= CART_MAX_ITEMS) return;
-        set({ photoIds: [...photoIds, photoId] });
+      add: (photoId, format) => {
+        const { lines } = get();
+        const existing = lines.find((line) => line.photoId === photoId);
+        if (existing) {
+          if (existing.format === format) return;
+          set({
+            lines: lines.map((line) => (line.photoId === photoId ? { photoId, format } : line)),
+          });
+          return;
+        }
+        if (lines.length >= CART_MAX_ITEMS) return;
+        set({ lines: [...lines, { photoId, format }] });
       },
-      remove: (photoId) =>
-        set({ photoIds: get().photoIds.filter((id) => id !== photoId) }),
-      toggle: (photoId) => {
-        if (get().photoIds.includes(photoId)) get().remove(photoId);
-        else get().add(photoId);
-      },
-      clear: () => set({ photoIds: [] }),
+      remove: (photoId) => set({ lines: get().lines.filter((line) => line.photoId !== photoId) }),
+      clear: () => set({ lines: [] }),
       markHydrated: () => set({ hydrated: true }),
     }),
     {
       name: CART_STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ photoIds: state.photoIds }),
+      partialize: (state) => ({ lines: state.lines }),
       onRehydrateStorage: () => (state) => state?.markHydrated(),
     },
   ),

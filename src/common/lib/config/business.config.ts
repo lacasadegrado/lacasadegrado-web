@@ -28,4 +28,16 @@ export const BUSINESS = {
 
   /** What we promise on the "we're verifying" screen and in email. */
   verificationSlaHours: 24,
+
+  /**
+   * Printed photos. The business delivers prints to the institution, not
+   * to the person; the institution hands them out. Past the
+   * responsibility window the business no longer answers for the print.
+   */
+  print: {
+    /** Approximate days from approval to delivery at the institution. */
+    deliveryDays: 5,
+    /** Days after delivery to the institution during which claims are accepted. */
+    responsibilityDays: 15,
+  },
 } as const;

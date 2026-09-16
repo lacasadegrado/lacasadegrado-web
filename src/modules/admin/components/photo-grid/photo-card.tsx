@@ -91,9 +91,10 @@ export function PhotoCard({
 
         {/* Keyed on the server value so a bulk price change resets the local draft. */}
         <PhotoPriceForm
-          key={photo.priceCents}
+          key={`${photo.priceCents}-${photo.printPriceCents}`}
           photoId={photo.id}
           priceCents={photo.priceCents}
+          printPriceCents={photo.printPriceCents}
         />
 
         {photo.tags.length > 0 ? (

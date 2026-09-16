@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { authUid, authenticatedRole } from "drizzle-orm/supabase";
 
-import { orderStatusEnum, paymentMethodEnum } from "./enums.table";
+import { orderStatusEnum, paymentMethodEnum, photoFormatEnum, printStatusEnum } from "./enums.table";
 import { photos } from "./photos.table";
 import { profiles } from "./profiles.table";
 
@@ -25,12 +25,18 @@ export const orders = pgTable(
       .references(() => profiles.id, { onDelete: "restrict" }),
     status: orderStatusEnum("status").notNull().default("pending_payment"),
     paymentMethod: paymentMethodEnum("payment_method").notNull(),
-    /** Always recomputed server-side from photos.price_cents. */
+    /** Always recomputed server-side from photos.price_cents / print_price_cents. */
     subtotalCents: integer("subtotal_cents").notNull(),
     totalCents: integer("total_cents").notNull(),
-    currency: text("currency").notNull().default("USD"),
-    /** USD to VES rate snapshotted at checkout. Null if none was set. */
+    currency: text("currency").notNull().default("EUR"),
+    /** EUR to VES rate snapshotted at checkout. Null if none was set. */
     exchangeRate: numeric("exchange_rate", { precision: 14, scale: 4 }),
+    /** Null unless the order has print items; then pending until an admin hands them to the institution. */
+    printStatus: printStatusEnum("print_status"),
+    printDeliveredAt: timestamp("print_delivered_at", { withTimezone: true }),
+    /** Which terms text the person accepted at checkout (TERMS_VERSION) and when. */
+    termsVersion: text("terms_version"),
+    termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -57,7 +63,9 @@ export const orderItems = pgTable(
     photoId: uuid("photo_id")
       .notNull()
       .references(() => photos.id, { onDelete: "restrict" }),
-    /** Price snapshot at order time. Never read the live photo price. */
+    /** Digital file only, or a print that includes the digital file. */
+    format: photoFormatEnum("format").notNull().default("digital"),
+    /** Price snapshot at order time for that format. Never read the live photo price. */
     unitPriceCents: integer("unit_price_cents").notNull(),
   },
   (t) => [

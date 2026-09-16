@@ -6,7 +6,10 @@ export type GalleryPhoto = {
   id: string;
   width: number;
   height: number;
+  /** Digital download price. */
   priceCents: number;
+  /** Printed copy price; includes the digital file. */
+  printPriceCents: number;
   /** The viewer already holds an entitlement for this photo. */
   owned: boolean;
 };

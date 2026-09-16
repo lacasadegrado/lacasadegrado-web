@@ -20,6 +20,7 @@ export async function listPhotosForEvent(eventId: string): Promise<AdminPhoto[]>
       width: photos.width,
       height: photos.height,
       priceCents: photos.priceCents,
+      printPriceCents: photos.printPriceCents,
       createdAt: photos.createdAt,
       /** How many people own it; a sold photo cannot be deleted. */
       soldCount: count(entitlements.id),
@@ -55,10 +56,13 @@ export async function listPhotosForEvent(eventId: string): Promise<AdminPhoto[]>
 }
 
 /** Future orders only: existing order_items keep their snapshot price. */
-export async function updatePhotoPrice(photoId: string, priceCents: number): Promise<boolean> {
+export async function updatePhotoPrice(
+  photoId: string,
+  prices: { priceCents: number; printPriceCents: number },
+): Promise<boolean> {
   const updated = await db
     .update(photos)
-    .set({ priceCents })
+    .set(prices)
     .where(eq(photos.id, photoId))
     .returning({ id: photos.id });
   return updated.length > 0;
@@ -139,10 +143,13 @@ export async function bulkTagPhotos(
 }
 
 /** One price for every selected photo. Future orders only. */
-export async function bulkUpdatePrice(photoIds: string[], priceCents: number): Promise<BulkActionResult> {
+export async function bulkUpdatePrice(
+  photoIds: string[],
+  prices: { priceCents: number; printPriceCents: number },
+): Promise<BulkActionResult> {
   const updated = await db
     .update(photos)
-    .set({ priceCents })
+    .set(prices)
     .where(inArray(photos.id, photoIds))
     .returning({ id: photos.id });
   return { affected: updated.length, skipped: photoIds.length - updated.length, blocked: [], invalid: [] };

@@ -4,7 +4,8 @@ import Link from "next/link";
 
 import { Alert, AlertDescription } from "@/common/components/ui/alert";
 import { Button } from "@/common/components/ui/button";
-import { formatUsd } from "@/common/lib/utils/money.util";
+import { BUSINESS } from "@/common/lib/config/business.config";
+import { formatEur } from "@/common/lib/utils/money.util";
 import { GALLERY_PATHS } from "@/modules/gallery/lib/constants/gallery.constants";
 
 import { CART_PATHS } from "../lib/constants/cart.constants";
@@ -14,8 +15,8 @@ import { CartLine } from "./cart-line";
 import { CartListSkeleton } from "./cart-list-skeleton";
 
 export function CartList() {
-  const { remove } = useCart();
-  const { hydrated, photoIds, items, isLoading, isError, refetch } = useCartItems();
+  const { add, remove } = useCart();
+  const { hydrated, lines, items, isLoading, isError, refetch } = useCartItems();
 
   if (!hydrated || isLoading) return <CartListSkeleton />;
 
@@ -32,7 +33,7 @@ export function CartList() {
     );
   }
 
-  if (photoIds.length === 0 || items.length === 0) {
+  if (lines.length === 0 || items.length === 0) {
     return (
       <section className="max-w-xl rounded-md border border-dashed p-6 sm:p-8">
         <h2 className="text-xl font-bold">Tu carrito está vacío</h2>
@@ -50,7 +51,8 @@ export function CartList() {
 
   const buyable = items.filter((item) => !item.owned);
   const owned = items.filter((item) => item.owned);
-  const subtotal = buyable.reduce((sum, item) => sum + item.priceCents, 0);
+  const subtotal = buyable.reduce((sum, item) => sum + item.unitPriceCents, 0);
+  const prints = buyable.filter((item) => item.format === "print").length;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
@@ -73,7 +75,7 @@ export function CartList() {
         ) : null}
         <ul className="divide-y border-y">
           {items.map((item) => (
-            <CartLine key={item.id} item={item} onRemove={remove} />
+            <CartLine key={item.id} item={item} onRemove={remove} onChangeFormat={add} />
           ))}
         </ul>
       </div>
@@ -85,16 +87,29 @@ export function CartList() {
             <dt className="text-muted-foreground">
               {buyable.length} foto{buyable.length === 1 ? "" : "s"}
             </dt>
-            <dd className="tabular-nums">{formatUsd(subtotal)}</dd>
+            <dd className="tabular-nums">{formatEur(subtotal)}</dd>
           </div>
+          {prints > 0 ? (
+            <div className="flex justify-between text-muted-foreground">
+              <dt>Impresas</dt>
+              <dd className="tabular-nums">{prints}</dd>
+            </div>
+          ) : null}
           <div className="flex justify-between border-t pt-2 text-base font-semibold">
             <dt>Total</dt>
-            <dd className="tabular-nums">{formatUsd(subtotal)}</dd>
+            <dd className="tabular-nums">{formatEur(subtotal)}</dd>
           </div>
         </dl>
         <p className="mt-2 text-xs text-muted-foreground">
           El equivalente en bolívares se calcula al pagar con la tasa del día.
         </p>
+        {prints > 0 ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Las fotos impresas se entregan en tu institución en unos{" "}
+            {BUSINESS.print.deliveryDays} días después de aprobar el pago, y traen la digital
+            incluida.
+          </p>
+        ) : null}
         <Button asChild size="lg" className="mt-4 h-11 w-full" disabled={buyable.length === 0}>
           <Link href={CART_PATHS.checkout} aria-disabled={buyable.length === 0}>
             Pagar

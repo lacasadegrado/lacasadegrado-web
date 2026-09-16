@@ -36,8 +36,10 @@ export const photos = pgTable(
     originalFilename: text("original_filename").notNull(),
     width: integer("width").notNull(),
     height: integer("height").notNull(),
-    /** Integer USD cents. Bolívar amounts are derived at display time. */
+    /** Digital download, integer EUR cents. Bolívar amounts are derived at display time. */
     priceCents: integer("price_cents").notNull(),
+    /** Printed copy, integer EUR cents. Buying the print includes the digital file. */
+    printPriceCents: integer("print_price_cents").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

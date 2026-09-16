@@ -1,0 +1,1 @@
+ALTER TABLE "exchange_rates" DROP COLUMN "usd_to_ves";

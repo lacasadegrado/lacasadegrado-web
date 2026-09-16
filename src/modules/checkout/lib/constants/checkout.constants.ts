@@ -67,11 +67,11 @@ export const EXCHANGE_RATE = {
   /** Latest stored rate older than this triggers a DolarApi refresh at checkout. */
   maxAgeMs: 12 * 60 * 60 * 1000,
   /**
-   * Assumption: Venezuelan businesses price in bolívares at the BCV
-   * official rate. "paralelo" is available in the admin for reference.
+   * Prices are in euros; bolívar amounts use the BCV official EUR rate.
+   * "paralelo" is available in the admin for reference.
    */
   apiSource: "oficial",
-  apiUrl: "https://ve.dolarapi.com/v1/dolares",
+  apiUrl: "https://ve.dolarapi.com/v1/euros",
   apiTimeoutMs: 5000,
 } as const;
 

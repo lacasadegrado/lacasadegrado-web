@@ -9,7 +9,7 @@ export const exchangeRateSourceEnum = pgEnum("exchange_rate_source", [
 ]);
 
 /**
- * USD to VES rate. Append-only: checkout reads the latest row by
+ * EUR to VES rate. Append-only: checkout reads the latest row by
  * `effective_at` and snapshots it onto the order. Rows are either set by
  * an admin (`manual`, with `created_by`) or fetched automatically from
  * DolarApi when the latest row is stale (`created_by` null).
@@ -18,7 +18,7 @@ export const exchangeRates = pgTable(
   "exchange_rates",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    usdToVes: numeric("usd_to_ves", { precision: 14, scale: 4 }).notNull(),
+    eurToVes: numeric("eur_to_ves", { precision: 14, scale: 4 }).notNull(),
     effectiveAt: timestamp("effective_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

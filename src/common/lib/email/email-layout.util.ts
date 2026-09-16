@@ -97,7 +97,7 @@ export function renderEmailLayout(input: LayoutInput): string {
       </td></tr>
       <tr><td style="padding:20px 8px 0;">
         <p style="margin:0 0 6px;font-family:${FONT};font-size:12px;line-height:18px;color:${EMAIL_COLORS.muted};">${escapeHtml(footer)}</p>
-        <p style="margin:0;font-family:${FONT};font-size:12px;line-height:18px;color:${EMAIL_COLORS.muted};"><a href="${input.appUrl}" style="color:${EMAIL_COLORS.teal};">${input.appUrl.replace(/^https?:\/\//, "")}</a></p>
+        <p style="margin:0;font-family:${FONT};font-size:12px;line-height:18px;color:${EMAIL_COLORS.muted};"><a href="${input.appUrl}" style="color:${EMAIL_COLORS.teal};">${input.appUrl.replace(/^https?:\/\//, "")}</a> · <a href="${input.appUrl}/terminos" style="color:${EMAIL_COLORS.teal};">Términos</a> · <a href="${input.appUrl}/privacidad" style="color:${EMAIL_COLORS.teal};">Privacidad</a></p>
       </td></tr>
     </table>
   </td></tr>

@@ -39,11 +39,11 @@ export function RateForm() {
 
       <form key={formKey} action={manualAction} className="space-y-3">
         <div className="space-y-2">
-          <Label htmlFor="usdToVes">O fija la tasa a mano (Bs por USD)</Label>
+          <Label htmlFor="eurToVes">O fija la tasa a mano (Bs por EUR)</Label>
           <div className="flex gap-2">
             <Input
-              id="usdToVes"
-              name="usdToVes"
+              id="eurToVes"
+              name="eurToVes"
               type="text"
               inputMode="decimal"
               placeholder="813,74"

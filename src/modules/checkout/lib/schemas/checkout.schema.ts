@@ -1,12 +1,14 @@
 import { z } from "zod";
 
-import { photoIdListSchema } from "@/modules/cart/lib/schemas/cart.schema";
+import { cartLinesSchema } from "@/modules/cart/lib/schemas/cart.schema";
 
 import { ENABLED_PAYMENT_METHOD_IDS, PROOF_UPLOAD } from "../constants/checkout.constants";
 
 export const createOrderSchema = z.object({
-  photoIds: photoIdListSchema.pipe(z.array(z.uuid()).min(1)),
+  lines: cartLinesSchema.pipe(z.array(z.object({ photoId: z.uuid(), format: z.enum(["digital", "print"]) })).min(1)),
   paymentMethod: z.enum(ENABLED_PAYMENT_METHOD_IDS as [string, ...string[]]),
+  /** Must be literally true: the person ticked the terms checkbox. */
+  acceptTerms: z.literal(true),
 });
 
 export const submitPaymentSchema = z.object({
@@ -46,8 +48,8 @@ export const proofFileSchema = z.object({
 });
 
 export const manualRateSchema = z.object({
-  usdToVes: z.coerce
-    .number({ error: "Escribe la tasa en bolívares por dólar." })
+  eurToVes: z.coerce
+    .number({ error: "Escribe la tasa en bolívares por euro." })
     .positive({ error: "La tasa debe ser mayor que cero." })
     .max(1_000_000),
 });

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { usdToCents } from "@/common/lib/utils/money.util";
+import { eurToCents } from "@/common/lib/utils/money.util";
 
 import { ADMIN_PATHS } from "../constants/admin.constants";
 import {
@@ -60,7 +60,8 @@ export async function updatePhotoPriceAction(
 
   const parsed = updatePhotoPriceSchema.safeParse({
     photoId: formData.get("photoId"),
-    priceUsd: String(formData.get("priceUsd") ?? "").replace(",", "."),
+    priceEur: String(formData.get("priceEur") ?? "").replace(",", "."),
+    printPriceEur: String(formData.get("printPriceEur") ?? "").replace(",", "."),
   });
   if (!parsed.success) {
     return {
@@ -69,11 +70,14 @@ export async function updatePhotoPriceAction(
     };
   }
 
-  const updated = await updatePhotoPrice(parsed.data.photoId, usdToCents(parsed.data.priceUsd));
+  const updated = await updatePhotoPrice(parsed.data.photoId, {
+    priceCents: eurToCents(parsed.data.priceEur),
+    printPriceCents: eurToCents(parsed.data.printPriceEur),
+  });
   if (!updated) return { status: "error", message: "No encontramos la foto." };
 
   revalidatePath(ADMIN_PATHS.photos);
-  return { status: "success", message: "Precio guardado." };
+  return { status: "success", message: "Precios guardados." };
 }
 
 export async function deletePhotoAction(
@@ -140,24 +144,29 @@ export async function bulkTagPhotosAction(input: {
 
 export async function bulkUpdatePriceAction(input: {
   photoIds: string[];
-  priceUsd: string;
+  priceEur: string;
+  printPriceEur: string;
 }): Promise<BulkActionOutcome> {
   await requireAdmin();
 
   const parsed = bulkPriceSchema.safeParse({
     photoIds: input.photoIds,
-    priceUsd: input.priceUsd.replace(",", "."),
+    priceEur: input.priceEur.replace(",", "."),
+    printPriceEur: input.printPriceEur.replace(",", "."),
   });
   if (!parsed.success) {
     return { ok: false, message: parsed.error.issues[0]?.message ?? "Revisa el precio." };
   }
 
-  const result = await bulkUpdatePrice(parsed.data.photoIds, usdToCents(parsed.data.priceUsd));
+  const result = await bulkUpdatePrice(parsed.data.photoIds, {
+    priceCents: eurToCents(parsed.data.priceEur),
+    printPriceCents: eurToCents(parsed.data.printPriceEur),
+  });
   revalidatePath(ADMIN_PATHS.photos);
   return {
     ok: true,
     result,
-    message: `Precio actualizado en ${plural(result.affected, "foto", "fotos")}.`,
+    message: `Precios actualizados en ${plural(result.affected, "foto", "fotos")}.`,
   };
 }
 

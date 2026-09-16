@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/common/components/ui/table"
 import { formatDateTime } from "@/common/lib/utils/date.util"
-import { formatUsd } from "@/common/lib/utils/money.util"
+import { formatEur } from "@/common/lib/utils/money.util"
 import { PAYMENT_METHODS } from "@/modules/checkout/lib/constants/checkout.constants"
 import { ORDER_STATUS_LABELS } from "@/modules/orders/lib/constants/orders.constants"
 import { PURCHASES_PATHS } from "@/modules/purchases/lib/constants/purchases.constants"
@@ -55,7 +55,7 @@ export function UserPhotos({ photos }: { photos: AdminUserPhoto[] }) {
               </p>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs tabular-nums text-muted-foreground">
-                  {formatUsd(photo.priceCents)}
+                  {formatEur(photo.priceCents)} · impresa {formatEur(photo.printPriceCents)}
                 </span>
                 {photo.owned ? <Badge variant="secondary">Comprada</Badge> : null}
               </div>
@@ -107,8 +107,13 @@ export function UserOrders({ orders }: { orders: AdminUserOrder[] }) {
               <TableCell>
                 {PAYMENT_METHODS.find((m) => m.id === order.paymentMethod)?.label ?? order.paymentMethod}
               </TableCell>
-              <TableCell className="text-right tabular-nums">{order.itemCount}</TableCell>
-              <TableCell className="text-right tabular-nums">{formatUsd(order.totalCents)}</TableCell>
+              <TableCell className="text-right tabular-nums">
+                {order.itemCount}
+                {order.printCount > 0 ? (
+                  <span className="text-muted-foreground"> ({order.printCount} impresa{order.printCount === 1 ? "" : "s"})</span>
+                ) : null}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">{formatEur(order.totalCents)}</TableCell>
               <TableCell className="font-mono text-xs">{order.latestReference ?? "—"}</TableCell>
               <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                 {formatDateTime(order.createdAt)}

@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from "@/common/components/ui/alert";
 import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
 import { Textarea } from "@/common/components/ui/textarea";
-import { formatUsd } from "@/common/lib/utils/money.util";
+import { formatEur } from "@/common/lib/utils/money.util";
 
 import { approvePaymentAction, rejectPaymentAction } from "../../lib/actions/payment-review.action";
 import type { ActionState } from "../../lib/types/admin.types";
@@ -77,7 +77,7 @@ export function ReviewActions({ orderId, customerEmail, totalCents, reference }:
             <form action={approveAction}>
               <input type="hidden" name="orderId" value={orderId} />
               <AlertDialogHeader>
-                <AlertDialogTitle>¿Confirmas que recibiste {formatUsd(totalCents)}?</AlertDialogTitle>
+                <AlertDialogTitle>¿Confirmas que recibiste {formatEur(totalCents)}?</AlertDialogTitle>
                 <AlertDialogDescription>
                   Referencia {reference}. Al aprobar, {customerEmail} podrá descargar sus fotos de
                   inmediato y recibirá un correo. Esto no se puede deshacer.

@@ -43,6 +43,27 @@
       "when": 1789423334641,
       "tag": "0005_user_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789489844434,
+      "tag": "0006_print_and_eur",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789489856550,
+      "tag": "0007_drop_usd_rate",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789519968387,
+      "tag": "0008_order_terms_consent",
+      "breakpoints": true
     }
   ]
 }

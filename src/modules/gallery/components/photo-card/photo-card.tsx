@@ -1,6 +1,5 @@
 import { PhotoLightbox } from "@/common/components/photo-lightbox/photo-lightbox";
 import { Button } from "@/common/components/ui/button";
-import { formatUsd } from "@/common/lib/utils/money.util";
 import { PURCHASES_PATHS } from "@/modules/purchases/lib/constants/purchases.constants";
 
 import { GALLERY_PATHS } from "../../lib/constants/gallery.constants";
@@ -44,10 +43,12 @@ export function PhotoCard({ photo, mode }: PhotoCardProps) {
       </div>
       <div className="space-y-2 p-2.5">
         {mode === "buy" ? (
-          <>
-            <span className="block text-sm tabular-nums">{formatUsd(photo.priceCents)}</span>
-            <PhotoCardActions photoId={photo.id} owned={photo.owned} />
-          </>
+          <PhotoCardActions
+            photoId={photo.id}
+            owned={photo.owned}
+            priceCents={photo.priceCents}
+            printPriceCents={photo.printPriceCents}
+          />
         ) : mode === "free-download" ? (
           <Button asChild size="sm" className="h-9 w-full">
             <a href={PURCHASES_PATHS.downloadApi(photo.id)} download>

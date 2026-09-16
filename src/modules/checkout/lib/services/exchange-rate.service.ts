@@ -10,17 +10,17 @@ import type { CurrentRate } from "../types/checkout.types";
 import { fetchDolarApiRate } from "./dolarapi.service";
 
 function toCurrentRate(row: {
-  usdToVes: string;
+  eurToVes: string;
   effectiveAt: Date;
   source: ExchangeRateSource;
 }): CurrentRate {
-  return { usdToVes: Number(row.usdToVes), effectiveAt: row.effectiveAt, source: row.source };
+  return { eurToVes: Number(row.eurToVes), effectiveAt: row.effectiveAt, source: row.source };
 }
 
 export async function getLatestRate(): Promise<CurrentRate | null> {
   const [row] = await db
     .select({
-      usdToVes: exchangeRates.usdToVes,
+      eurToVes: exchangeRates.eurToVes,
       effectiveAt: exchangeRates.effectiveAt,
       source: exchangeRates.source,
     })
@@ -44,7 +44,7 @@ export async function listRecentRates(limit = 10) {
   return db
     .select({
       id: exchangeRates.id,
-      usdToVes: exchangeRates.usdToVes,
+      eurToVes: exchangeRates.eurToVes,
       effectiveAt: exchangeRates.effectiveAt,
       source: exchangeRates.source,
       createdBy: exchangeRates.createdBy,
@@ -55,19 +55,19 @@ export async function listRecentRates(limit = 10) {
 }
 
 export async function insertRate(input: {
-  usdToVes: number;
+  eurToVes: number;
   source: ExchangeRateSource;
   createdBy: string | null;
 }): Promise<CurrentRate> {
   const [row] = await db
     .insert(exchangeRates)
     .values({
-      usdToVes: input.usdToVes.toFixed(4),
+      eurToVes: input.eurToVes.toFixed(4),
       source: input.source,
       createdBy: input.createdBy,
     })
     .returning({
-      usdToVes: exchangeRates.usdToVes,
+      eurToVes: exchangeRates.eurToVes,
       effectiveAt: exchangeRates.effectiveAt,
       source: exchangeRates.source,
     });
@@ -77,7 +77,7 @@ export async function insertRate(input: {
 /** Pulls the official quote from DolarApi and stores it as the current rate. */
 export async function refreshRateFromApi(createdBy: string | null): Promise<CurrentRate> {
   const api = await fetchDolarApiRate(EXCHANGE_RATE.apiSource);
-  return insertRate({ usdToVes: api.usdToVes, source: "dolarapi_oficial", createdBy });
+  return insertRate({ eurToVes: api.eurToVes, source: "dolarapi_oficial", createdBy });
 }
 
 /**

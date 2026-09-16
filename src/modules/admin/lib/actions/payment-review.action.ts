@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { BUSINESS } from "@/common/lib/config/business.config";
 import { getServerEnv } from "@/common/lib/config/env.config";
 import { sendEmail } from "@/common/lib/email/email.service";
 import {
@@ -39,6 +40,8 @@ export async function approvePaymentAction(
       orderId: result.order.orderId,
       totalCents: result.order.totalCents,
       photoCount: result.order.entitlementsGranted,
+      printCount: result.order.printCount,
+      printDeliveryDays: BUSINESS.print.deliveryDays,
       appUrl: getServerEnv().NEXT_PUBLIC_APP_URL,
     });
     const sent = await sendEmail({ to: result.order.customerEmail, ...email });

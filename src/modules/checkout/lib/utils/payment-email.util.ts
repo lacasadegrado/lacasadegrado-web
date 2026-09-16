@@ -6,14 +6,14 @@ import {
   escapeHtml,
   renderEmailLayout,
 } from "@/common/lib/email/email-layout.util";
-import { formatUsd, formatVes } from "@/common/lib/utils/money.util";
+import { formatEur, formatVes } from "@/common/lib/utils/money.util";
 
 import { PAYMENT_METHODS } from "../constants/checkout.constants";
 
 type PaymentSubmittedEmailInput = {
   orderId: string;
   totalCents: number;
-  usdToVes: number | null;
+  eurToVes: number | null;
   reference: string;
   paymentMethod: PaymentMethod;
   slaHours: number;
@@ -24,8 +24,8 @@ type PaymentSubmittedEmailInput = {
 export function buildPaymentSubmittedEmail(input: PaymentSubmittedEmailInput) {
   const method =
     PAYMENT_METHODS.find((m) => m.id === input.paymentMethod)?.label ?? input.paymentMethod;
-  const usd = formatUsd(input.totalCents);
-  const ves = input.usdToVes ? formatVes(input.totalCents, input.usdToVes) : null;
+  const usd = formatEur(input.totalCents);
+  const ves = input.eurToVes ? formatVes(input.totalCents, input.eurToVes) : null;
   const orderUrl = `${input.appUrl}/orders/${input.orderId}`;
   const shortId = input.orderId.slice(0, 8).toUpperCase();
 

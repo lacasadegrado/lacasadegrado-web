@@ -6,7 +6,11 @@ import { formatDateOnly } from "@/common/lib/utils/date.util";
 import { EventPicker } from "../components/event-picker";
 import { PhotoGrid } from "../components/photo-grid/photo-grid";
 import { PhotoUploader } from "../components/photo-uploader/photo-uploader";
-import { ADMIN_PATHS, DEFAULT_PHOTO_PRICE_CENTS } from "../lib/constants/admin.constants";
+import {
+  ADMIN_PATHS,
+  DEFAULT_PHOTO_PRICE_CENTS,
+  DEFAULT_PRINT_PRICE_CENTS,
+} from "../lib/constants/admin.constants";
 import { listEvents } from "../lib/services/event.service";
 import { listPhotosForEvent } from "../lib/services/photo.service";
 
@@ -55,7 +59,11 @@ export async function AdminPhotosScreen({ eventId }: AdminPhotosScreenProps) {
                 agua.
               </p>
             </div>
-            <PhotoUploader eventId={event.id} defaultPriceCents={DEFAULT_PHOTO_PRICE_CENTS} />
+            <PhotoUploader
+              eventId={event.id}
+              defaultPriceCents={DEFAULT_PHOTO_PRICE_CENTS}
+              defaultPrintPriceCents={DEFAULT_PRINT_PRICE_CENTS}
+            />
           </section>
 
           <section aria-labelledby="grid-heading" className="space-y-4">
@@ -64,8 +72,9 @@ export async function AdminPhotosScreen({ eventId }: AdminPhotosScreenProps) {
                 {photos.length} foto{photos.length === 1 ? "" : "s"}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Marca varias fotos para etiquetarlas, cambiarles el precio o eliminarlas de una
-                vez. Cada tarjeta también acepta un correo, un precio o borrarse por separado.
+                Marca varias fotos para etiquetarlas, cambiarles los precios o eliminarlas de una
+                vez. Cada foto tiene dos precios: la digital y la impresa, que incluye la
+                digital. Cada tarjeta también acepta un correo, precios o borrarse por separado.
               </p>
             </div>
             <PhotoGrid photos={photos} />

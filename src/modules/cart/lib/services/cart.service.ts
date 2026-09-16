@@ -6,18 +6,19 @@ import { db } from "@/common/lib/db";
 import { entitlements, events, photoTags, photos } from "@/common/lib/db/schema";
 import type { SessionUser } from "@/modules/auth/lib/types/auth.types";
 
-import type { CartItem, CartItemsResult } from "../types/cart.types";
+import type { CartItem, CartItemsResult, CartLineInput } from "../types/cart.types";
 
 /**
- * Resolves cart ids against what the viewer may actually buy: photos
+ * Resolves cart lines against what the viewer may actually buy: photos
  * tagged with their email in active events. Prices come from the DB,
- * never from the client (security rule 9). Order of the input is kept.
+ * never from the client (security rule 9); the client only chooses the
+ * format. Order of the input is kept.
  */
 export async function getCartItemsForUser(
   viewer: SessionUser,
-  photoIds: string[],
+  lines: CartLineInput[],
 ): Promise<CartItemsResult> {
-  if (photoIds.length === 0) return { items: [], unavailableIds: [] };
+  if (lines.length === 0) return { items: [], unavailableIds: [] };
 
   const rows = await db
     .select({
@@ -25,6 +26,7 @@ export async function getCartItemsForUser(
       width: photos.width,
       height: photos.height,
       priceCents: photos.priceCents,
+      printPriceCents: photos.printPriceCents,
       eventName: events.name,
       owned: sql<boolean>`${entitlements.id} is not null`,
     })
@@ -38,15 +40,27 @@ export async function getCartItemsForUser(
       entitlements,
       and(eq(entitlements.photoId, photos.id), eq(entitlements.profileId, viewer.id)),
     )
-    .where(inArray(photos.id, photoIds));
+    .where(
+      inArray(
+        photos.id,
+        lines.map((line) => line.photoId),
+      ),
+    );
 
-  const byId = new Map<string, CartItem>(rows.map((row) => [row.id, row]));
+  const byId = new Map(rows.map((row) => [row.id, row]));
   const items: CartItem[] = [];
   const unavailableIds: string[] = [];
-  for (const id of photoIds) {
-    const item = byId.get(id);
-    if (item) items.push(item);
-    else unavailableIds.push(id);
+  for (const line of lines) {
+    const row = byId.get(line.photoId);
+    if (!row) {
+      unavailableIds.push(line.photoId);
+      continue;
+    }
+    items.push({
+      ...row,
+      format: line.format,
+      unitPriceCents: line.format === "print" ? row.printPriceCents : row.priceCents,
+    });
   }
   return { items, unavailableIds };
 }

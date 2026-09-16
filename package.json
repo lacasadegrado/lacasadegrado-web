@@ -12,6 +12,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "db:purge": "tsx scripts/purge-data.mts",
     "admin:grant": "tsx scripts/set-admin.mts grant",
     "admin:revoke": "tsx scripts/set-admin.mts revoke",
     "photos:backfill-clean": "tsx scripts/backfill-clean-previews.mts",

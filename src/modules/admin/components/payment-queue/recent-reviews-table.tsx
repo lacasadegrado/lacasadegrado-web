@@ -8,7 +8,7 @@ import {
   TableRow,
 } from "@/common/components/ui/table";
 import { formatDateTime } from "@/common/lib/utils/date.util";
-import { formatUsd } from "@/common/lib/utils/money.util";
+import { formatEur } from "@/common/lib/utils/money.util";
 import { ORDER_STATUS_LABELS } from "@/modules/orders/lib/constants/orders.constants";
 
 import type { ReviewedPaymentItem } from "../../lib/types/payment-review.types";
@@ -42,7 +42,7 @@ export function RecentReviewsTable({ items }: { items: ReviewedPaymentItem[] }) 
                 {item.orderId.slice(0, 8).toUpperCase()} · ref. {item.reference}
               </TableCell>
               <TableCell>{item.customerEmail}</TableCell>
-              <TableCell className="text-right tabular-nums">{formatUsd(item.totalCents)}</TableCell>
+              <TableCell className="text-right tabular-nums">{formatEur(item.totalCents)}</TableCell>
               <TableCell>
                 <Badge variant={item.rejectionReason ? "outline" : "default"}>
                   {item.rejectionReason ? "Rechazado" : ORDER_STATUS_LABELS.paid}

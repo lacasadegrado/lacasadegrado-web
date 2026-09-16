@@ -1,9 +1,16 @@
-import type { OrderStatus, PaymentMethod, PaymentStatus } from "@/common/lib/db/schema";
+import type {
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  PhotoFormat,
+  PrintStatus,
+} from "@/common/lib/db/schema";
 
 export type OrderLine = {
   photoId: string;
   width: number;
   height: number;
+  format: PhotoFormat;
   unitPriceCents: number;
   eventName: string;
 };
@@ -27,9 +34,12 @@ export type OrderDetail = {
   paymentMethod: PaymentMethod;
   subtotalCents: number;
   totalCents: number;
-  usdToVes: number | null;
+  eurToVes: number | null;
   createdAt: Date;
   paidAt: Date | null;
+  /** Null when the order has no print items. */
+  printStatus: PrintStatus | null;
+  printDeliveredAt: Date | null;
   items: OrderLine[];
   /** Newest first. */
   payments: OrderPayment[];

@@ -29,7 +29,7 @@ export type AutomatedPaymentMethod = {
 export type PaymentMethodDefinition = ManualPaymentMethod | AutomatedPaymentMethod;
 
 export type CurrentRate = {
-  usdToVes: number;
+  eurToVes: number;
   effectiveAt: Date;
   source: ExchangeRateSource;
 };
@@ -39,12 +39,14 @@ export type CheckoutQuote = {
   unavailableIds: string[];
   subtotalCents: number;
   totalCents: number;
+  /** Buyable lines chosen as prints. */
+  printCount: number;
   rate: CurrentRate | null;
 };
 
 export type CreateOrderResult =
   | { ok: true; orderId: string }
-  | { ok: false; reason: "empty" | "unavailable" | "no_rate"; unavailableIds?: string[] };
+  | { ok: false; reason: "empty" | "unavailable" | "no_rate" | "terms"; unavailableIds?: string[] };
 
 export type PaymentFormState =
   | { status: "idle" }

@@ -15,9 +15,10 @@ en la base de datos esperar.
    Abre `http://localhost:3000`. Si Next se queja de que ya hay otro `next dev`,
    ciérralo primero (no pueden correr dos en la misma carpeta).
 
-2. **Dos correos distintos**. El admin ya es `samd.development@gmail.com`.
-   Para el cliente usa otro buzón, o un alias de Gmail como
-   `samd.development+cliente@gmail.com`: Supabase lo trata como un usuario
+2. **Dos correos distintos**. El admin es `lacasadegrado@gmail.com` (la
+   única cuenta que quedó tras limpiar la base el 15/09/2026). Para el
+   cliente usa otro buzón, o un alias de Gmail como
+   `lacasadegrado+cliente@gmail.com`: Supabase lo trata como un usuario
    aparte y el correo llega al mismo inbox. Escribe siempre el alias
    exactamente igual (el etiquetado de fotos se hace por correo).
 
@@ -45,9 +46,14 @@ Tiempos normales en desarrollo: las acciones tardan entre 1 y 5 segundos
 (la base de datos está en Oregón); cada foto subida tarda unos 10 segundos
 (se generan dos derivados y se suben tres archivos).
 
-Datos de prueba que ya existen y no estorban: dos eventos, cuatro fotos
-sintéticas, dos pedidos del admin, unos mensajes de soporte. Puedes ignorarlos
-o borrarlos desde el Table Editor.
+La base está vacía desde el 15/09/2026: solo existe la cuenta admin y el
+historial de tasas. Para volver a dejarla así más adelante:
+
+```bash
+npm run db:purge -- --keep lacasadegrado@gmail.com --yes
+```
+
+Sin `--yes` solo muestra qué borraría. Borra también los archivos de R2.
 
 ---
 
@@ -61,11 +67,11 @@ o borrarlos desde el Table Editor.
   "Reenviar código". Llega un correo **"Tu código para entrar a La Casa de
   Grado"** con seis dígitos.
 - Escribe el código. Al sexto dígito se envía solo.
-- Espera: aterrizas en `/dashboard` ("Mis fotos"). Ve a
-  `http://localhost:3000/admin`.
-- Espera: redirige a `/admin/events`. El panel de admin tiene una barra
-  lateral en teal con Eventos · Fotos · Pagos · Personas · Tasa (Pagos muestra cuántos
-  hay por verificar), un enlace "Ver el sitio como cliente" y tu cuenta
+- Espera: como eres admin aterrizas directo en `/admin`, que redirige a
+  `/admin/events` (un cliente normal aterriza en `/dashboard`). Si quieres
+  ver el sitio como cliente, usa "Ver el sitio como cliente" en la barra. El panel de admin tiene una barra
+  lateral en teal con Eventos · Fotos · Pagos · Impresiones · Tasa · Personas (Pagos e
+  Impresiones muestran cuántos hay pendientes), un enlace "Ver el sitio como cliente" y tu cuenta
   abajo, con "Cerrar sesión" en su menú. Arriba, el botón de ocultar la
   barra, la ruta actual y el cambio de tema. En el teléfono la barra se
   abre desde ese botón.
@@ -97,7 +103,7 @@ o borrarlos desde el Table Editor.
 - Espera: mensaje "Tasa actualizada desde DolarApi: …" y una fila nueva en el
   historial con origen "DolarApi · BCV oficial".
 - Fija una tasa a mano (por ejemplo `900,00`) y pulsa **Fijar tasa**.
-- Espera: mensaje "Tasa fijada en 900,00 Bs/USD." y fila con origen "Manual".
+- Espera: mensaje "Tasa fijada en 900,00 Bs/EUR." y fila con origen "Manual".
   Esa será la tasa de los próximos pedidos.
 - Regla: si la tasa guardada tiene más de 12 horas, el sistema consulta
   DolarApi solo al momento de crear un pedido. Vuelve a poner la tasa de
@@ -106,7 +112,8 @@ o borrarlos desde el Table Editor.
 ### A4. Subir fotos
 
 - Ve a **Fotos**, elige el evento del A2.
-- Deja el precio (5,00 USD) o cámbialo; se aplica al lote.
+- Deja los precios (digital 5,00 EUR e impresa 7,00 EUR) o cámbialos; se
+  aplican al lote. La impresa incluye la digital.
 - Selecciona 3 a 6 JPG a la vez.
 - Espera: la lista muestra cada archivo pasando por "En espera" →
   "Subiendo…" → "Lista", dos a la vez, unos 10 s por foto. Al terminar, la
@@ -120,8 +127,9 @@ o borrarlos desde el Table Editor.
 - En la cuadrícula del admin las fotos se ven **sin marca de agua**
   (el admin siempre ve la versión limpia). Pulsa el ojo en la esquina de una
   foto: se abre grande sobre fondo negro; cierra con la × o con Escape.
-- Cambia el precio de una foto en su tarjeta y pulsa **Guardar**.
-- Espera: "Guardar" se apaga al quedar igual que lo guardado. El precio
+- Cambia el precio digital o el impreso de una foto en su tarjeta y pulsa
+  **Guardar precios**.
+- Espera: "Guardar precios" se apaga al quedar igual que lo guardado. El precio
   nuevo solo aplica a pedidos futuros; los pedidos ya creados conservan el
   suyo.
 - Pulsa la papelera de una foto que **no** esté en ningún pedido y confirma.
@@ -148,9 +156,10 @@ o borrarlos desde el Table Editor.
 - Espera: mensaje "N etiquetas nuevas en M fotos" (más "ya existían" si
   repetiste alguno) y la lista de correos ignorados por inválidos. Cada foto
   marcada muestra los chips nuevos y la selección se limpia.
-- Selecciona todas, pulsa **Precio**, escribe un valor y aplica.
-- Espera: "Precio actualizado en M fotos" y todos los campos de precio
-  muestran el nuevo valor. Solo afecta a pedidos futuros.
+- Selecciona todas, pulsa **Precio**, escribe los dos valores (digital e
+  impresa) y aplica.
+- Espera: "Precios actualizados en M fotos" y todos los campos de precio
+  muestran los nuevos valores. Solo afecta a pedidos futuros.
 - Selecciona una foto que esté en un pedido junto a otra que no, pulsa
   **Eliminar** y confirma.
 - Espera: se borra solo la que no está en pedidos; el mensaje dice cuántas
@@ -182,6 +191,20 @@ o borrarlos desde el Table Editor.
   pedido.
 - Intenta aprobar dos veces rápido (dos pestañas): la segunda debe decir
   "Este pedido ya fue revisado o cambió de estado."
+
+### A6b. Impresiones
+
+- Cuando apruebes un pago que incluya fotos impresas (B5), el badge de
+  **Impresiones** en la barra sube. Entra ahí.
+- Espera: el pedido en "por entregar" con la persona, la institución del
+  evento, cuántas impresas lleva, la fecha del pago y los días de espera
+  (el badge se resalta pasados 5 días).
+- Cuando lleves la foto a la institución, pulsa **Marcar entregada a la
+  institución** y confirma.
+- Espera: el pedido pasa a "Entregadas" con la fecha y los días de
+  responsabilidad que quedan (15). La persona recibe el correo **"Tu foto
+  impresa ya está en <institución>"** y en su pedido aparece "Foto impresa
+  entregada a tu institución". No se puede deshacer.
 
 ### A7. Soporte
 
@@ -287,12 +310,15 @@ una ventana privada, para no mezclar sesiones con el admin.
 - Cuando el admin te haya etiquetado (A5), recarga.
 - Espera: tus fotos agrupadas por evento (nombre, institución, fecha,
   cantidad), en cuadrícula tipo mosaico que **no salta** mientras cargan.
-  Cada una borrosa y con marca de agua, con precio y botón **Agregar al
-  carrito**. Fotos de otros correos no aparecen.
-- Pulsa **Agregar al carrito** en dos fotos.
-- Espera: el botón pasa a **En el carrito**, la tarjeta gana borde negro, y
-  el enlace "Carrito" de la barra muestra un **2**. Recarga la página: sigue
-  igual (el carrito vive en el navegador). Vuelve a pulsar y se quita.
+  Cada una borrosa y con marca de agua, con las dos opciones de compra:
+  **Digital** (€ 5,00) e **Impresa + digital** (€ 7,00), y la nota de que
+  la impresa incluye la digital sin costo adicional. Fotos de otros correos no aparecen.
+- Pulsa **Impresa + digital** en una foto y **Digital** en otra.
+- Espera: la opción elegida queda marcada (solo una por foto), la tarjeta
+  gana borde ámbar y el enlace "Carrito" de la barra muestra un **2**.
+  Recarga la página: sigue igual (el carrito vive en el navegador). Pulsar
+  la otra opción cambia el formato sin duplicar la foto; pulsar la marcada
+  la quita del carrito.
 - Copia la dirección de una vista previa y ábrela en pestaña nueva:
   carga. Espera 15 minutos y recarga esa pestaña de R2: caducó.
 - Pulsa el **ojo** en la esquina de una foto: se abre grande. Si la foto
@@ -302,23 +328,29 @@ una ventana privada, para no mezclar sesiones con el admin.
 ### B4. Carrito
 
 - Pulsa **Carrito** en la barra.
-- Espera: una línea por foto con miniatura, evento, precio; subtotal y
-  total en USD; nota de que los bolívares se calculan al pagar.
+- Espera: una línea por foto con miniatura, evento, un selector de formato
+  (Digital · € 5,00 / Impresa + digital · € 7,00) y el precio; subtotal,
+  cuántas impresas y total en euros; nota de que los bolívares se calculan
+  al pagar y, si hay impresas, que se entregan en la institución en unos 5
+  días.
 - Pulsa **Quitar** en una y vuélvela a agregar desde la galería.
 - Vacía el carrito: aparece "Tu carrito está vacío" con enlace a la galería.
 - Con fotos, pulsa **Pagar**.
 
 ### B5. Elegir cómo pagar
 
-- Espera: en `/checkout`, las fotos, el total en dólares, el **total en
-  bolívares** y una línea "Tasa … Bs/USD (fecha). Se fija al crear el
+- Espera: en `/checkout`, las fotos con su formato, el total en euros, el
+  **total en bolívares** (tasa BCV del euro desde DolarApi) y una línea "Tasa … Bs/EUR (fecha). Se fija al crear el
   pedido." Métodos: Pago Móvil y Transferencia bancaria activos; Binance,
   PayPal y Tarjeta deshabilitados con "Próximamente".
-- Elige **Pago Móvil** y pulsa **Continuar al pago**.
+- **Continuar al pago** está apagado hasta que marques "Acepto los términos y
+  condiciones y la política de privacidad" (los enlaces abren en otra
+  pestaña). Márcalo, elige **Pago Móvil** y pulsa **Continuar al pago**.
 - Espera: breve "Pedido creado" y pasas a `/checkout/<id>/payment`. El
   carrito queda vacío (el badge desaparece). En `orders` hay una fila
   `pending_payment` con `exchange_rate` congelada y en `order_items` una
-  fila por foto con su precio de ese momento.
+  fila por foto con su precio de ese momento, y `terms_version` y
+  `terms_accepted_at` guardan qué versión de los términos aceptaste y cuándo.
 
 ### B6. Pagar y reportar el pago
 
@@ -353,7 +385,7 @@ que recargar o volver atrás no te pierde.
 - Envía con datos válidos.
 - Espera: pasas a `/orders/<id>` con estado **En revisión**, la línea de
   tiempo (Pedido creado → Datos de pago enviados con tu referencia → En
-  revisión) y el resumen con USD, Bs, método y tasa. Llega el correo
+  revisión) y el resumen con EUR, Bs, método y tasa. Llega el correo
   **"Recibimos tu pago del pedido XXXX"** con referencia y monto. En
   `payments` hay una fila `submitted` con `proof_key` bajo `proofs/`.
 - Vuelve a abrir `/checkout/<id>/payment`.
@@ -374,7 +406,9 @@ que recargar o volver atrás no te pierde.
 ### B8. Aprobación y descargas (cuando el admin apruebe, A6)
 
 - Espera: correo **"Tus fotos están listas · pedido XXXX"** con botón
-  "Descargar mis fotos".
+  "Descargar mis fotos" (con impresas, avisa que llegan a la institución
+  en unos 5 días). Si compraste impresa, el pedido muestra el paso "Foto
+  impresa en camino" y la digital de esa foto aparece en Compras.
 - Abre `/orders/<id>`: estado **Aprobado**, "Pago verificado" con fecha y
   botón **Ver mis compras**.
 - En la galería, esas fotos ahora dicen **Ya es tuya · Ver** en vez de
@@ -410,6 +444,17 @@ que recargar o volver atrás no te pierde.
   `support_messages`.
 - Envía seis mensajes en una hora: el sexto responde "Ya nos enviaste varios
   mensajes…".
+
+### B9b. Páginas legales
+
+- En el pie de cualquier página pulsa **Términos y condiciones** y luego
+  **Privacidad**. También están enlazados en el pie de cada correo y bajo el
+  formulario de inicio de sesión.
+- Espera: `/terminos` y `/privacidad` con fecha de última actualización,
+  los datos del negocio (nombre legal y RIF de `business.config.ts`), la
+  política de impresas (5 y 15 días) y el plazo de verificación (24 h)
+  tomados de la configuración, y la sección de cookies que explica que no
+  hay banner porque solo se usa la cookie de sesión.
 
 ### B10. Salir
 

@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Button } from "@/common/components/ui/button";
+import { PHOTO_FORMAT_LABELS } from "@/common/lib/constants/catalog";
 import { BUSINESS } from "@/common/lib/config/business.config";
-import { formatRate, formatUsd, formatVes } from "@/common/lib/utils/money.util";
+import { formatRate, formatEur, formatVes } from "@/common/lib/utils/money.util";
 import { requireSessionUser } from "@/modules/auth/lib/services/session.service";
 import { CHECKOUT_PATHS, PAYMENT_METHODS } from "@/modules/checkout/lib/constants/checkout.constants";
 import { GALLERY_PATHS } from "@/modules/gallery/lib/constants/gallery.constants";
@@ -18,6 +19,7 @@ export async function OrderScreen({ orderId }: { orderId: string }) {
   if (!order) notFound();
 
   const method = PAYMENT_METHODS.find((m) => m.id === order.paymentMethod);
+  const printCount = order.items.filter((item) => item.format === "print").length;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -35,6 +37,18 @@ export async function OrderScreen({ orderId }: { orderId: string }) {
           {order.status === "paid" ? (
             <p className="mt-2 max-w-prose text-base text-muted-foreground">
               Tu pago fue aprobado. Ya puedes descargar tus fotos en alta resolución.
+              {printCount > 0
+                ? order.printStatus === "delivered"
+                  ? " Tu foto impresa ya está en tu institución."
+                  : ` Tu foto impresa llega a tu institución en unos ${BUSINESS.print.deliveryDays} días.`
+                : ""}
+            </p>
+          ) : null}
+          {printCount > 0 ? (
+            <p className="mt-2 max-w-prose text-sm text-muted-foreground">
+              Las fotos impresas se entregan en la institución, que se encarga de hacerlas
+              llegar a cada persona. Pasados {BUSINESS.print.responsibilityDays} días desde esa
+              entrega, La Casa de Grado no se hace responsable de la foto impresa.
             </p>
           ) : null}
         </div>
@@ -88,30 +102,33 @@ export async function OrderScreen({ orderId }: { orderId: string }) {
                   className="h-full w-full object-cover"
                 />
               </div>
-              <p className="min-w-0 flex-1 truncate text-sm">{item.eventName}</p>
-              <p className="text-sm tabular-nums">{formatUsd(item.unitPriceCents)}</p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm">{item.eventName}</p>
+                <p className="text-xs text-muted-foreground">{PHOTO_FORMAT_LABELS[item.format]}</p>
+              </div>
+              <p className="text-sm tabular-nums">{formatEur(item.unitPriceCents)}</p>
             </li>
           ))}
         </ul>
         <dl className="space-y-1 border-t pt-3 text-sm">
           <div className="flex justify-between font-semibold">
             <dt>Total</dt>
-            <dd className="tabular-nums">{formatUsd(order.totalCents)}</dd>
+            <dd className="tabular-nums">{formatEur(order.totalCents)}</dd>
           </div>
-          {order.usdToVes ? (
+          {order.eurToVes ? (
             <div className="flex justify-between text-muted-foreground">
               <dt>En bolívares</dt>
-              <dd className="tabular-nums">{formatVes(order.totalCents, order.usdToVes)}</dd>
+              <dd className="tabular-nums">{formatVes(order.totalCents, order.eurToVes)}</dd>
             </div>
           ) : null}
           <div className="flex justify-between text-muted-foreground">
             <dt>Método</dt>
             <dd>{method?.label ?? order.paymentMethod}</dd>
           </div>
-          {order.usdToVes ? (
+          {order.eurToVes ? (
             <div className="flex justify-between text-muted-foreground">
               <dt>Tasa</dt>
-              <dd className="tabular-nums">{formatRate(order.usdToVes)}</dd>
+              <dd className="tabular-nums">{formatRate(order.eurToVes)}</dd>
             </div>
           ) : null}
         </dl>
