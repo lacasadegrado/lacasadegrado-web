@@ -24,8 +24,15 @@ export async function uploadPhotoHandler(request: Request): Promise<Response> {
   let formData: FormData;
   try {
     formData = await request.formData();
-  } catch {
-    return reply({ ok: false, error: "La solicitud no es válida." }, 400);
+  } catch (error) {
+    console.error("[admin] upload formData failed", {
+      error: error instanceof Error ? error.message : JSON.stringify(error),
+      contentLength: request.headers.get("content-length"),
+    });
+    return reply(
+      { ok: false, error: "No pudimos leer el archivo. Si pesa más de 60 MB, redúcelo." },
+      400,
+    );
   }
 
   const fields = uploadPhotoFieldsSchema.safeParse({

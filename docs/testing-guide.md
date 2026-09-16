@@ -119,8 +119,11 @@ Sin `--yes` solo muestra qué borraría. Borra también los archivos de R2.
   "Subiendo…" → "Lista", dos a la vez, unos 10 s por foto. Al terminar, la
   cuadrícula de abajo se recarga sola con las vistas previas **borrosas y con
   marca de agua** y el precio por foto.
-- Prueba un archivo que no sea imagen (un PDF) o uno mayor de 60 MB.
-- Espera: esa fila queda en "Error" con el motivo; las demás continúan.
+- Prueba un archivo que no sea imagen (un PDF) o uno mayor de 60 MB. Sube
+  también una foto real de 15 a 30 MB: debe subir igual que las pequeñas.
+- Espera: esa fila queda en "Error" con el motivo; las demás continúan. Si
+  una foto grande diera "El servidor rechazó el archivo por tamaño (413)",
+  el límite lo puso el hosting, no la app.
 - Comprueba en Cloudflare R2: por cada foto hay tres objetos,
   `originals/<evento>/…`, `previews/<evento>/….webp` y `clean/<evento>/….webp`.
   El original es idéntico al archivo subido.

@@ -54,8 +54,17 @@ export function PhotoUploader({ eventId, defaultPriceCents, defaultPrintPriceCen
 
     try {
       const response = await fetch("/api/admin/photos/upload", { method: "POST", body });
-      const data = (await response.json()) as UploadResponse;
-      if (data.ok) {
+      // A proxy or host limit answers with HTML, not our JSON: name the status instead.
+      const data = (await response.json().catch(() => null)) as UploadResponse | null;
+      if (!data) {
+        updateItem(item.id, {
+          status: "error",
+          error:
+            response.status === 413
+              ? "El servidor rechazó el archivo por tamaño (413)."
+              : `El servidor respondió ${response.status} sin detalle. Intenta de nuevo.`,
+        });
+      } else if (data.ok) {
         updateItem(item.id, { status: "done" });
       } else {
         updateItem(item.id, { status: "error", error: data.error });

@@ -173,6 +173,12 @@ text changes) and `terms_accepted_at` (migration 0008). No cookie banner:
 only the session cookie plus localStorage. The texts still need a
 Venezuelan lawyer's review, and the RIF/legal name are placeholders.
 
+`experimental.proxyClientMaxBodySize` in `next.config.ts` caps the body
+the proxy forwards to Route Handlers (Next 16 default 10 MB; it logs
+"Request body exceeded" and `request.formData()` throws on the truncated
+body). It is 64mb so 60 MB photo uploads pass. A config change needs a
+dev-server restart.
+
 Only one `next dev` per directory: Next 16 refuses a second one and
 points at `.next/dev/logs/next-development.log` for the running server.
 
