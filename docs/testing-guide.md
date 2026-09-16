@@ -37,7 +37,11 @@ en la base de datos esperar.
 6. Los correos salen de `noreply@lacasadegrado.com`. Si uno no llega en un
    minuto, revisa spam.
 
-7. **Buzón de soporte.** Los mensajes del formulario de Ayuda llegan a la
+7. **CORS en R2.** Las subidas van del navegador directo al bucket; la
+   regla CORS debe existir (ver `docs/commands.md`). Sin ella ninguna foto
+   ni captura sube.
+
+8. **Buzón de soporte.** Los mensajes del formulario de Ayuda llegan a la
    dirección de `SUPPORT_NOTIFY_EMAIL` en `.env.local`. No depende de
    quiénes sean admins: es una sola dirección. Cámbiala y reinicia el
    servidor.
@@ -116,14 +120,16 @@ Sin `--yes` solo muestra qué borraría. Borra también los archivos de R2.
   aplican al lote. La impresa incluye la digital.
 - Selecciona 3 a 6 JPG a la vez.
 - Espera: la lista muestra cada archivo pasando por "En espera" →
-  "Subiendo…" → "Lista", dos a la vez, unos 10 s por foto. Al terminar, la
+  "Subiendo…" (el archivo va del navegador directo a R2) →
+  "Procesando…" (el servidor genera los derivados) → "Lista", dos a la
+  vez, unos 10 s por foto. Al terminar, la
   cuadrícula de abajo se recarga sola con las vistas previas **borrosas y con
   marca de agua** y el precio por foto.
 - Prueba un archivo que no sea imagen (un PDF) o uno mayor de 60 MB. Sube
   también una foto real de 15 a 30 MB: debe subir igual que las pequeñas.
 - Espera: esa fila queda en "Error" con el motivo; las demás continúan. Si
-  una foto grande diera "El servidor rechazó el archivo por tamaño (413)",
-  el límite lo puso el hosting, no la app.
+  todas dieran "Se perdió la conexión" al instante, falta la regla CORS del
+  bucket (ver `docs/commands.md`, sección Almacenamiento).
 - Comprueba en Cloudflare R2: por cada foto hay tres objetos,
   `originals/<evento>/…`, `previews/<evento>/….webp` y `clean/<evento>/….webp`.
   El original es idéntico al archivo subido.
@@ -139,6 +145,10 @@ Sin `--yes` solo muestra qué borraría. Borra también los archivos de R2.
 - Espera: la tarjeta desaparece y en R2 se borran sus tres objetos. En una
   foto que ya esté en un pedido el diálogo responde "Esta foto está en un
   pedido y no se puede borrar."
+- Escribe parte de un correo en **Buscar fotos por correo** (arriba de la
+  cuadrícula). Solo quedan las fotos etiquetadas con ese correo y se indica
+  "N de M fotos con …"; "Seleccionar todas" toma solo las visibles. La × o
+  borrar el texto vuelve a mostrar todas.
 - Las fotos que alguien ya compró llevan la etiqueta **Vendida** (o
   "Vendida ×2" si la tienen varias personas) y van primero en la
   cuadrícula.
@@ -222,6 +232,12 @@ Sin `--yes` solo muestra qué borraría. Borra también los archivos de R2.
 
 ### A7b. Personas y accesos especiales
 
+- Para alguien que todavía no ha entrado (una coordinadora, un profesor),
+  pulsa **Agregar persona**, escribe su correo, un rol y marca los accesos.
+- Espera: se crea la cuenta sin enviar ningún correo y se abre su ficha con
+  los badges ya puestos. Cuando entre con ese correo verá sus fotos
+  etiquetadas de inmediato. Si el correo ya existe, el aviso enlaza a su
+  ficha en vez de duplicarla.
 - Ve a **Personas**. Verás a todas las personas que han entrado alguna vez,
   con su acceso (Cliente, Admin, Ve sin marca, Descarga gratis) y cuántas
   fotos etiquetadas, pedidos y mensajes tiene cada una. Busca por correo,

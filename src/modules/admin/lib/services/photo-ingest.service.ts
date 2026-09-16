@@ -4,44 +4,89 @@ import { randomUUID } from "node:crypto";
 
 import { db } from "@/common/lib/db";
 import { photos } from "@/common/lib/db/schema";
-import { deleteObject, putObject } from "@/common/lib/storage/storage.service";
+import {
+  deleteObject,
+  getObjectBuffer,
+  getPresignedPutUrl,
+  headObject,
+  putObject,
+} from "@/common/lib/storage/storage.service";
 import { extensionForImageType } from "@/common/lib/utils/mime.util";
 
-import { STORAGE_PREFIXES } from "../constants/admin.constants";
+import { PHOTO_UPLOAD, STORAGE_PREFIXES } from "../constants/admin.constants";
 import { generatePreview } from "./preview.service";
 
-type IngestInput = {
+/**
+ * Uploads go browser -> R2 directly: a server function never sees the
+ * bytes (Vercel caps request bodies at 4.5 MB). The server only hands out
+ * a presigned PUT for a key it chose, then, once the browser reports the
+ * PUT finished, reads the object back, derives the previews and inserts
+ * the row. A `photos` row therefore always has its three objects behind it.
+ */
+
+export function originalKeyFor(eventId: string, photoId: string, contentType: string): string {
+  return `${STORAGE_PREFIXES.originals}/${eventId}/${photoId}.${extensionForImageType(contentType)}`;
+}
+
+type PrepareInput = { eventId: string; contentType: string };
+
+/** Step 1: a fresh id and a URL the browser can PUT the original to. */
+export async function prepareUpload(input: PrepareInput): Promise<{ photoId: string; uploadUrl: string }> {
+  const photoId = randomUUID();
+  const uploadUrl = await getPresignedPutUrl(originalKeyFor(input.eventId, photoId, input.contentType), {
+    contentType: input.contentType,
+    expiresInSeconds: PHOTO_UPLOAD.uploadUrlTtlSeconds,
+  });
+  return { photoId, uploadUrl };
+}
+
+type CompleteInput = {
+  photoId: string;
   eventId: string;
   priceCents: number;
   printPriceCents: number;
   filename: string;
   contentType: string;
-  buffer: Buffer;
 };
 
-/**
- * Original goes to R2 untouched; the blurred, watermarked preview is
- * generated here and stored beside it. Only then is the row inserted, so
- * a `photos` row always has both objects behind it.
- */
-export async function ingestPhoto(input: IngestInput): Promise<{ id: string }> {
-  const derivative = await generatePreview(input.buffer);
+export type CompleteUploadResult =
+  | { ok: true; id: string }
+  | { ok: false; reason: "missing" | "too_large" | "wrong_type" | "duplicate" };
 
-  const id = randomUUID();
-  const extension = extensionForImageType(input.contentType);
-  const originalKey = `${STORAGE_PREFIXES.originals}/${input.eventId}/${id}.${extension}`;
-  const previewKey = `${STORAGE_PREFIXES.previews}/${input.eventId}/${id}.webp`;
-  const cleanKey = `${STORAGE_PREFIXES.clean}/${input.eventId}/${id}.webp`;
+/** Step 2: verify what landed in R2, derive previews, insert the row. */
+export async function completeUpload(input: CompleteInput): Promise<CompleteUploadResult> {
+  const originalKey = originalKeyFor(input.eventId, input.photoId, input.contentType);
 
-  await Promise.all([
-    putObject(originalKey, input.buffer, input.contentType),
-    putObject(previewKey, derivative.preview, "image/webp"),
-    putObject(cleanKey, derivative.clean, "image/webp"),
-  ]);
+  const [existing] = await db
+    .select({ id: photos.id })
+    .from(photos)
+    .where((await import("drizzle-orm")).eq(photos.id, input.photoId))
+    .limit(1);
+  if (existing) return { ok: false, reason: "duplicate" };
+
+  const info = await headObject(originalKey);
+  if (!info) return { ok: false, reason: "missing" };
+  if (info.size > PHOTO_UPLOAD.maxBytes) {
+    await deleteObject(originalKey);
+    return { ok: false, reason: "too_large" };
+  }
+  if (info.contentType !== input.contentType) {
+    await deleteObject(originalKey);
+    return { ok: false, reason: "wrong_type" };
+  }
+
+  const previewKey = `${STORAGE_PREFIXES.previews}/${input.eventId}/${input.photoId}.webp`;
+  const cleanKey = `${STORAGE_PREFIXES.clean}/${input.eventId}/${input.photoId}.webp`;
 
   try {
+    const original = await getObjectBuffer(originalKey);
+    const derivative = await generatePreview(original);
+    await Promise.all([
+      putObject(previewKey, derivative.preview, "image/webp"),
+      putObject(cleanKey, derivative.clean, "image/webp"),
+    ]);
     await db.insert(photos).values({
-      id,
+      id: input.photoId,
       eventId: input.eventId,
       originalKey,
       previewKey,
@@ -53,7 +98,7 @@ export async function ingestPhoto(input: IngestInput): Promise<{ id: string }> {
       printPriceCents: input.printPriceCents,
     });
   } catch (error) {
-    // Do not leave orphaned objects if the row could not be written.
+    // Do not leave orphaned objects if processing or the row failed.
     await Promise.allSettled([
       deleteObject(originalKey),
       deleteObject(previewKey),
@@ -62,5 +107,5 @@ export async function ingestPhoto(input: IngestInput): Promise<{ id: string }> {
     throw error;
   }
 
-  return { id };
+  return { ok: true, id: input.photoId };
 }

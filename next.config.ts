@@ -3,14 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      // Payment proof screenshots are posted through a Server Action.
-      // PROOF_UPLOAD.maxBytes is 8 MB; leave headroom for multipart overhead.
-      bodySizeLimit: "10mb",
+      // Files never travel through actions or handlers: photos and payment
+      // proofs go browser -> R2 with presigned PUTs (Vercel caps function
+      // bodies at 4.5 MB). Actions only carry form fields and object keys.
+      bodySizeLimit: "1mb",
     },
-    // proxy.ts clones every request body it forwards, and Next 16 caps that
-    // clone at 10 MB by default: bigger bodies are truncated and the photo
-    // upload route fails to parse them. PHOTO_UPLOAD.maxBytes is 60 MB.
-    proxyClientMaxBodySize: "64mb",
   },
 };
 

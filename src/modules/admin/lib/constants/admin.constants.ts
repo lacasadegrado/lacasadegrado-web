@@ -18,6 +18,8 @@ export const PHOTO_UPLOAD = {
   accept: ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp",
   /** Parallel uploads from the browser. */
   concurrency: 2,
+  /** How long a presigned PUT stays valid; covers a slow 60 MB upload. */
+  uploadUrlTtlSeconds: 15 * 60,
 } as const;
 
 /** Preview derivative, generated once at ingest (security rule 7). */

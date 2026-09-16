@@ -13,8 +13,10 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:purge": "tsx scripts/purge-data.mts",
+    "r2:cors": "tsx scripts/configure-r2-cors.mts",
     "admin:grant": "tsx scripts/set-admin.mts grant",
     "admin:revoke": "tsx scripts/set-admin.mts revoke",
+    "user:create": "tsx scripts/create-user.mts",
     "photos:backfill-clean": "tsx scripts/backfill-clean-previews.mts",
     "brand:assets": "tsx scripts/generate-brand-assets.mts"
   },

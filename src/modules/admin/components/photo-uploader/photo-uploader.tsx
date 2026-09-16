@@ -9,7 +9,7 @@ import { Label } from "@/common/components/ui/label";
 import { eurToCents } from "@/common/lib/utils/money.util";
 
 import { PHOTO_UPLOAD } from "../../lib/constants/admin.constants";
-import type { UploadResponse } from "../../lib/types/admin.types";
+import type { PrepareUploadResponse, UploadResponse } from "../../lib/types/admin.types";
 import { UploadQueue, type QueueItem } from "./upload-queue";
 
 type PhotoUploaderProps = {
@@ -44,30 +44,56 @@ export function PhotoUploader({ eventId, defaultPriceCents, defaultPrintPriceCen
     setQueue((items) => items.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }
 
+  /**
+   * Three steps per file: ask for a presigned URL, PUT the bytes straight
+   * to R2 (never through a server function, which Vercel caps at 4.5 MB),
+   * then tell the server to derive previews and insert the row.
+   */
   async function uploadOne(item: QueueItem) {
     updateItem(item.id, { status: "uploading" });
-    const body = new FormData();
-    body.set("file", item.file);
-    body.set("eventId", eventId);
-    body.set("priceCents", String(priceCents));
-    body.set("printPriceCents", String(printPriceCents));
+    const meta = {
+      eventId,
+      priceCents,
+      printPriceCents,
+      name: item.file.name,
+      type: item.file.type,
+      size: item.file.size,
+    };
 
     try {
-      const response = await fetch("/api/admin/photos/upload", { method: "POST", body });
-      // A proxy or host limit answers with HTML, not our JSON: name the status instead.
-      const data = (await response.json().catch(() => null)) as UploadResponse | null;
-      if (!data) {
+      const prepared = (await fetch("/api/admin/photos/upload", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(meta),
+      }).then((r) => r.json())) as PrepareUploadResponse;
+      if (!prepared.ok) {
+        updateItem(item.id, { status: "error", error: prepared.error });
+        return;
+      }
+
+      const put = await fetch(prepared.uploadUrl, {
+        method: "PUT",
+        headers: { "content-type": item.file.type },
+        body: item.file,
+      });
+      if (!put.ok) {
         updateItem(item.id, {
           status: "error",
-          error:
-            response.status === 413
-              ? "El servidor rechazó el archivo por tamaño (413)."
-              : `El servidor respondió ${response.status} sin detalle. Intenta de nuevo.`,
+          error: `El almacenamiento respondió ${put.status}. Intenta de nuevo.`,
         });
-      } else if (data.ok) {
+        return;
+      }
+
+      updateItem(item.id, { status: "processing" });
+      const done = (await fetch("/api/admin/photos/upload/complete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...meta, photoId: prepared.photoId }),
+      }).then((r) => r.json())) as UploadResponse;
+      if (done.ok) {
         updateItem(item.id, { status: "done" });
       } else {
-        updateItem(item.id, { status: "error", error: data.error });
+        updateItem(item.id, { status: "error", error: done.error });
       }
     } catch {
       updateItem(item.id, { status: "error", error: "Se perdió la conexión. Intenta de nuevo." });

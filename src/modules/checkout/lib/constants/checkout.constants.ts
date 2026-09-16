@@ -79,4 +79,6 @@ export const PROOF_UPLOAD = {
   maxBytes: 8 * 1024 * 1024,
   acceptedTypes: ["image/jpeg", "image/png", "image/webp"] as const,
   accept: ".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp",
+  /** Presigned PUT lifetime for the direct browser upload. */
+  uploadUrlTtlSeconds: 10 * 60,
 } as const;

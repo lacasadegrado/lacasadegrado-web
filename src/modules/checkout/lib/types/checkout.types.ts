@@ -51,3 +51,7 @@ export type CreateOrderResult =
 export type PaymentFormState =
   | { status: "idle" }
   | { status: "error"; message: string; fieldErrors?: Record<string, string> };
+
+export type PrepareProofUploadResult =
+  | { ok: true; key: string; uploadUrl: string }
+  | { ok: false; message: string };

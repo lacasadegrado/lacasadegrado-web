@@ -5,6 +5,7 @@ import type { Readable } from "node:stream";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -97,6 +98,42 @@ export async function getPresignedGetUrl(
       Key: key,
       ResponseContentDisposition: contentDisposition,
       ResponseCacheControl: "private, no-store",
+    }),
+    { expiresIn: expiresInSeconds },
+  );
+}
+
+export type ObjectInfo = { size: number; contentType: string | null };
+
+/** Metadata of an object, or null when it does not exist. */
+export async function headObject(key: string): Promise<ObjectInfo | null> {
+  try {
+    const result = await getClient().send(new HeadObjectCommand({ Bucket: bucket(), Key: key }));
+    return { size: result.ContentLength ?? 0, contentType: result.ContentType ?? null };
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
+    if (status === 404) return null;
+    throw error;
+  }
+}
+
+/**
+ * URL the browser can PUT a file to directly, so the bytes never pass
+ * through a server function (Vercel caps request bodies at 4.5 MB). The
+ * signature covers the content type, so the client must send it verbatim.
+ * The bucket needs a CORS rule for the app origin: `npm run r2:cors`.
+ */
+export async function getPresignedPutUrl(
+  key: string,
+  { contentType, expiresInSeconds }: { contentType: string; expiresInSeconds: number },
+): Promise<string> {
+  return getSignedUrl(
+    getClient(),
+    new PutObjectCommand({
+      Bucket: bucket(),
+      Key: key,
+      ContentType: contentType,
+      CacheControl: "private, no-store",
     }),
     { expiresIn: expiresInSeconds },
   );

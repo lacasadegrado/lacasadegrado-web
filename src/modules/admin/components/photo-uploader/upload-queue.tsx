@@ -3,13 +3,14 @@
 export type QueueItem = {
   id: number;
   file: File;
-  status: "pending" | "uploading" | "done" | "error";
+  status: "pending" | "uploading" | "processing" | "done" | "error";
   error?: string;
 };
 
 const STATUS_LABEL: Record<QueueItem["status"], string> = {
   pending: "En espera",
   uploading: "Subiendo…",
+  processing: "Procesando…",
   done: "Lista",
   error: "Error",
 };

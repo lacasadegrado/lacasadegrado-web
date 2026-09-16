@@ -129,7 +129,8 @@ Admin shell is the shadcn sidebar (`variant="inset"`, teal via the
 `ADMIN_SECTIONS` there drives both the nav and the breadcrumb. The
 photo grid is selection-based: `PhotoGrid` holds the selected ids and
 `BulkActionsBar` runs tag / price / delete through object-argument
-server actions (`bulk*Action`). The CSV paste tagging was removed.
+server actions (`bulk*Action`); it also filters client-side by tagged
+email (search box above the grid). The CSV paste tagging was removed.
 `src/common/lib/hooks/use-mobile.ts` is shadcn's sidebar hook rewritten
 with `useSyncExternalStore`; keep the filename, the ui imports it.
 Special access (2026-09-14): `profiles.free_view`, `profiles.free_download`
@@ -141,6 +142,11 @@ photos in the zip. The gallery renders in a `GalleryMode`
 (buy / free-view / free-download); the protected shell hides Carrito and
 Compras for complimentary users and the cart/checkout screens redirect
 them. Entitlements remain the only purchase-based download right.
+People can be created before their first login ("Agregar persona" in
+Personas, or `npm run user:create`): `createUserWithAccess` calls
+`auth.admin.createUser` through `supabase-admin.util.ts` (service role,
+server-only) and inserts the profile with the flags; their first OTP
+attaches to that account.
 Business payment details are placeholders in
 `src/common/lib/config/business.config.ts`. Support form notifications
 go to `SUPPORT_NOTIFY_EMAIL` (one address, unrelated to admins). Grant admin with
@@ -173,11 +179,18 @@ text changes) and `terms_accepted_at` (migration 0008). No cookie banner:
 only the session cookie plus localStorage. The texts still need a
 Venezuelan lawyer's review, and the RIF/legal name are placeholders.
 
-`experimental.proxyClientMaxBodySize` in `next.config.ts` caps the body
-the proxy forwards to Route Handlers (Next 16 default 10 MB; it logs
-"Request body exceeded" and `request.formData()` throws on the truncated
-body). It is 64mb so 60 MB photo uploads pass. A config change needs a
-dev-server restart.
+Uploads never pass through a server function (Vercel caps bodies at
+4.5 MB; Next 16's proxy truncates at 10 MB). Photos: POST
+`/api/admin/photos/upload` with the file's metadata returns a presigned
+PUT (`prepareUpload`), the browser PUTs to R2, then POST
+`/api/admin/photos/upload/complete` verifies the object with HeadObject,
+derives previews and inserts the row (`completeUpload`). Proofs: the
+payment form calls `preparePaymentProofUploadAction`, PUTs, and submits
+`proofKey`; the service checks the key sits under `proofs/<orderId>/`
+and the object's size and type. The bucket needs a CORS rule for PUT
+from the app origin (`npm run r2:cors` with an admin token, otherwise
+the dashboard; JSON in `docs/commands.md`). `serverActions.bodySizeLimit`
+is back to 1mb on purpose.
 
 Only one `next dev` per directory: Next 16 refuses a second one and
 points at `.next/dev/logs/next-development.log` for the running server.

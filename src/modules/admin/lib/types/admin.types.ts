@@ -55,6 +55,10 @@ export type BulkActionOutcome =
   | { ok: true; result: BulkActionResult; message: string }
   | { ok: false; message: string };
 
+export type PrepareUploadResponse =
+  | { ok: true; photoId: string; uploadUrl: string }
+  | { ok: false; error: string };
+
 export type UploadResponse =
   | { ok: true; id: string; filename: string }
   | { ok: false; error: string };

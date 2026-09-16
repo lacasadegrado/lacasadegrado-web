@@ -56,6 +56,38 @@ pagos, derechos de descarga, registros de descargas, mensajes de soporte e
 intentos de código. Quien estuviera dentro con una cuenta borrada queda
 fuera; vuelve a entrar con el correo admin.
 
+## Almacenamiento (R2)
+
+Las fotos y las capturas de comprobantes se suben desde el navegador
+directamente a R2 con URLs firmadas (los servidores de Vercel no aceptan
+cuerpos de más de 4,5 MB). Para eso el bucket necesita una regla CORS que
+permita `PUT` desde el dominio de la app y desde `http://localhost:3000`.
+
+Si el token de R2 tiene permisos de administración del bucket:
+
+```bash
+npm run r2:cors
+```
+
+Si el token solo tiene permisos de objetos (el caso actual), añade la
+regla a mano en Cloudflare → R2 → bucket → Settings → CORS policy:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://lacasadegrado.com", "http://localhost:3000"],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["content-type", "cache-control"],
+    "ExposeHeaders": ["etag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Cambia el primer origen por el dominio real (con `https://`, sin barra
+final). Hasta que exista la regla, subir una foto falla con "Se perdió la
+conexión" en el navegador aunque el servidor esté bien.
+
 ## Administradores
 
 La persona debe haber entrado al sitio al menos una vez (así existe su
@@ -68,6 +100,20 @@ npm run admin:revoke -- correo@dominio.com   # quita el admin
 
 Los accesos especiales (ver sin marca de agua, descargar gratis, rol) se
 cambian desde el panel, en **Personas**.
+
+## Personas antes de su primer ingreso
+
+Para dar acceso especial a alguien que todavía no ha entrado (una
+coordinadora, un profesor), créala antes con sus permisos. Lo mismo hace el
+botón **Agregar persona** en el panel, en **Personas**.
+
+```bash
+npm run user:create -- correo@dominio.com --download --role "Coordinadora"
+```
+
+`--view` da solo ver sin marca de agua; `--download` incluye ver y
+descargar. No se envía ningún correo: cuando entre con ese correo, su
+código de acceso se asocia a esta cuenta y ve sus fotos de inmediato.
 
 ## Mantenimiento
 

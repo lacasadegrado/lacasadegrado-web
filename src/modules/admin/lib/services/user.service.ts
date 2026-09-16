@@ -16,7 +16,9 @@ import {
   supportMessages,
 } from "@/common/lib/db/schema"
 
-import type { UpdateUserPermissionsInput } from "../schemas/admin.schema"
+import { createSupabaseAdminClient } from "@/common/lib/supabase/supabase-admin.util"
+
+import type { CreateUserInput, UpdateUserPermissionsInput } from "../schemas/admin.schema"
 import type { AdminUserDetail, AdminUserRow } from "../types/user.types"
 
 /** Everyone who has logged in at least once, newest first, with activity counts. */
@@ -177,3 +179,48 @@ export async function updateUserPermissions(
 }
 
 type UpdatePermissionsInput = UpdateUserPermissionsInput
+
+export type CreateUserResult =
+  | { ok: true; profileId: string }
+  | { ok: false; reason: "exists"; profileId: string }
+  | { ok: false; reason: "auth_failed"; message: string }
+
+/**
+ * Creates the Supabase account and the profile in one go, with the access
+ * flags already set, so a coordinator or teacher sees their photos clean
+ * (or downloads them) from their very first login. Their first OTP simply
+ * attaches to this account. Anyone who already logged in is reported as
+ * existing so the admin edits them instead.
+ */
+export async function createUserWithAccess(input: CreateUserInput): Promise<CreateUserResult> {
+  const [existing] = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(eq(profiles.email, input.email))
+    .limit(1)
+  if (existing) return { ok: false, reason: "exists", profileId: existing.id }
+
+  const { data, error } = await createSupabaseAdminClient().auth.admin.createUser({
+    email: input.email,
+    email_confirm: true,
+  })
+  if (error || !data.user) {
+    return { ok: false, reason: "auth_failed", message: error?.message ?? "Supabase no creó la cuenta." }
+  }
+
+  const [profile] = await db
+    .insert(profiles)
+    .values({
+      id: data.user.id,
+      email: input.email,
+      roleLabel: input.roleLabel,
+      freeView: input.freeView,
+      freeDownload: input.freeDownload,
+    })
+    .onConflictDoUpdate({
+      target: profiles.id,
+      set: { roleLabel: input.roleLabel, freeView: input.freeView, freeDownload: input.freeDownload },
+    })
+    .returning({ id: profiles.id })
+  return { ok: true, profileId: profile.id }
+}

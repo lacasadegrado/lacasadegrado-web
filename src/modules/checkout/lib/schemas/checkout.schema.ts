@@ -11,8 +11,16 @@ export const createOrderSchema = z.object({
   acceptTerms: z.literal(true),
 });
 
+/** Key of a proof the browser already PUT into R2 under proofs/<orderId>/. */
+const proofKeySchema = z
+  .string()
+  .regex(/^proofs\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/, {
+    error: "Captura no válida.",
+  });
+
 export const submitPaymentSchema = z.object({
   orderId: z.uuid(),
+  proofKey: proofKeySchema.optional(),
   reference: z
     .string()
     .trim()
@@ -45,6 +53,11 @@ export const proofFileSchema = z.object({
     .max(PROOF_UPLOAD.maxBytes, {
       error: `La captura debe pesar menos de ${Math.round(PROOF_UPLOAD.maxBytes / 1024 / 1024)} MB.`,
     }),
+});
+
+export const prepareProofUploadSchema = z.object({
+  orderId: z.uuid(),
+  file: proofFileSchema,
 });
 
 export const manualRateSchema = z.object({

@@ -75,6 +75,14 @@ export const uploadFileSchema = z.object({
   name: z.string().trim().min(1).max(255),
 });
 
+/** Step 1 of an upload: the browser asks for a presigned URL. */
+export const prepareUploadSchema = uploadPhotoFieldsSchema.merge(uploadFileSchema);
+
+/** Step 2: the file is in R2; derive previews and insert the row. */
+export const completeUploadSchema = uploadPhotoFieldsSchema.merge(uploadFileSchema).extend({
+  photoId: z.uuid(),
+});
+
 export const tagPhotoSchema = z.object({
   photoId: z.uuid(),
   email: emailSchema,
@@ -121,8 +129,21 @@ export const updateUserPermissionsSchema = z.object({
   isAdmin: checkboxSchema,
 });
 
+/** Pre-creates a person so their access can be set before their first login. */
+export const createUserSchema = z.object({
+  email: emailSchema,
+  roleLabel: z
+    .string()
+    .trim()
+    .max(60, { error: "Máximo 60 caracteres." })
+    .transform((value) => (value ? value : null)),
+  freeView: checkboxSchema,
+  freeDownload: checkboxSchema,
+});
+
 export const userSearchSchema = z.string().trim().max(120).optional();
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 export type UpdateUserPermissionsInput = z.infer<typeof updateUserPermissionsSchema>;
+export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UploadPhotoFields = z.infer<typeof uploadPhotoFieldsSchema>;

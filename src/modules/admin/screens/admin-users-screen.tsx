@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 
+import { AddUserForm } from "../components/users/add-user-form"
 import { UserSearch } from "../components/users/user-search"
 import { UsersTable } from "../components/users/users-table"
 import { userSearchSchema } from "../lib/schemas/admin.schema"
@@ -15,14 +16,17 @@ export async function AdminUsersScreen({ query }: { query?: string }) {
       <div>
         <h1 className="text-2xl">Personas</h1>
         <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-          Todas las personas que han entrado con su correo. Desde su ficha puedes darles acceso
-          especial a sus fotos, por ejemplo a coordinadores o profesores, y ver sus pedidos y
-          mensajes.
+          Todas las personas que han entrado con su correo, o que agregaste antes de que entren.
+          Desde su ficha puedes darles acceso especial a sus fotos, por ejemplo a coordinadores o
+          profesores, y ver sus pedidos y mensajes.
         </p>
       </div>
-      <Suspense>
-        <UserSearch />
-      </Suspense>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <Suspense>
+          <UserSearch />
+        </Suspense>
+        <AddUserForm />
+      </div>
       <UsersTable users={users} query={q} />
     </div>
   )

@@ -9,30 +9,21 @@ import { getServerEnv } from "@/common/lib/config/env.config";
 import { db } from "@/common/lib/db";
 import { orders, payments } from "@/common/lib/db/schema";
 import { sendEmail } from "@/common/lib/email/email.service";
-import { putObject } from "@/common/lib/storage/storage.service";
+import { getPresignedPutUrl, headObject } from "@/common/lib/storage/storage.service";
 import { extensionForImageType } from "@/common/lib/utils/mime.util";
 import { STORAGE_PREFIXES } from "@/modules/admin/lib/constants/admin.constants";
 import type { SessionUser } from "@/modules/auth/lib/types/auth.types";
 
+import { PROOF_UPLOAD } from "../constants/checkout.constants";
 import type { SubmitPaymentInput } from "../schemas/checkout.schema";
 import { buildPaymentSubmittedEmail } from "../utils/payment-email.util";
 
-type ProofFile = { buffer: Buffer; contentType: string };
-
 export type SubmitPaymentResult =
   | { ok: true; orderId: string }
-  | { ok: false; reason: "not_found" | "wrong_status" };
+  | { ok: false; reason: "not_found" | "wrong_status" | "proof_invalid" };
 
-/**
- * Records the customer's payment claim and moves the order to
- * `pending_verification`. No entitlement is granted here; that happens
- * only when an admin verifies (slice 6). Rejected orders may resubmit.
- */
-export async function submitPayment(
-  viewer: SessionUser,
-  input: SubmitPaymentInput,
-  proof: ProofFile | null,
-): Promise<SubmitPaymentResult> {
+/** The order, only if it belongs to the viewer and still accepts a payment report. */
+async function getPayableOrder(viewer: SessionUser, orderId: string) {
   const [order] = await db
     .select({
       id: orders.id,
@@ -42,18 +33,60 @@ export async function submitPayment(
       exchangeRate: orders.exchangeRate,
     })
     .from(orders)
-    .where(and(eq(orders.id, input.orderId), eq(orders.profileId, viewer.id)))
+    .where(and(eq(orders.id, orderId), eq(orders.profileId, viewer.id)))
     .limit(1);
-
-  if (!order) return { ok: false, reason: "not_found" };
+  if (!order) return { order: null, reason: "not_found" as const };
   if (order.status !== "pending_payment" && order.status !== "rejected") {
-    return { ok: false, reason: "wrong_status" };
+    return { order: null, reason: "wrong_status" as const };
   }
+  return { order, reason: null };
+}
 
-  let proofKey: string | null = null;
-  if (proof) {
-    proofKey = `${STORAGE_PREFIXES.proofs}/${order.id}/${randomUUID()}.${extensionForImageType(proof.contentType)}`;
-    await putObject(proofKey, proof.buffer, proof.contentType);
+/**
+ * A presigned PUT for the proof screenshot. The browser uploads straight
+ * to R2 (a server function never carries the file), then submits the
+ * form with the key. The key is namespaced by order, so a later check can
+ * tell the proof belongs to this order.
+ */
+export async function getProofUploadUrl(
+  viewer: SessionUser,
+  orderId: string,
+  contentType: string,
+): Promise<{ ok: true; key: string; uploadUrl: string } | { ok: false; reason: "not_found" | "wrong_status" }> {
+  const { order, reason } = await getPayableOrder(viewer, orderId);
+  if (!order) return { ok: false, reason };
+  const key = `${STORAGE_PREFIXES.proofs}/${order.id}/${randomUUID()}.${extensionForImageType(contentType)}`;
+  const uploadUrl = await getPresignedPutUrl(key, {
+    contentType,
+    expiresInSeconds: PROOF_UPLOAD.uploadUrlTtlSeconds,
+  });
+  return { ok: true, key, uploadUrl };
+}
+
+/** True when the object exists, sits under this order and respects the limits. */
+async function isValidProof(orderId: string, key: string): Promise<boolean> {
+  if (!key.startsWith(`${STORAGE_PREFIXES.proofs}/${orderId}/`)) return false;
+  const info = await headObject(key);
+  if (!info) return false;
+  if (info.size > PROOF_UPLOAD.maxBytes) return false;
+  return (PROOF_UPLOAD.acceptedTypes as readonly string[]).includes(info.contentType ?? "");
+}
+
+/**
+ * Records the customer's payment claim and moves the order to
+ * `pending_verification`. No entitlement is granted here; that happens
+ * only when an admin verifies (slice 6). Rejected orders may resubmit.
+ */
+export async function submitPayment(
+  viewer: SessionUser,
+  input: SubmitPaymentInput,
+): Promise<SubmitPaymentResult> {
+  const { order, reason } = await getPayableOrder(viewer, input.orderId);
+  if (!order) return { ok: false, reason };
+
+  const proofKey = input.proofKey ?? null;
+  if (proofKey && !(await isValidProof(order.id, proofKey))) {
+    return { ok: false, reason: "proof_invalid" };
   }
 
   await db.transaction(async (tx) => {
