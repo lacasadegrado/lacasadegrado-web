@@ -18,3 +18,9 @@ export function parseEmailList(text: string): EmailListParse {
   }
   return { emails: [...emails], invalid };
 }
+
+/** Every email already tagged on these photos, unique and sorted, for autocomplete. */
+export function collectTaggedEmails(photos: { tags: { email: string }[] }[]): string[] {
+  const emails = new Set(photos.flatMap((photo) => photo.tags.map((tag) => tag.email)));
+  return [...emails].sort();
+}

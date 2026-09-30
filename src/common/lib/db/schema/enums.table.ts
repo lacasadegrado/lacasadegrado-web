@@ -51,3 +51,16 @@ export type SupportChannel = (typeof supportChannelEnum.enumValues)[number];
 export type SupportStatus = (typeof supportStatusEnum.enumValues)[number];
 export type PhotoFormat = (typeof photoFormatEnum.enumValues)[number];
 export type PrintStatus = (typeof printStatusEnum.enumValues)[number];
+
+/**
+ * A package-payment form. Only `open` forms accept submissions; `closed`
+ * keeps the link alive to say so instead of a 404.
+ */
+export const formStatusEnum = pgEnum("form_status", ["draft", "open", "closed"]);
+
+export type FormStatus = (typeof formStatusEnum.enumValues)[number];
+
+/** What a public form visitor did, for the per-IP and per-email limits. */
+export const formAttemptKindEnum = pgEnum("form_attempt_kind", ["upload", "submit"]);
+
+export type FormAttemptKind = (typeof formAttemptKindEnum.enumValues)[number];

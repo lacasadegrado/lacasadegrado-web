@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/common/components/ui/button";
 import { Input } from "@/common/components/ui/input";
@@ -9,11 +9,14 @@ import { Label } from "@/common/components/ui/label";
 import { eurToCents } from "@/common/lib/utils/money.util";
 
 import { PHOTO_UPLOAD } from "../../lib/constants/admin.constants";
-import type { PrepareUploadResponse, UploadResponse } from "../../lib/types/admin.types";
+import type { AdminPhoto, PrepareUploadResponse, UploadResponse } from "../../lib/types/admin.types";
+import { JustUploadedDialog } from "./just-uploaded-dialog";
 import { UploadQueue, type QueueItem } from "./upload-queue";
 
 type PhotoUploaderProps = {
   eventId: string;
+  /** The event's photos, for the dialog that opens after a batch. */
+  photos: AdminPhoto[];
   defaultPriceCents: number;
   defaultPrintPriceCents: number;
 };
@@ -24,9 +27,14 @@ let nextItemId = 0;
  * Multi-file upload with a small parallel queue. Each file is its own
  * request, so one bad file does not fail the batch and every row shows
  * its own outcome. When a batch finishes the server-rendered grid is
- * refreshed.
+ * refreshed and the photos that made it open in a dialog for bulk actions.
  */
-export function PhotoUploader({ eventId, defaultPriceCents, defaultPrintPriceCents }: PhotoUploaderProps) {
+export function PhotoUploader({
+  eventId,
+  photos,
+  defaultPriceCents,
+  defaultPrintPriceCents,
+}: PhotoUploaderProps) {
   const router = useRouter();
   const inputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -34,6 +42,8 @@ export function PhotoUploader({ eventId, defaultPriceCents, defaultPrintPriceCen
   const [printPriceEur, setPrintPriceEur] = useState((defaultPrintPriceCents / 100).toFixed(2));
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [busy, setBusy] = useState(false);
+  const [justUploadedIds, setJustUploadedIds] = useState<string[]>([]);
+  const [refreshing, startRefresh] = useTransition();
 
   const priceCents = eurToCents(Number(priceEur.replace(",", ".")) || 0);
   const printPriceCents = eurToCents(Number(printPriceEur.replace(",", ".")) || 0);
@@ -49,7 +59,7 @@ export function PhotoUploader({ eventId, defaultPriceCents, defaultPrintPriceCen
    * to R2 (never through a server function, which Vercel caps at 4.5 MB),
    * then tell the server to derive previews and insert the row.
    */
-  async function uploadOne(item: QueueItem) {
+  async function uploadOne(item: QueueItem): Promise<string | null> {
     updateItem(item.id, { status: "uploading" });
     const meta = {
       eventId,
@@ -68,7 +78,7 @@ export function PhotoUploader({ eventId, defaultPriceCents, defaultPrintPriceCen
       }).then((r) => r.json())) as PrepareUploadResponse;
       if (!prepared.ok) {
         updateItem(item.id, { status: "error", error: prepared.error });
-        return;
+        return null;
       }
 
       const put = await fetch(prepared.uploadUrl, {
@@ -81,7 +91,7 @@ export function PhotoUploader({ eventId, defaultPriceCents, defaultPrintPriceCen
           status: "error",
           error: `El almacenamiento respondió ${put.status}. Intenta de nuevo.`,
         });
-        return;
+        return null;
       }
 
       updateItem(item.id, { status: "processing" });
@@ -92,26 +102,32 @@ export function PhotoUploader({ eventId, defaultPriceCents, defaultPrintPriceCen
       }).then((r) => r.json())) as UploadResponse;
       if (done.ok) {
         updateItem(item.id, { status: "done" });
-      } else {
-        updateItem(item.id, { status: "error", error: done.error });
+        return done.id;
       }
+      updateItem(item.id, { status: "error", error: done.error });
+      return null;
     } catch {
       updateItem(item.id, { status: "error", error: "Se perdió la conexión. Intenta de nuevo." });
+      return null;
     }
   }
 
   async function uploadBatch(items: QueueItem[]) {
     setBusy(true);
     const pending = [...items];
+    const uploadedIds: string[] = [];
     const workers = Array.from({ length: PHOTO_UPLOAD.concurrency }, async () => {
       while (pending.length > 0) {
         const next = pending.shift();
-        if (next) await uploadOne(next);
+        if (!next) continue;
+        const photoId = await uploadOne(next);
+        if (photoId) uploadedIds.push(photoId);
       }
     });
     await Promise.all(workers);
     setBusy(false);
-    router.refresh();
+    setJustUploadedIds(uploadedIds);
+    startRefresh(() => router.refresh());
   }
 
   function handleFiles(files: FileList | null) {
@@ -191,6 +207,13 @@ export function PhotoUploader({ eventId, defaultPriceCents, defaultPrintPriceCen
           ) : null}
         </div>
       ) : null}
+
+      <JustUploadedDialog
+        photoIds={justUploadedIds}
+        photos={photos}
+        loading={refreshing}
+        onClose={() => setJustUploadedIds([])}
+      />
     </div>
   );
 }

@@ -4,8 +4,10 @@ import type { Readable } from "node:stream";
 
 import {
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -120,7 +122,8 @@ export async function headObject(key: string): Promise<ObjectInfo | null> {
 /**
  * URL the browser can PUT a file to directly, so the bytes never pass
  * through a server function (Vercel caps request bodies at 4.5 MB). The
- * signature covers the content type, so the client must send it verbatim.
+ * presigner only signs `host`: neither the content type nor the size is
+ * enforced by R2, so callers must HeadObject the result before trusting it.
  * The bucket needs a CORS rule for the app origin: `npm run r2:cors`.
  */
 export async function getPresignedPutUrl(
@@ -137,4 +140,35 @@ export async function getPresignedPutUrl(
     }),
     { expiresIn: expiresInSeconds },
   );
+}
+
+export type ListedObject = { key: string; size: number; lastModified: Date | null };
+
+/** Every object under a prefix, following continuation tokens. */
+export async function listObjects(prefix: string): Promise<ListedObject[]> {
+  const objects: ListedObject[] = [];
+  let token: string | undefined;
+  do {
+    const page = await getClient().send(
+      new ListObjectsV2Command({ Bucket: bucket(), Prefix: prefix, ContinuationToken: token }),
+    );
+    for (const item of page.Contents ?? []) {
+      if (item.Key) objects.push({ key: item.Key, size: item.Size ?? 0, lastModified: item.LastModified ?? null });
+    }
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+  return objects;
+}
+
+/** Deletes in batches of 1000 (the S3 limit). Returns the keys that failed. */
+export async function deleteObjects(keys: string[]): Promise<string[]> {
+  const failed: string[] = [];
+  for (let start = 0; start < keys.length; start += 1000) {
+    const batch = keys.slice(start, start + 1000);
+    const result = await getClient().send(
+      new DeleteObjectsCommand({ Bucket: bucket(), Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true } }),
+    );
+    for (const error of result.Errors ?? []) if (error.Key) failed.push(error.Key);
+  }
+  return failed;
 }

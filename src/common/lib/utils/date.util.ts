@@ -26,3 +26,32 @@ export function formatDateOnly(isoDate: string): string {
 export function formatDateTime(date: Date): string {
   return shortDateTime.format(date);
 }
+
+const wallClockParts = new Intl.DateTimeFormat("en-US", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+/**
+ * The same instant as a Date whose UTC fields read Caracas wall-clock
+ * time. For spreadsheets, which store dates without a timezone.
+ */
+export function toCaracasWallClock(date: Date): Date {
+  const parts = Object.fromEntries(wallClockParts.formatToParts(date).map((part) => [part.type, part.value]));
+  return new Date(
+    Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      Number(parts.hour),
+      Number(parts.minute),
+      Number(parts.second),
+    ),
+  );
+}

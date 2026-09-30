@@ -10,3 +10,6 @@ export * from "./exchange-rates.table";
 export * from "./download-logs.table";
 export * from "./relations";
 export * from "./otp-attempts.table";
+export * from "./photo-packages.table";
+export * from "./forms.table";
+export * from "./form-attempts.table";

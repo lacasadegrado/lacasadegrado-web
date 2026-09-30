@@ -27,6 +27,7 @@ import {
 import { Input } from "@/common/components/ui/input";
 import { Label } from "@/common/components/ui/label";
 import { Textarea } from "@/common/components/ui/textarea";
+import { cn } from "@/common/lib/utils/cn.util";
 
 import {
   bulkDeletePhotosAction,
@@ -40,14 +41,44 @@ type BulkActionsBarProps = {
   total: number;
   onSelectAll: () => void;
   onClear: () => void;
+  /** Overrides the sticky offset, which assumes the admin header. */
+  stickyClassName?: string;
+  /** Emails already tagged in the event, suggested while typing. */
+  taggedEmails: string[];
 };
+
+const MAX_EMAIL_SUGGESTIONS = 8;
+
+/** The email being typed: whatever follows the last separator. */
+function currentToken(text: string): string {
+  return /[^\s,;]*$/.exec(text)?.[0] ?? "";
+}
+
+/**
+ * Tagged emails that match what is being typed and are not in the list
+ * yet. A textarea cannot use a `<datalist>`, so these render as buttons.
+ */
+function suggestEmails(text: string, taggedEmails: string[]): string[] {
+  const token = currentToken(text).toLowerCase();
+  const entered = new Set(text.toLowerCase().split(/[\s,;]+/));
+  return taggedEmails
+    .filter((email) => !entered.has(email) && (!token || email.includes(token)))
+    .slice(0, MAX_EMAIL_SUGGESTIONS);
+}
 
 /**
  * Appears as soon as one photo is selected: count, select-all, clear, and
  * the three bulk actions, each behind a dialog. The outcome message stays
  * visible after the selection is cleared so the admin can read it.
  */
-export function BulkActionsBar({ selectedIds, total, onSelectAll, onClear }: BulkActionsBarProps) {
+export function BulkActionsBar({
+  selectedIds,
+  total,
+  onSelectAll,
+  onClear,
+  stickyClassName,
+  taggedEmails,
+}: BulkActionsBarProps) {
   const [outcome, setOutcome] = useState<BulkActionOutcome | null>(null);
   const [pending, startTransition] = useTransition();
   const [tagOpen, setTagOpen] = useState(false);
@@ -57,6 +88,12 @@ export function BulkActionsBar({ selectedIds, total, onSelectAll, onClear }: Bul
   const [priceEur, setPriceEur] = useState("5.00");
   const [printPriceEur, setPrintPriceEur] = useState("7.00");
   const count = selectedIds.length;
+  const emailSuggestions = suggestEmails(emails, taggedEmails);
+
+  /** Replaces the partial email being typed with the chosen one. */
+  function pickEmail(email: string) {
+    setEmails((text) => `${text.slice(0, text.length - currentToken(text).length)}${email}\n`);
+  }
 
   function run(action: () => Promise<BulkActionOutcome>, close: () => void) {
     startTransition(async () => {
@@ -75,7 +112,10 @@ export function BulkActionsBar({ selectedIds, total, onSelectAll, onClear }: Bul
         <div
           role="toolbar"
           aria-label="Acciones sobre las fotos seleccionadas"
-          className="sticky top-16 z-20 flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2 pl-3 shadow-[0_2px_12px_rgba(19,80,101,0.12)]"
+          className={cn(
+            "sticky top-16 z-20 flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2 pl-3 shadow-[0_2px_12px_rgba(19,80,101,0.12)]",
+            stickyClassName,
+          )}
         >
           <span className="text-sm font-semibold tabular-nums">
             {count} de {total} seleccionada{count === 1 ? "" : "s"}
@@ -113,6 +153,27 @@ export function BulkActionsBar({ selectedIds, total, onSelectAll, onClear }: Bul
                     spellCheck={false}
                     autoCapitalize="off"
                   />
+                  {emailSuggestions.length > 0 ? (
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground">Ya etiquetados en este evento:</p>
+                      <ul className="flex flex-wrap gap-1.5">
+                        {emailSuggestions.map((email) => (
+                          <li key={email}>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="xs"
+                              onClick={() => pickEmail(email)}
+                              aria-label={`Agregar ${email}`}
+                              className="max-w-[16rem] font-normal"
+                            >
+                              <span className="truncate">{email}</span>
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setTagOpen(false)} disabled={pending}>

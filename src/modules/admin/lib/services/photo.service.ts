@@ -29,8 +29,13 @@ export async function listPhotosForEvent(eventId: string): Promise<AdminPhoto[]>
     .leftJoin(entitlements, eq(entitlements.photoId, photos.id))
     .where(eq(photos.eventId, eventId))
     .groupBy(photos.id)
-    // Sold photos first, then by filename.
-    .orderBy(desc(sql`count(${entitlements.id}) > 0`), asc(photos.originalFilename), asc(photos.createdAt));
+    // Untagged photos first (they still need work), then sold, then by filename.
+    .orderBy(
+      asc(sql`exists (select 1 from ${photoTags} where ${photoTags.photoId} = ${photos.id})`),
+      desc(sql`count(${entitlements.id}) > 0`),
+      asc(photos.originalFilename),
+      asc(photos.createdAt),
+    );
 
   if (rows.length === 0) return [];
 

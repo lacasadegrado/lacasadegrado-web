@@ -126,7 +126,10 @@ photos first: the gallery (per event), the Personas detail, and the admin
 Fotos grid, which shows a "Vendida" badge from `soldCount` (entitlements).
 Admin shell is the shadcn sidebar (`variant="inset"`, teal via the
 `--sidebar-*` tokens) in `src/modules/admin/components/admin-shell/`;
-`ADMIN_SECTIONS` there drives both the nav and the breadcrumb. The
+`ADMIN_SECTIONS` there drives both the nav and the breadcrumb. A section
+with `items` is a collapsible group (Eventos: Todos los eventos /
+Formularios; Pagos: Fotos adicionales / Paquetes); `matchAdminSection`
+picks the page by longest href, and the breadcrumb shows group › page. The
 photo grid is selection-based: `PhotoGrid` holds the selected ids and
 `BulkActionsBar` runs tag / price / delete through object-argument
 server actions (`bulk*Action`); it also filters client-side by tagged
@@ -178,6 +181,38 @@ terms checkbox (`acceptTerms: z.literal(true)`); the order stores
 text changes) and `terms_accepted_at` (migration 0008). No cookie banner:
 only the session cookie plus localStorage. The texts still need a
 Venezuelan lawyer's review, and the RIF/legal name are placeholders.
+
+Package forms (2026-09-29/30, built; slices 1-6): prepaid photo packages
+("fotos garantizadas") reported through admin-built public forms.
+Tables `photo_packages`, `forms`, `form_submissions` (migration 0009; all
+FKs `restrict`, so an event with packages/forms and a form with answers
+cannot be deleted). `src/modules/forms` holds the field definitions:
+`formFieldsSchema` (4 fixed system fields email/package/reference/proof,
+id = role, always required) and `buildAnswersSchema(fields, packages)`,
+the one Zod schema for answers on both browser and server. `forms.fields`
+and the submission snapshots are jsonb typed `unknown`: always parse on
+read. Builder at `/admin/events/forms` (packages + forms per event) and
+`/admin/events/forms/[formId]`; the version bumps only when fields change.
+Submissions grant nothing and are never verified in the app: the admin
+reads them at `/admin/payments/packages` (filters in the query string
+`?event=&form=&package=&q=&page=`, per-package summary, detail at
+`/admin/payments/packages/[id]`) and exports the same filter to .xlsx
+(exceljs; `buildPackagePaymentsWorkbook` in the admin utils, Caracas
+wall-clock dates, references as text). Files are only ever addressed as
+`/api/admin/package-payments/[id]/files/[fieldId]/[index]` (admin-only,
+presigned redirect); the Excel links to that route and to the detail page.
+Public page `/f/<slug>` (no login, noindex) renders only open forms with
+at least one active package. Files: `prepareFormUploadAction` presigns a
+PUT under `forms/<formId>/<draftId>/<fieldId>/` (draftId is a random uuid
+the page picks); `submitPublicForm` re-validates, checks each key sits
+under that prefix and HeadObject size/type, stores snapshots and emails a
+receipt. Abuse limits live in `form_attempts` (migration 0010, pruned
+after a day) plus a honeypot field; both actions are public on purpose.
+Orphan uploads: deleting a form (only possible without answers) removes
+everything under `forms/<formId>/`; `npm run forms:cleanup` (dry run
+unless `--yes`, 24 h safety margin) removes unused files of live forms.
+Payment details on the forms are deliberately absent until the owner
+decides. `CopyButton` lives in `src/common/components/copy-button/`.
 
 Uploads never pass through a server function (Vercel caps bodies at
 4.5 MB; Next 16's proxy truncates at 10 MB). Photos: POST

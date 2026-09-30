@@ -120,7 +120,17 @@ código de acceso se asocia a esta cuenta y ve sus fotos de inmediato.
 ```bash
 npm run photos:backfill-clean   # genera el derivado limpio de fotos subidas antes de que existiera
 npm run brand:assets            # regenera public/brand/*.png y el ícono a partir del logo SVG
+npm run forms:cleanup           # lista los archivos de formularios que nadie envió (no borra)
+npm run forms:cleanup -- --yes  # los borra
 ```
+
+`forms:cleanup` borra de R2 los archivos subidos desde un formulario público
+que ninguna respuesta usa (alguien adjuntó el comprobante y no envió, o lo
+cambió por otro). Solo toca archivos de más de 24 horas, para no borrar el de
+alguien que está llenando el formulario; `--hours 48` cambia ese margen y
+`--hours 0` toma todos (con aviso). Borrar un formulario sin respuestas ya
+borra sus archivos en el momento; este comando recoge el resto. Conviene
+correrlo cada tanto, o convertirlo en un cron de Vercel al desplegar.
 
 ## Comprobaciones antes de entregar
 

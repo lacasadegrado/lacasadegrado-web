@@ -14,9 +14,18 @@ import type { AdminEvent } from "../lib/types/admin.types";
 type EventPickerProps = {
   events: AdminEvent[];
   selectedId?: string;
+  /** Page the picker navigates on, with `?event=<id>`. Defaults to Fotos. */
+  basePath?: string;
+  /** Shows the photo count next to each event, which only Fotos needs. */
+  showPhotoCount?: boolean;
 };
 
-export function EventPicker({ events, selectedId }: EventPickerProps) {
+export function EventPicker({
+  events,
+  selectedId,
+  basePath = ADMIN_PATHS.photos,
+  showPhotoCount = true,
+}: EventPickerProps) {
   const router = useRouter();
 
   return (
@@ -27,14 +36,15 @@ export function EventPicker({ events, selectedId }: EventPickerProps) {
         value={selectedId ?? ""}
         onChange={(event) => {
           const id = event.target.value;
-          router.push(id ? `${ADMIN_PATHS.photos}?event=${id}` : ADMIN_PATHS.photos);
+          router.push(id ? `${basePath}?event=${id}` : basePath);
         }}
         className="max-w-md"
       >
         <NativeSelectOption value="">Elige un evento…</NativeSelectOption>
         {events.map((event) => (
           <NativeSelectOption key={event.id} value={event.id}>
-            {event.name} · {event.institution} ({event.photoCount})
+            {event.name} · {event.institution}
+            {showPhotoCount ? ` (${event.photoCount})` : ""}
           </NativeSelectOption>
         ))}
       </NativeSelect>

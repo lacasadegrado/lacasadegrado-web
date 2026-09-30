@@ -16,15 +16,31 @@ function matchesEmail(photo: AdminPhoto, query: string): boolean {
   return photo.tags.some((tag) => tag.email.includes(query));
 }
 
+type PhotoGridProps = {
+  photos: AdminPhoto[];
+  /** Emails already tagged anywhere in the event, offered as autocomplete. */
+  taggedEmails: string[];
+  /** Selected on mount, e.g. the batch that was just uploaded. */
+  defaultSelectedIds?: string[];
+  /** "dialog" drops the email search and pins the toolbar to the modal's top. */
+  variant?: "page" | "dialog";
+};
+
 /**
  * Selection and the email filter live here, not on the server: they are
  * UI state over the event's photos, which are all loaded already. Bulk
  * actions receive the selected ids and the server revalidates the grid
  * after; "select all" only takes the photos currently shown.
  */
-export function PhotoGrid({ photos }: { photos: AdminPhoto[] }) {
+export function PhotoGrid({
+  photos,
+  taggedEmails,
+  defaultSelectedIds,
+  variant = "page",
+}: PhotoGridProps) {
   const searchId = useId();
-  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const emailListId = useId();
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(defaultSelectedIds));
   const [rawQuery, setRawQuery] = useState("");
   const query = rawQuery.trim().toLowerCase();
 
@@ -50,34 +66,36 @@ export function PhotoGrid({ photos }: { photos: AdminPhoto[] }) {
 
   return (
     <div className="space-y-4">
-      <div role="search" className="flex max-w-md items-center gap-2">
-        <div className="relative flex-1">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            id={searchId}
-            type="search"
-            value={rawQuery}
-            onChange={(event) => setRawQuery(event.target.value)}
-            placeholder="Buscar fotos por correo"
-            aria-label="Buscar fotos por correo etiquetado"
-            className="pl-8"
-          />
+      {variant === "page" ? (
+        <div role="search" className="flex max-w-md items-center gap-2">
+          <div className="relative flex-1">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              id={searchId}
+              type="search"
+              value={rawQuery}
+              onChange={(event) => setRawQuery(event.target.value)}
+              placeholder="Buscar fotos por correo"
+              aria-label="Buscar fotos por correo etiquetado"
+              className="pl-8"
+            />
+          </div>
+          {rawQuery ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setRawQuery("")}
+              aria-label="Limpiar búsqueda"
+            >
+              <X aria-hidden="true" />
+            </Button>
+          ) : null}
         </div>
-        {rawQuery ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setRawQuery("")}
-            aria-label="Limpiar búsqueda"
-          >
-            <X aria-hidden="true" />
-          </Button>
-        ) : null}
-      </div>
+      ) : null}
 
       {query ? (
         <p className="text-sm text-muted-foreground" aria-live="polite">
@@ -94,7 +112,14 @@ export function PhotoGrid({ photos }: { photos: AdminPhoto[] }) {
             total={visible.length}
             onSelectAll={() => setSelected(new Set(visible.map((photo) => photo.id)))}
             onClear={() => setSelected(new Set())}
+            stickyClassName={variant === "dialog" ? "top-0" : undefined}
+            taggedEmails={taggedEmails}
           />
+          <datalist id={emailListId}>
+            {taggedEmails.map((email) => (
+              <option key={email} value={email} />
+            ))}
+          </datalist>
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {visible.map((photo) => (
               <li key={photo.id}>
@@ -102,6 +127,7 @@ export function PhotoGrid({ photos }: { photos: AdminPhoto[] }) {
                   photo={photo}
                   selected={selected.has(photo.id)}
                   onToggleSelected={() => toggle(photo.id)}
+                  emailListId={emailListId}
                 />
               </li>
             ))}

@@ -13,6 +13,7 @@ import {
 } from "../lib/constants/admin.constants";
 import { listEvents } from "../lib/services/event.service";
 import { listPhotosForEvent } from "../lib/services/photo.service";
+import { collectTaggedEmails } from "../lib/utils/email-list.util";
 
 type AdminPhotosScreenProps = {
   eventId?: string;
@@ -61,6 +62,7 @@ export async function AdminPhotosScreen({ eventId }: AdminPhotosScreenProps) {
             </div>
             <PhotoUploader
               eventId={event.id}
+              photos={photos}
               defaultPriceCents={DEFAULT_PHOTO_PRICE_CENTS}
               defaultPrintPriceCents={DEFAULT_PRINT_PRICE_CENTS}
             />
@@ -73,11 +75,11 @@ export async function AdminPhotosScreen({ eventId }: AdminPhotosScreenProps) {
               </h2>
               <p className="text-sm text-muted-foreground">
                 Marca varias fotos para etiquetarlas, cambiarles los precios o eliminarlas de una
-                vez. Cada foto tiene dos precios: la digital y la impresa, que incluye la
+                vez. Las fotos sin correo salen primero. Cada foto tiene dos precios: la digital y la impresa, que incluye la
                 digital. Cada tarjeta también acepta un correo, precios o borrarse por separado.
               </p>
             </div>
-            <PhotoGrid photos={photos} />
+            <PhotoGrid photos={photos} taggedEmails={collectTaggedEmails(photos)} />
           </section>
         </>
       ) : events.length > 0 ? (

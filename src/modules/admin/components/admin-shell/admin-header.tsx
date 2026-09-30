@@ -16,13 +16,11 @@ import { Separator } from "@/common/components/ui/separator";
 import { SidebarTrigger } from "@/common/components/ui/sidebar";
 
 import { ADMIN_PATHS } from "../../lib/constants/admin.constants";
-import { ADMIN_SECTIONS } from "./admin-sidebar";
+import { matchAdminSection } from "./admin-sidebar";
 
 export function AdminHeader() {
   const pathname = usePathname();
-  const section = ADMIN_SECTIONS.find(
-    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
-  );
+  const match = matchAdminSection(pathname);
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 sm:px-6">
@@ -35,11 +33,24 @@ export function AdminHeader() {
               <Link href={ADMIN_PATHS.root}>Administración</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
-          {section ? (
+          {match?.page ? (
+            <>
+              <BreadcrumbSeparator className="hidden sm:block" />
+              <BreadcrumbItem className="hidden sm:block">
+                <BreadcrumbLink asChild>
+                  <Link href={match.section.href}>{match.section.label}</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="hidden sm:block" />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{match.page.label}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          ) : match ? (
             <>
               <BreadcrumbSeparator className="hidden sm:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>{section.label}</BreadcrumbPage>
+                <BreadcrumbPage>{match.section.label}</BreadcrumbPage>
               </BreadcrumbItem>
             </>
           ) : null}

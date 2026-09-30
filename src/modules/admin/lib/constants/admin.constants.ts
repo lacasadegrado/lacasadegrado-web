@@ -1,8 +1,16 @@
 export const ADMIN_PATHS = {
   root: "/admin",
   events: "/admin/events",
+  eventForms: "/admin/events/forms",
+  eventFormsFor: (eventId: string) => `/admin/events/forms?event=${eventId}`,
+  formBuilder: (formId: string) => `/admin/events/forms/${formId}`,
   photos: "/admin/photos",
   payments: "/admin/payments",
+  packagePayments: "/admin/payments/packages",
+  packagePayment: (submissionId: string) => `/admin/payments/packages/${submissionId}`,
+  packagePaymentFileApi: (submissionId: string, fieldId: string, index: number) =>
+    `/api/admin/package-payments/${submissionId}/files/${fieldId}/${index}`,
+  packagePaymentsExportApi: "/api/admin/package-payments/export",
   prints: "/admin/prints",
   rates: "/admin/rates",
   users: "/admin/users",

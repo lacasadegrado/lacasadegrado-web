@@ -4,8 +4,10 @@ import { downloadLogs } from "./download-logs.table";
 import { entitlements } from "./entitlements.table";
 import { events } from "./events.table";
 import { exchangeRates } from "./exchange-rates.table";
+import { formSubmissions, forms } from "./forms.table";
 import { orderItems, orders } from "./orders.table";
 import { payments } from "./payments.table";
+import { photoPackages } from "./photo-packages.table";
 import { photoTags, photos } from "./photos.table";
 import { profiles } from "./profiles.table";
 import { supportMessages } from "./support-messages.table";
@@ -19,6 +21,8 @@ export const profilesRelations = relations(profiles, ({ many }) => ({
 
 export const eventsRelations = relations(events, ({ many }) => ({
   photos: many(photos),
+  photoPackages: many(photoPackages),
+  forms: many(forms),
 }));
 
 export const photosRelations = relations(photos, ({ one, many }) => ({
@@ -92,5 +96,24 @@ export const downloadLogsRelations = relations(downloadLogs, ({ one }) => ({
   photo: one(photos, {
     fields: [downloadLogs.photoId],
     references: [photos.id],
+  }),
+}));
+
+export const photoPackagesRelations = relations(photoPackages, ({ one, many }) => ({
+  event: one(events, { fields: [photoPackages.eventId], references: [events.id] }),
+  submissions: many(formSubmissions),
+}));
+
+export const formsRelations = relations(forms, ({ one, many }) => ({
+  event: one(events, { fields: [forms.eventId], references: [events.id] }),
+  creator: one(profiles, { fields: [forms.createdBy], references: [profiles.id] }),
+  submissions: many(formSubmissions),
+}));
+
+export const formSubmissionsRelations = relations(formSubmissions, ({ one }) => ({
+  form: one(forms, { fields: [formSubmissions.formId], references: [forms.id] }),
+  package: one(photoPackages, {
+    fields: [formSubmissions.packageId],
+    references: [photoPackages.id],
   }),
 }));

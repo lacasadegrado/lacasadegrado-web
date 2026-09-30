@@ -3,7 +3,7 @@ import "server-only";
 import { count, desc, eq } from "drizzle-orm";
 
 import { db } from "@/common/lib/db";
-import { events, photos } from "@/common/lib/db/schema";
+import { events, forms, photoPackages, photos } from "@/common/lib/db/schema";
 
 import type { CreateEventInput } from "../schemas/admin.schema";
 import type { AdminEvent } from "../types/admin.types";
@@ -56,7 +56,7 @@ export async function updateEvent(id: string, input: CreateEventInput): Promise<
 
 export type DeleteEventResult =
   | { ok: true }
-  | { ok: false; reason: "not_found" | "has_photos" };
+  | { ok: false; reason: "not_found" | "has_photos" | "has_forms" };
 
 /**
  * Deleting is only for mistakes: an event with photos cannot be removed,
@@ -72,6 +72,15 @@ export async function deleteEvent(id: string): Promise<DeleteEventResult> {
     .groupBy(events.id);
   if (!row) return { ok: false, reason: "not_found" };
   if (row.photoCount > 0) return { ok: false, reason: "has_photos" };
+
+  // The foreign keys restrict this too; checking first gives a clear message.
+  const [[formCount], [packageCount]] = await Promise.all([
+    db.select({ total: count() }).from(forms).where(eq(forms.eventId, id)),
+    db.select({ total: count() }).from(photoPackages).where(eq(photoPackages.eventId, id)),
+  ]);
+  if ((formCount?.total ?? 0) > 0 || (packageCount?.total ?? 0) > 0) {
+    return { ok: false, reason: "has_forms" };
+  }
 
   await db.delete(events).where(eq(events.id, id));
   return { ok: true };

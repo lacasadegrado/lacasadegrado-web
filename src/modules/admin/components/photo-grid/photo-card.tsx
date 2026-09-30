@@ -17,6 +17,7 @@ type PhotoCardProps = {
   photo: AdminPhoto
   selected: boolean
   onToggleSelected: () => void
+  emailListId?: string
 }
 
 /** Admins always see the clean derivative; the view route allows it for them. */
@@ -24,6 +25,7 @@ export function PhotoCard({
   photo,
   selected,
   onToggleSelected,
+  emailListId,
 }: PhotoCardProps) {
   const src = PURCHASES_PATHS.viewApi(photo.id)
   const checkboxId = `select-${photo.id}`
@@ -122,7 +124,7 @@ export function PhotoCard({
           <p className="text-sm text-muted-foreground">Sin correos todavía.</p>
         )}
 
-        <TagForm photoId={photo.id} />
+        <TagForm photoId={photo.id} emailListId={emailListId} />
       </div>
     </article>
   )

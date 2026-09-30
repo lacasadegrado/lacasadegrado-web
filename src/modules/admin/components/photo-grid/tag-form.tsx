@@ -10,7 +10,13 @@ import type { ActionState } from "../../lib/types/admin.types";
 
 const IDLE: ActionState = { status: "idle" };
 
-export function TagForm({ photoId }: { photoId: string }) {
+type TagFormProps = {
+  photoId: string;
+  /** Id of a `<datalist>` with the event's tagged emails. */
+  emailListId?: string;
+};
+
+export function TagForm({ photoId, emailListId }: TagFormProps) {
   const [formKey, setFormKey] = useState(0);
   const [state, action, pending] = useActionState(
     async (previous: ActionState, formData: FormData) => {
@@ -30,6 +36,7 @@ export function TagForm({ photoId }: { photoId: string }) {
           type="email"
           inputMode="email"
           autoComplete="off"
+          list={emailListId}
           placeholder="correo@estudiante.com"
           aria-label="Correo para etiquetar"
           required

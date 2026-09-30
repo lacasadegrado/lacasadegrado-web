@@ -117,7 +117,9 @@ export async function deleteEventAction(
       message:
         result.reason === "has_photos"
           ? "Este evento tiene fotos. Bórralas primero o desactiva el evento."
-          : "No encontramos el evento.",
+          : result.reason === "has_forms"
+            ? "Este evento tiene formularios o paquetes. Bórralos primero o desactiva el evento."
+            : "No encontramos el evento.",
     };
   }
 

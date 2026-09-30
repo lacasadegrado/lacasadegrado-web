@@ -1,7 +1,6 @@
+import { CopyButton } from "@/common/components/copy-button/copy-button";
 import { BUSINESS } from "@/common/lib/config/business.config";
 import type { PaymentMethod } from "@/common/lib/db/schema";
-
-import { CopyButton } from "./copy-button";
 
 type Row = { label: string; value: string; /** What goes on the clipboard; defaults to value. */ copy?: string };
 
