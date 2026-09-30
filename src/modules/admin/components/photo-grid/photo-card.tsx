@@ -79,6 +79,15 @@ export function PhotoCard({
             {photo.originalFilename}
           </p>
           <div className="flex shrink-0 items-center gap-1.5">
+            {photo.releasedAt ? (
+              <Badge variant="outline" title="Liberada para todos sus etiquetados">
+                Liberada
+              </Badge>
+            ) : photo.releasedEmails.length > 0 ? (
+              <Badge variant="outline" title={`Liberada para: ${photo.releasedEmails.join(", ")}`}>
+                Liberada · {photo.releasedEmails.length}
+              </Badge>
+            ) : null}
             {photo.soldCount > 0 ? (
               <Badge variant="secondary">
                 {photo.soldCount === 1 ? "Vendida" : `Vendida ×${photo.soldCount}`}

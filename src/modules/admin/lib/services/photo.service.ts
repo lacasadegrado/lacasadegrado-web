@@ -1,9 +1,9 @@
 import "server-only";
 
-import { asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/common/lib/db";
-import { entitlements, orderItems, photoTags, photos } from "@/common/lib/db/schema";
+import { entitlements, orderItems, photoReleases, photoTags, photos } from "@/common/lib/db/schema";
 import { deleteObject } from "@/common/lib/storage/storage.service";
 
 import type { AdminPhoto, BulkActionResult } from "../types/admin.types";
@@ -21,6 +21,7 @@ export async function listPhotosForEvent(eventId: string): Promise<AdminPhoto[]>
       height: photos.height,
       priceCents: photos.priceCents,
       printPriceCents: photos.printPriceCents,
+      releasedAt: photos.releasedAt,
       createdAt: photos.createdAt,
       /** How many people own it; a sold photo cannot be deleted. */
       soldCount: count(entitlements.id),
@@ -39,16 +40,19 @@ export async function listPhotosForEvent(eventId: string): Promise<AdminPhoto[]>
 
   if (rows.length === 0) return [];
 
-  const tags = await db
-    .select({ id: photoTags.id, photoId: photoTags.photoId, email: photoTags.email })
-    .from(photoTags)
-    .where(
-      inArray(
-        photoTags.photoId,
-        rows.map((row) => row.id),
-      ),
-    )
-    .orderBy(asc(photoTags.email));
+  const photoIds = rows.map((row) => row.id);
+  const [tags, releases] = await Promise.all([
+    db
+      .select({ id: photoTags.id, photoId: photoTags.photoId, email: photoTags.email })
+      .from(photoTags)
+      .where(inArray(photoTags.photoId, photoIds))
+      .orderBy(asc(photoTags.email)),
+    db
+      .select({ photoId: photoReleases.photoId, email: photoReleases.email })
+      .from(photoReleases)
+      .where(inArray(photoReleases.photoId, photoIds))
+      .orderBy(asc(photoReleases.email)),
+  ]);
 
   const tagsByPhoto = new Map<string, AdminPhoto["tags"]>();
   for (const tag of tags) {
@@ -57,7 +61,18 @@ export async function listPhotosForEvent(eventId: string): Promise<AdminPhoto[]>
     tagsByPhoto.set(tag.photoId, list);
   }
 
-  return rows.map((row) => ({ ...row, tags: tagsByPhoto.get(row.id) ?? [] }));
+  const releasesByPhoto = new Map<string, string[]>();
+  for (const release of releases) {
+    const list = releasesByPhoto.get(release.photoId) ?? [];
+    list.push(release.email);
+    releasesByPhoto.set(release.photoId, list);
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    tags: tagsByPhoto.get(row.id) ?? [],
+    releasedEmails: releasesByPhoto.get(row.id) ?? [],
+  }));
 }
 
 /** Future orders only: existing order_items keep their snapshot price. */
@@ -179,4 +194,68 @@ export async function bulkDeletePhotos(photoIds: string[]): Promise<BulkActionRe
     else if (result.reason === "has_orders") blocked.push(nameById.get(photoId) ?? photoId);
   }
   return { affected, skipped: photoIds.length - affected - blocked.length, blocked, invalid: [] };
+}
+
+/* ---------------- Releases (package photos) ---------------- */
+
+/** Released for everyone tagged; photos already released keep their date. */
+export async function releasePhotosToAll(photoIds: string[]): Promise<BulkActionResult> {
+  const updated = await db
+    .update(photos)
+    .set({ releasedAt: new Date() })
+    .where(and(inArray(photos.id, photoIds), isNull(photos.releasedAt)))
+    .returning({ id: photos.id });
+  return { affected: updated.length, skipped: photoIds.length - updated.length, blocked: [], invalid: [] };
+}
+
+export type ReleaseToEmailsResult = BulkActionResult & {
+  /** (photo, email) pairs skipped because the email is not tagged on that photo. */
+  notTagged: number;
+};
+
+/**
+ * Released for these people only, on the photos where they are tagged: a
+ * release to someone not tagged would never show up in their gallery.
+ */
+export async function releasePhotosToEmails(
+  photoIds: string[],
+  emails: string[],
+): Promise<ReleaseToEmailsResult> {
+  const pairs = await db
+    .select({ photoId: photoTags.photoId, email: photoTags.email })
+    .from(photoTags)
+    .where(and(inArray(photoTags.photoId, photoIds), inArray(photoTags.email, emails)));
+  let affected = 0;
+  if (pairs.length > 0) {
+    const inserted = await db
+      .insert(photoReleases)
+      .values(pairs)
+      .onConflictDoNothing({ target: [photoReleases.photoId, photoReleases.email] })
+      .returning({ id: photoReleases.id });
+    affected = inserted.length;
+  }
+  return {
+    affected,
+    skipped: pairs.length - affected,
+    blocked: [],
+    invalid: [],
+    notTagged: photoIds.length * emails.length - pairs.length,
+  };
+}
+
+/** Back on sale: clears the release for everyone and every per-email one. */
+export async function unreleasePhotos(photoIds: string[]): Promise<BulkActionResult> {
+  return db.transaction(async (tx) => {
+    const cleared = await tx
+      .update(photos)
+      .set({ releasedAt: null })
+      .where(and(inArray(photos.id, photoIds), isNotNull(photos.releasedAt)))
+      .returning({ id: photos.id });
+    const removed = await tx
+      .delete(photoReleases)
+      .where(inArray(photoReleases.photoId, photoIds))
+      .returning({ photoId: photoReleases.photoId });
+    const affected = new Set([...cleared.map((row) => row.id), ...removed.map((row) => row.photoId)]).size;
+    return { affected, skipped: photoIds.length - affected, blocked: [], invalid: [] };
+  });
 }

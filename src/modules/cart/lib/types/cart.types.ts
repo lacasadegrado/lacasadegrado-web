@@ -20,7 +20,7 @@ export type CartItem = {
   /** Price of the chosen format, straight from the DB. */
   unitPriceCents: number;
   eventName: string;
-  /** Already entitled to the digital file; cannot be bought again. */
+  /** Already theirs (bought, or released as a package photo); cannot be bought. */
   owned: boolean;
 };
 

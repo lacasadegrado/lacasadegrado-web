@@ -75,7 +75,9 @@
   --sidebar-primary-foreground: var(--teal-950);
   --sidebar-accent: var(--teal-400);
   --sidebar-accent-foreground: var(--cream-100);
-  --sidebar-border: var(--teal-300);
+  /* teal-300 is almost teal-500 itself; a cream tint keeps the submenu
+     guide line and separators visible on the light theme's sidebar. */
+  --sidebar-border: color-mix(in oklab, var(--cream-100) 40%, var(--teal-500));
   --sidebar-ring: var(--amber);
 
   --brand-amber-foreground: var(--teal-900);

@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail, Tag, Trash2 } from "lucide-react";
+import { Lock, Mail, Tag, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/common/components/ui/alert";
@@ -31,16 +31,20 @@ import { cn } from "@/common/lib/utils/cn.util";
 
 import {
   bulkDeletePhotosAction,
+  bulkUnreleasePhotosAction,
   bulkTagPhotosAction,
   bulkUpdatePriceAction,
 } from "../../lib/actions/photo.action";
 import type { BulkActionOutcome } from "../../lib/types/admin.types";
+import { ReleasePhotosDialog } from "./release-photos-dialog";
 
 type BulkActionsBarProps = {
   selectedIds: string[];
   total: number;
   onSelectAll: () => void;
   onClear: () => void;
+  /** Emails tagged on the selected photos, for releasing to specific people. */
+  selectedEmails: string[];
   /** Overrides the sticky offset, which assumes the admin header. */
   stickyClassName?: string;
   /** Emails already tagged in the event, suggested while typing. */
@@ -78,6 +82,7 @@ export function BulkActionsBar({
   onClear,
   stickyClassName,
   taggedEmails,
+  selectedEmails,
 }: BulkActionsBarProps) {
   const [outcome, setOutcome] = useState<BulkActionOutcome | null>(null);
   const [pending, startTransition] = useTransition();
@@ -253,6 +258,22 @@ export function BulkActionsBar({
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+            <ReleasePhotosDialog
+              selectedIds={selectedIds}
+              selectedEmails={selectedEmails}
+              pending={pending}
+              run={run}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => run(() => bulkUnreleasePhotosAction({ photoIds: selectedIds }), () => undefined)}
+            >
+              <Lock aria-hidden="true" /> Quitar liberación
+            </Button>
 
             <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
               <AlertDialogTrigger asChild>

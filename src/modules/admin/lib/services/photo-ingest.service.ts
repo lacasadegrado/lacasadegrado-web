@@ -47,6 +47,8 @@ type CompleteInput = {
   printPriceCents: number;
   filename: string;
   contentType: string;
+  /** Released for everyone tagged (package photo) from the start. */
+  released: boolean;
 };
 
 export type CompleteUploadResult =
@@ -96,6 +98,7 @@ export async function completeUpload(input: CompleteInput): Promise<CompleteUplo
       height: derivative.original.height,
       priceCents: input.priceCents,
       printPriceCents: input.printPriceCents,
+      releasedAt: input.released ? new Date() : null,
     });
   } catch (error) {
     // Do not leave orphaned objects if processing or the row failed.

@@ -119,6 +119,7 @@ código de acceso se asocia a esta cuenta y ve sus fotos de inmediato.
 
 ```bash
 npm run photos:backfill-clean   # genera el derivado limpio de fotos subidas antes de que existiera
+npm run photos:regenerate-previews -- --yes  # rehace todas las vistas previas (blur y marca de agua) desde los originales
 npm run brand:assets            # regenera public/brand/*.png y el ícono a partir del logo SVG
 npm run forms:cleanup           # lista los archivos de formularios que nadie envió (no borra)
 npm run forms:cleanup -- --yes  # los borra
@@ -139,3 +140,12 @@ npm run typecheck
 npm run lint
 npm run build
 ```
+
+`photos:regenerate-previews` vuelve a generar la vista previa borrosa de
+cada foto con los valores actuales de `PREVIEW_DERIVATIVE` (en
+`src/modules/admin/lib/constants/admin.constants.ts`). Úsalo después de
+cambiar el blur o la marca de agua. Sin `--yes` solo cuenta; `--limit 3`
+rehace solo las 3 más antiguas para revisar antes. Sobrescribe el archivo
+de la vista previa en R2; no toca los originales ni la base de datos, y se
+puede repetir sin riesgo. El 2026-09-30 se bajó el blur de 12 a 5 y se
+regeneraron las 89 fotos existentes.

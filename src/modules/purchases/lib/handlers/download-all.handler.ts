@@ -13,6 +13,7 @@ import { getClientIp } from "@/modules/auth/lib/utils/auth.util";
 import { ZIP_FILENAME } from "../constants/purchases.constants";
 import {
   listEntitledPhotoKeys,
+  listReleasedPhotoKeys,
   listTaggedPhotoKeys,
   recordDownloads,
 } from "../services/download.service";
@@ -22,7 +23,8 @@ const NO_STORE = { "Cache-Control": "private, no-store" };
 
 /**
  * GET /api/purchases/download-all. Streams a zip of every original the
- * viewer is entitled to. Originals are already compressed images, so the
+ * viewer is entitled to, plus the photos released to them (or every
+ * tagged photo for free-download people). Originals are already compressed images, so the
  * archive stores them (no deflate) and one R2 object is in flight at a
  * time, which keeps memory flat regardless of how many photos there are.
  */
@@ -32,7 +34,8 @@ export async function downloadAllHandler(request: Request): Promise<Response> {
 
   const access = await getViewerAccess(user);
   const entitled = await listEntitledPhotoKeys(user);
-  const tagged = access.freeDownload ? await listTaggedPhotoKeys(user) : [];
+  // Free-download people already get every tagged photo, released included.
+  const tagged = access.freeDownload ? await listTaggedPhotoKeys(user) : await listReleasedPhotoKeys(user);
   const seen = new Set<string>();
   const items = [...entitled, ...tagged].filter((item) => {
     if (seen.has(item.photoId)) return false;

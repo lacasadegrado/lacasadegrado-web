@@ -33,7 +33,12 @@ export const PHOTO_UPLOAD = {
 /** Preview derivative, generated once at ingest (security rule 7). */
 export const PREVIEW_DERIVATIVE = {
   maxEdge: 1400,
-  blurSigma: 12,
+  /**
+   * Lowered from 12 on 2026-09-30: people could not tell similar photos
+   * apart. At 5 faces and poses read, the photo is still no use unbought.
+   * Existing previews are regenerated with `npm run photos:regenerate-previews`.
+   */
+  blurSigma: 5,
   webpQuality: 70,
 } as const;
 

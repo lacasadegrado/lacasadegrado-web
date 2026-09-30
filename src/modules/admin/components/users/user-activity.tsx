@@ -58,6 +58,7 @@ export function UserPhotos({ photos }: { photos: AdminUserPhoto[] }) {
                   {formatEur(photo.priceCents)} · impresa {formatEur(photo.printPriceCents)}
                 </span>
                 {photo.owned ? <Badge variant="secondary">Comprada</Badge> : null}
+                {photo.released ? <Badge variant="outline">Liberada</Badge> : null}
               </div>
             </div>
           </li>

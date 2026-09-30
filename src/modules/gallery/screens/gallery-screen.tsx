@@ -25,6 +25,14 @@ export async function GalleryScreen() {
     : access.freeView
       ? "free-view"
       : "buy";
+  // The zip holds bought and released photos, or every photo for free-download people.
+  const downloadable =
+    mode === "free-download"
+      ? total
+      : events.reduce(
+          (sum, event) => sum + event.photos.filter((photo) => photo.owned || photo.released).length,
+          0,
+        );
 
   return (
     <div className="space-y-8">
@@ -35,7 +43,7 @@ export async function GalleryScreen() {
             {total === 0 ? "Las fotos donde apareces, en cuanto estén listas." : SUBTITLES[mode]}
           </p>
         </div>
-        {mode === "free-download" && total > 1 ? (
+        {downloadable > 1 ? (
           <Button asChild variant="outline" size="lg" className="h-10">
             <a href={PURCHASES_PATHS.downloadAllApi} download>
               Descargar todas (.zip)

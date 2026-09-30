@@ -44,7 +44,10 @@ screen from `src/modules/<module>/screens/`. Shared code lives in
   `server-only`). Browser `supabase-js` is for auth only.
 - `original_key` never reaches the client. Grep for it before finishing a
   slice.
-- Entitlements are the only source of download rights.
+- Entitlements are the only purchase-based download right. The only
+  other grants are admin-made: `free_view`/`free_download` (Personas) and
+  photo releases (`photos.released_at`, `photo_releases`), always joined
+  with the viewer's tag on the photo.
 - Order totals are recomputed server-side from `photos.price_cents`.
 
 ## Visual direction
@@ -126,9 +129,11 @@ photos first: the gallery (per event), the Personas detail, and the admin
 Fotos grid, which shows a "Vendida" badge from `soldCount` (entitlements).
 Admin shell is the shadcn sidebar (`variant="inset"`, teal via the
 `--sidebar-*` tokens) in `src/modules/admin/components/admin-shell/`;
-`ADMIN_SECTIONS` there drives both the nav and the breadcrumb. A section
-with `items` is a collapsible group (Eventos: Todos los eventos /
-Formularios; Pagos: Fotos adicionales / Paquetes); `matchAdminSection`
+`ADMIN_NAV_GROUPS` there (labelled sidebar groups: Gestión, Configuración
+with Tasa and Personas) drives the nav, and its flat `ADMIN_SECTIONS` the
+breadcrumb. A section with `items` is a collapsible group (Eventos: Todos
+los eventos / Formularios; Fotos: Todas las fotos / Impresiones, which
+keeps `/admin/prints`; Pagos: Fotos adicionales / Paquetes); `matchAdminSection`
 picks the page by longest href, and the breadcrumb shows group › page. The
 photo grid is selection-based: `PhotoGrid` holds the selected ids and
 `BulkActionsBar` runs tag / price / delete through object-argument
@@ -213,6 +218,22 @@ everything under `forms/<formId>/`; `npm run forms:cleanup` (dry run
 unless `--yes`, 24 h safety margin) removes unused files of live forms.
 Payment details on the forms are deliberately absent until the owner
 decides. `CopyButton` lives in `src/common/components/copy-button/`.
+Preview blur is sigma 5 since 2026-09-30 (was 12; similar photos were
+indistinguishable). `npm run photos:regenerate-previews -- --yes` rebuilds
+every preview from its original with the current `PREVIEW_DERIVATIVE`.
+Photo releases (2026-09-30, migration 0011): package photos the admin
+frees for specific photos, unlike Personas' free_download which frees
+everything. `photos.released_at` = released for everyone tagged;
+`photo_releases(photo_id, email)` = only for that email, created only for
+emails tagged on the photo. The single predicate is `releasedForEmail` in
+`src/modules/purchases/lib/utils/photo-release.util.ts`; it must sit next
+to a `photo_tags.email` condition (untagging revokes). Used by the view,
+download and zip handlers (`getReleasedPhotoKeys`/`listReleasedPhotoKeys`),
+the gallery (`GalleryPhoto.released`: clean, "Incluida en tu paquete" +
+Descargar), the cart (`owned` = bought or released, so `createOrder`
+refuses it, prints included) and Personas. Admin: "Liberar" (all tagged /
+chosen emails) and "Quitar liberación" in `BulkActionsBar`, a checkbox in
+the uploader (`released` on complete), "Liberada" badges.
 
 Uploads never pass through a server function (Vercel caps bodies at
 4.5 MB; Next 16's proxy truncates at 10 MB). Photos: POST

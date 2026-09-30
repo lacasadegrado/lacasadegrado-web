@@ -8,7 +8,6 @@ import {
   Globe,
   Images,
   LogOut,
-  Printer,
   Users,
   Wallet,
   type LucideIcon,
@@ -70,30 +69,57 @@ export type AdminSection = AdminNavLink & {
   items?: readonly AdminNavLink[]
 }
 
-export const ADMIN_SECTIONS: readonly AdminSection[] = [
+type AdminNavGroup = { label: string; sections: readonly AdminSection[] };
+
+/**
+ * The sidebar: day-to-day work first, settings apart. Impresiones sits
+ * under Fotos (it is the print fulfilment of bought photos) but keeps its
+ * own path, so links and emails are unchanged.
+ */
+export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
   {
-    href: ADMIN_PATHS.events,
-    label: "Eventos",
-    icon: CalendarDays,
-    items: [
-      { href: ADMIN_PATHS.events, label: "Todos los eventos" },
-      { href: ADMIN_PATHS.eventForms, label: "Formularios" },
+    label: "Gestión",
+    sections: [
+      {
+        href: ADMIN_PATHS.events,
+        label: "Eventos",
+        icon: CalendarDays,
+        items: [
+          { href: ADMIN_PATHS.events, label: "Todos los eventos" },
+          { href: ADMIN_PATHS.eventForms, label: "Formularios" },
+        ],
+      },
+      {
+        href: ADMIN_PATHS.photos,
+        label: "Fotos",
+        icon: Images,
+        items: [
+          { href: ADMIN_PATHS.photos, label: "Todas las fotos" },
+          { href: ADMIN_PATHS.prints, label: "Impresiones", badge: "prints" },
+        ],
+      },
+      {
+        href: ADMIN_PATHS.payments,
+        label: "Pagos",
+        icon: Wallet,
+        items: [
+          { href: ADMIN_PATHS.payments, label: "Fotos adicionales", badge: "payments" },
+          { href: ADMIN_PATHS.packagePayments, label: "Paquetes" },
+        ],
+      },
     ],
   },
-  { href: ADMIN_PATHS.photos, label: "Fotos", icon: Images },
   {
-    href: ADMIN_PATHS.payments,
-    label: "Pagos",
-    icon: Wallet,
-    items: [
-      { href: ADMIN_PATHS.payments, label: "Fotos adicionales", badge: "payments" },
-      { href: ADMIN_PATHS.packagePayments, label: "Paquetes" },
+    label: "Configuración",
+    sections: [
+      { href: ADMIN_PATHS.rates, label: "Tasa", icon: ArrowLeftRight },
+      { href: ADMIN_PATHS.users, label: "Personas", icon: Users },
     ],
   },
-  { href: ADMIN_PATHS.prints, label: "Impresiones", icon: Printer, badge: "prints" },
-  { href: ADMIN_PATHS.rates, label: "Tasa", icon: ArrowLeftRight },
-  { href: ADMIN_PATHS.users, label: "Personas", icon: Users },
 ]
+
+/** Every section in sidebar order; the breadcrumb matches against these. */
+export const ADMIN_SECTIONS: readonly AdminSection[] = ADMIN_NAV_GROUPS.flatMap((group) => group.sections)
 
 function matches(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`)
@@ -190,83 +216,85 @@ export function AdminSidebar({ email, pendingPayments, pendingPrints }: AdminSid
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-cream/60">
-            Gestión
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {ADMIN_SECTIONS.map((section) => {
-                const inSection = current?.section === section
+        {ADMIN_NAV_GROUPS.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel className="text-cream/60">
+              {group.label}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.sections.map((section) => {
+                  const inSection = current?.section === section
 
-                if (!section.items) {
-                  return (
-                    <SidebarMenuItem key={section.href}>
-                      <SidebarMenuButton asChild isActive={inSection} className={ACTIVE_CLASS}>
-                        <Link href={section.href} onClick={closeOnMobile}>
-                          <section.icon aria-hidden="true" />
-                          <span>{section.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                      {renderBadge(section, inSection)}
-                    </SidebarMenuItem>
-                  )
-                }
-
-                // Open by default where the admin is, or where something is pending.
-                const hasPending = section.items.some(
-                  (item) => item.badge && counts[item.badge] > 0,
-                )
-                return (
-                  <Collapsible
-                    key={section.href}
-                    asChild
-                    defaultOpen={inSection || hasPending}
-                    className="group/collapsible"
-                  >
-                    <SidebarMenuItem>
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton className={inSection ? "font-semibold" : undefined}>
-                          <section.icon aria-hidden="true" />
-                          <span>{section.label}</span>
-                          <ChevronRight
-                            aria-hidden="true"
-                            className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 motion-reduce:transition-none"
-                          />
+                  if (!section.items) {
+                    return (
+                      <SidebarMenuItem key={section.href}>
+                        <SidebarMenuButton asChild isActive={inSection} className={ACTIVE_CLASS}>
+                          <Link href={section.href} onClick={closeOnMobile}>
+                            <section.icon aria-hidden="true" />
+                            <span>{section.label}</span>
+                          </Link>
                         </SidebarMenuButton>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <SidebarMenuSub>
-                          {section.items.map((item) => {
-                            const active = current?.page === item
-                            return (
-                              <SidebarMenuSubItem key={item.href}>
-                                <SidebarMenuSubButton
-                                  asChild
-                                  isActive={active}
-                                  className={cn(ACTIVE_CLASS, item.badge && "pr-8")}
-                                >
-                                  <Link
-                                    href={item.href}
-                                    onClick={closeOnMobile}
-                                    aria-current={active ? "page" : undefined}
+                        {renderBadge(section, inSection)}
+                      </SidebarMenuItem>
+                    )
+                  }
+
+                  // Open by default where the admin is, or where something is pending.
+                  const hasPending = section.items.some(
+                    (item) => item.badge && counts[item.badge] > 0,
+                  )
+                  return (
+                    <Collapsible
+                      key={section.href}
+                      asChild
+                      defaultOpen={inSection || hasPending}
+                      className="group/collapsible"
+                    >
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton className={inSection ? "font-semibold" : undefined}>
+                            <section.icon aria-hidden="true" />
+                            <span>{section.label}</span>
+                            <ChevronRight
+                              aria-hidden="true"
+                              className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 motion-reduce:transition-none"
+                            />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {section.items.map((item) => {
+                              const active = current?.page === item
+                              return (
+                                <SidebarMenuSubItem key={item.href}>
+                                  <SidebarMenuSubButton
+                                    asChild
+                                    isActive={active}
+                                    className={cn(ACTIVE_CLASS, item.badge && "pr-8")}
                                   >
-                                    <span>{item.label}</span>
-                                  </Link>
-                                </SidebarMenuSubButton>
-                                {renderBadge(item, active, "top-1")}
-                              </SidebarMenuSubItem>
-                            )
-                          })}
-                        </SidebarMenuSub>
-                      </CollapsibleContent>
-                    </SidebarMenuItem>
-                  </Collapsible>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                                    <Link
+                                      href={item.href}
+                                      onClick={closeOnMobile}
+                                      aria-current={active ? "page" : undefined}
+                                    >
+                                      <span>{item.label}</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                  {renderBadge(item, active, "top-1")}
+                                </SidebarMenuSubItem>
+                              )
+                            })}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
 
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>

@@ -6,6 +6,8 @@ import { db } from "@/common/lib/db";
 import { downloadLogs, entitlements, events, photoTags, photos } from "@/common/lib/db/schema";
 import type { SessionUser } from "@/modules/auth/lib/types/auth.types";
 
+import { releasedForEmail } from "../utils/photo-release.util";
+
 /**
  * SERVER-ONLY RESULTS. These carry storage keys and are consumed only by
  * route handlers that turn them into presigned redirects or streams.
@@ -94,6 +96,50 @@ export async function listTaggedPhotoKeys(viewer: SessionUser): Promise<Entitled
     .innerJoin(events, and(eq(events.id, photos.eventId), eq(events.isActive, true)))
     .where(eq(photoTags.email, viewer.email))
     .orderBy(asc(events.eventDate), asc(photos.originalFilename), asc(photos.createdAt))
+}
+
+/**
+ * Keys for a photo released to the viewer (a prepaid package photo): they
+ * are tagged on it in an active event and it is released for everyone
+ * tagged or for their email. Needs no access flag: the release is the grant.
+ */
+export async function getReleasedPhotoKeys(
+  viewer: SessionUser,
+  photoId: string,
+): Promise<EntitledPhotoKeys | null> {
+  const [row] = await db
+    .select({
+      photoId: photos.id,
+      originalKey: photos.originalKey,
+      cleanKey: photos.cleanKey,
+      originalFilename: photos.originalFilename,
+      eventSlug: events.slug,
+    })
+    .from(photoTags)
+    .innerJoin(photos, eq(photos.id, photoTags.photoId))
+    .innerJoin(events, and(eq(events.id, photos.eventId), eq(events.isActive, true)))
+    .where(
+      and(eq(photoTags.email, viewer.email), eq(photoTags.photoId, photoId), releasedForEmail(viewer.email)),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+/** Every photo released to the viewer, for the zip. */
+export async function listReleasedPhotoKeys(viewer: SessionUser): Promise<EntitledPhotoKeys[]> {
+  return db
+    .select({
+      photoId: photos.id,
+      originalKey: photos.originalKey,
+      cleanKey: photos.cleanKey,
+      originalFilename: photos.originalFilename,
+      eventSlug: events.slug,
+    })
+    .from(photoTags)
+    .innerJoin(photos, eq(photos.id, photoTags.photoId))
+    .innerJoin(events, and(eq(events.id, photos.eventId), eq(events.isActive, true)))
+    .where(and(eq(photoTags.email, viewer.email), releasedForEmail(viewer.email)))
+    .orderBy(asc(events.eventDate), asc(photos.originalFilename), asc(photos.createdAt));
 }
 
 /** Every entitled photo, for the zip. Ordered by event then filename. */

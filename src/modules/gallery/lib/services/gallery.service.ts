@@ -5,6 +5,7 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/common/lib/db";
 import { entitlements, events, photoTags, photos } from "@/common/lib/db/schema";
 import type { SessionUser } from "@/modules/auth/lib/types/auth.types";
+import { releasedForEmail } from "@/modules/purchases/lib/utils/photo-release.util";
 
 import type { GalleryEvent } from "../types/gallery.types";
 
@@ -26,6 +27,7 @@ export async function listGalleryForUser(viewer: SessionUser): Promise<GalleryEv
       priceCents: photos.priceCents,
       printPriceCents: photos.printPriceCents,
       owned: sql<boolean>`${entitlements.id} is not null`,
+      released: releasedForEmail(viewer.email),
     })
     .from(photoTags)
     .innerJoin(photos, eq(photos.id, photoTags.photoId))
@@ -35,11 +37,11 @@ export async function listGalleryForUser(viewer: SessionUser): Promise<GalleryEv
       and(eq(entitlements.photoId, photos.id), eq(entitlements.profileId, viewer.id)),
     )
     .where(eq(photoTags.email, viewer.email))
-        // Newest event first; inside an event, photos already bought come first.
+    // Newest event first; inside an event, photos already theirs (bought or released) come first.
     .orderBy(
       desc(events.eventDate),
       desc(events.createdAt),
-      desc(sql`${entitlements.id} is not null`),
+      desc(sql`${entitlements.id} is not null or ${releasedForEmail(viewer.email)}`),
       asc(photos.createdAt),
       asc(photos.id),
     );
@@ -64,6 +66,7 @@ export async function listGalleryForUser(viewer: SessionUser): Promise<GalleryEv
       priceCents: row.priceCents,
       printPriceCents: row.printPriceCents,
       owned: row.owned,
+      released: row.released,
     });
   }
   return [...byEvent.values()];

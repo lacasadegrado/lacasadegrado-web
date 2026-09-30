@@ -17,6 +17,7 @@ import {
 } from "@/common/lib/db/schema"
 
 import { createSupabaseAdminClient } from "@/common/lib/supabase/supabase-admin.util"
+import { releasedForEmail } from "@/modules/purchases/lib/utils/photo-release.util"
 
 import type { CreateUserInput, UpdateUserPermissionsInput } from "../schemas/admin.schema"
 import type { AdminUserDetail, AdminUserRow } from "../types/user.types"
@@ -87,6 +88,7 @@ export async function getUserDetail(profileId: string): Promise<AdminUserDetail 
         printPriceCents: photos.printPriceCents,
         eventName: events.name,
         owned: sql<boolean>`${entitlements.id} is not null`,
+        released: releasedForEmail(profile.email),
       })
       .from(photoTags)
       .innerJoin(photos, eq(photos.id, photoTags.photoId))

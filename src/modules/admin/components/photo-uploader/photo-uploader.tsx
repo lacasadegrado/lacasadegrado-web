@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useId, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/common/components/ui/button";
+import { Checkbox } from "@/common/components/ui/checkbox";
 import { Input } from "@/common/components/ui/input";
 import { Label } from "@/common/components/ui/label";
 import { eurToCents } from "@/common/lib/utils/money.util";
@@ -42,6 +43,7 @@ export function PhotoUploader({
   const [printPriceEur, setPrintPriceEur] = useState((defaultPrintPriceCents / 100).toFixed(2));
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [busy, setBusy] = useState(false);
+  const [released, setReleased] = useState(false);
   const [justUploadedIds, setJustUploadedIds] = useState<string[]>([]);
   const [refreshing, startRefresh] = useTransition();
 
@@ -98,7 +100,7 @@ export function PhotoUploader({
       const done = (await fetch("/api/admin/photos/upload/complete", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...meta, photoId: prepared.photoId }),
+        body: JSON.stringify({ ...meta, photoId: prepared.photoId, released }),
       }).then((r) => r.json())) as UploadResponse;
       if (done.ok) {
         updateItem(item.id, { status: "done" });
@@ -195,6 +197,23 @@ export function PhotoUploader({
           />
           <p className="text-sm text-muted-foreground">Incluye la digital.</p>
         </div>
+      </div>
+
+      <div className="flex items-start gap-2">
+        <Checkbox
+          id={`${inputId}-released`}
+          checked={released}
+          disabled={busy}
+          onCheckedChange={(checked) => setReleased(checked === true)}
+          className="mt-0.5"
+        />
+        <Label htmlFor={`${inputId}-released`} className="block font-normal">
+          <span className="font-medium">Liberar estas fotos (son del paquete)</span>
+          <span className="block text-sm text-muted-foreground">
+            Quien quede etiquetado las verá sin marca de agua y las descargará sin comprarlas. Para
+            liberarlas solo a algunas personas, súbelas sin marcar esto y usa &quot;Liberar&quot; después.
+          </span>
+        </Label>
       </div>
 
       {queue.length > 0 ? (

@@ -37,6 +37,10 @@ export type AdminPhoto = {
   /** Entitlements granted for this photo (people who bought it). */
   soldCount: number;
   tags: AdminPhotoTag[];
+  /** Released for everyone tagged (a package photo); null when for sale. */
+  releasedAt: Date | null;
+  /** Emails it is released to individually (`photo_releases`). */
+  releasedEmails: string[];
 };
 
 /** Outcome of a selection-based bulk action. */

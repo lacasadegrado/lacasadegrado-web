@@ -12,6 +12,8 @@ export type GalleryPhoto = {
   printPriceCents: number;
   /** The viewer already holds an entitlement for this photo. */
   owned: boolean;
+  /** Released to the viewer (package photo): theirs without buying it. */
+  released: boolean;
 };
 
 export type GalleryEvent = {

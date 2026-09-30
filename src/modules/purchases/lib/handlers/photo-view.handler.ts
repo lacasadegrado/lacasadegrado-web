@@ -11,6 +11,7 @@ import { VIEW_URL_TTL_SECONDS } from "../constants/purchases.constants"
 import {
   getEntitledPhotoKeys,
   getPhotoKeysAsAdmin,
+  getReleasedPhotoKeys,
   getTaggedPhotoKeys,
 } from "../services/download.service"
 
@@ -18,7 +19,8 @@ const NO_STORE = { "Cache-Control": "private, no-store" }
 
 /**
  * GET /api/photos/[id]/view. The clean derivative, for people entitled to
- * the photo, people with free viewing who are tagged in it, and admins.
+ * the photo, people with free viewing who are tagged in it, people the
+ * photo is released to (package photos), and admins.
  * Falls back to the original, inline, for photos ingested before the
  * derivative existed. Everyone else: 404.
  */
@@ -38,6 +40,7 @@ export async function photoViewHandler(photoId: string): Promise<Response> {
     if (access.isAdmin) keys = await getPhotoKeysAsAdmin(photoId)
     else if (access.freeView) keys = await getTaggedPhotoKeys(user, photoId)
   }
+  if (!keys) keys = await getReleasedPhotoKeys(user, photoId)
   if (!keys) return new NextResponse(null, { status: 404, headers: NO_STORE })
 
   const url = await getPresignedGetUrl(keys.cleanKey ?? keys.originalKey, {

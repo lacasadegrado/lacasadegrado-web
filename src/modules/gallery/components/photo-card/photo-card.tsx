@@ -16,15 +16,15 @@ type PhotoCardProps = {
  * One photo in the gallery. The frame reserves the exact aspect ratio
  * before the preview arrives, so a slow connection never reflows the
  * grid. The preview is lazy and served through the gated route. Owned
- * photos and free-access viewers get the clean derivative; everything
- * else stays watermarked, including in the lightbox.
+ * and released (package) photos, and free-access viewers, get the clean
+ * derivative; everything else stays watermarked, including in the lightbox.
  */
 export function PhotoCard({ photo, mode }: PhotoCardProps) {
-  const clean = photo.owned || mode !== "buy";
+  const clean = photo.owned || photo.released || mode !== "buy";
   const src = clean ? PURCHASES_PATHS.viewApi(photo.id) : GALLERY_PATHS.previewApi(photo.id);
 
   return (
-    <PhotoCardFrame photoId={photo.id} owned={photo.owned || mode !== "buy"}>
+    <PhotoCardFrame photoId={photo.id} owned={clean}>
       <div
         className="relative bg-muted"
         style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
@@ -42,7 +42,16 @@ export function PhotoCard({ photo, mode }: PhotoCardProps) {
         <PhotoLightbox src={src} alt="" width={photo.width} height={photo.height} />
       </div>
       <div className="space-y-2 p-2.5">
-        {mode === "buy" ? (
+        {photo.released && mode !== "free-download" ? (
+          <div className="space-y-1.5">
+            <span className="block text-sm font-medium">Incluida en tu paquete</span>
+            <Button asChild size="sm" className="h-9 w-full">
+              <a href={PURCHASES_PATHS.downloadApi(photo.id)} download>
+                Descargar
+              </a>
+            </Button>
+          </div>
+        ) : mode === "buy" ? (
           <PhotoCardActions
             photoId={photo.id}
             owned={photo.owned}

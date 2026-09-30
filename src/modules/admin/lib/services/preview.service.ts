@@ -18,11 +18,15 @@ export type PreviewDerivative = {
 
 /**
  * Security rule 7. Runs once at ingest, never on request:
- * longest edge to 1400px, Gaussian blur sigma 12, tiled diagonal
+ * longest edge to 1400px, Gaussian blur (PREVIEW_DERIVATIVE.blurSigma), tiled diagonal
  * watermark, WebP quality 70. The original bytes are never touched.
  * The clean derivative is the same resize without blur or watermark.
  */
-export async function generatePreview(original: Buffer): Promise<PreviewDerivative> {
+export async function generatePreview(
+  original: Buffer,
+  /** Overrides PREVIEW_DERIVATIVE.blurSigma; only the regenerate script uses it, for tests. */
+  options: { blurSigma?: number } = {},
+): Promise<PreviewDerivative> {
   const source = sharp(original, { failOn: "none" }).rotate();
   const metadata = await source.metadata();
   if (!metadata.width || !metadata.height) {
@@ -51,7 +55,7 @@ export async function generatePreview(original: Buffer): Promise<PreviewDerivati
 
   const [preview, clean] = await Promise.all([
     sharp(resized)
-      .blur(PREVIEW_DERIVATIVE.blurSigma)
+      .blur(options.blurSigma ?? PREVIEW_DERIVATIVE.blurSigma)
       .composite([{ input: watermark, blend: "over" }])
       .webp({ quality: PREVIEW_DERIVATIVE.webpQuality })
       .toBuffer(),

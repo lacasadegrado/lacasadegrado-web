@@ -5,6 +5,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/common/lib/db";
 import { entitlements, events, photoTags, photos } from "@/common/lib/db/schema";
 import type { SessionUser } from "@/modules/auth/lib/types/auth.types";
+import { releasedForEmail } from "@/modules/purchases/lib/utils/photo-release.util";
 
 import type { CartItem, CartItemsResult, CartLineInput } from "../types/cart.types";
 
@@ -12,7 +13,9 @@ import type { CartItem, CartItemsResult, CartLineInput } from "../types/cart.typ
  * Resolves cart lines against what the viewer may actually buy: photos
  * tagged with their email in active events. Prices come from the DB,
  * never from the client (security rule 9); the client only chooses the
- * format. Order of the input is kept.
+ * format. Order of the input is kept. `owned` means "already theirs, do
+ * not charge": bought, or released to them as a package photo. Checkout
+ * refuses both.
  */
 export async function getCartItemsForUser(
   viewer: SessionUser,
@@ -28,7 +31,7 @@ export async function getCartItemsForUser(
       priceCents: photos.priceCents,
       printPriceCents: photos.printPriceCents,
       eventName: events.name,
-      owned: sql<boolean>`${entitlements.id} is not null`,
+      owned: sql<boolean>`(${entitlements.id} is not null or ${releasedForEmail(viewer.email)})`,
     })
     .from(photos)
     .innerJoin(events, and(eq(events.id, photos.eventId), eq(events.isActive, true)))

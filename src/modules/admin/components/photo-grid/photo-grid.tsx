@@ -45,7 +45,11 @@ export function PhotoGrid({
   const query = rawQuery.trim().toLowerCase();
 
   const visible = photos.filter((photo) => matchesEmail(photo, query));
-  const selectedIds = visible.filter((photo) => selected.has(photo.id)).map((photo) => photo.id);
+  const selectedPhotos = visible.filter((photo) => selected.has(photo.id));
+  const selectedIds = selectedPhotos.map((photo) => photo.id);
+  const selectedEmails = [
+    ...new Set(selectedPhotos.flatMap((photo) => photo.tags.map((tag) => tag.email))),
+  ].sort();
 
   function toggle(photoId: string) {
     setSelected((current) => {
@@ -114,6 +118,7 @@ export function PhotoGrid({
             onClear={() => setSelected(new Set())}
             stickyClassName={variant === "dialog" ? "top-0" : undefined}
             taggedEmails={taggedEmails}
+            selectedEmails={selectedEmails}
           />
           <datalist id={emailListId}>
             {taggedEmails.map((email) => (

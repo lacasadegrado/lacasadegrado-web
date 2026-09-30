@@ -7,6 +7,8 @@ import { eurToCents } from "@/common/lib/utils/money.util";
 import { ADMIN_PATHS } from "../constants/admin.constants";
 import {
   bulkDeleteSchema,
+  bulkReleaseSchema,
+  bulkUnreleaseSchema,
   bulkPriceSchema,
   bulkTagPhotosSchema,
   deletePhotoSchema,
@@ -18,6 +20,9 @@ import { requireAdmin } from "../services/admin-access.service";
 import {
   addTag,
   bulkDeletePhotos,
+  releasePhotosToAll,
+  releasePhotosToEmails,
+  unreleasePhotos,
   bulkTagPhotos,
   bulkUpdatePrice,
   deletePhoto,
@@ -190,5 +195,61 @@ export async function bulkDeletePhotosAction(input: {
       result.blocked.length > 0
         ? `${plural(result.affected, "foto eliminada", "fotos eliminadas")}. ${plural(result.blocked.length, "foto está", "fotos están")} en un pedido y no se ${result.blocked.length === 1 ? "borró" : "borraron"}.`
         : `${plural(result.affected, "foto eliminada", "fotos eliminadas")}.`,
+  };
+}
+
+export async function bulkReleasePhotosAction(
+  input: { mode: "all"; photoIds: string[] } | { mode: "emails"; photoIds: string[]; emails: string[] },
+): Promise<BulkActionOutcome> {
+  await requireAdmin();
+
+  const parsed = bulkReleaseSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Revisa la selección." };
+  }
+
+  const photoCount = plural(parsed.data.photoIds.length, "foto", "fotos");
+  if (parsed.data.mode === "all") {
+    const result = await releasePhotosToAll(parsed.data.photoIds);
+    revalidatePath(ADMIN_PATHS.photos);
+    return {
+      ok: true,
+      result,
+      message: `${plural(result.affected, "foto liberada", "fotos liberadas")} para todos sus etiquetados${result.skipped > 0 ? `; ${result.skipped} ya lo estaban` : ""}.`,
+    };
+  }
+
+  const result = await releasePhotosToEmails(parsed.data.photoIds, parsed.data.emails);
+  revalidatePath(ADMIN_PATHS.photos);
+  const notes = [
+    result.skipped > 0 ? `${result.skipped} ya estaban liberadas` : null,
+    result.notTagged > 0
+      ? `${result.notTagged} no aplican porque ese correo no está etiquetado en esa foto`
+      : null,
+  ].filter(Boolean);
+  return {
+    ok: true,
+    result,
+    message: `${plural(result.affected, "liberación nueva", "liberaciones nuevas")} en ${photoCount}${notes.length > 0 ? ` (${notes.join("; ")})` : ""}.`,
+  };
+}
+
+export async function bulkUnreleasePhotosAction(input: { photoIds: string[] }): Promise<BulkActionOutcome> {
+  await requireAdmin();
+
+  const parsed = bulkUnreleaseSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Revisa la selección." };
+  }
+
+  const result = await unreleasePhotos(parsed.data.photoIds);
+  revalidatePath(ADMIN_PATHS.photos);
+  return {
+    ok: true,
+    result,
+    message:
+      result.affected > 0
+        ? `${plural(result.affected, "foto vuelve", "fotos vuelven")} a estar a la venta.`
+        : "Ninguna de las fotos seleccionadas estaba liberada.",
   };
 }

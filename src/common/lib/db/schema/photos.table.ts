@@ -40,6 +40,12 @@ export const photos = pgTable(
     priceCents: integer("price_cents").notNull(),
     /** Printed copy, integer EUR cents. Buying the print includes the digital file. */
     printPriceCents: integer("print_price_cents").notNull().default(0),
+    /**
+     * Released for every person tagged in it (a prepaid package photo):
+     * they see it clean and download it without buying. Null means for
+     * sale. Per-email releases live in `photo_releases`.
+     */
+    releasedAt: timestamp("released_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -80,3 +86,25 @@ export type Photo = typeof photos.$inferSelect;
 export type NewPhoto = typeof photos.$inferInsert;
 export type PhotoTag = typeof photoTags.$inferSelect;
 export type NewPhotoTag = typeof photoTags.$inferInsert;
+
+/**
+ * A photo released for one person only (e.g. a group photo where just one
+ * of the tagged people paid the package). Only counts while that email is
+ * also tagged on the photo; the access checks join both.
+ */
+export const photoReleases = pgTable(
+  "photo_releases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    photoId: uuid("photo_id")
+      .notNull()
+      .references(() => photos.id, { onDelete: "cascade" }),
+    email: citext("email").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("photo_releases_photo_id_email_uq").on(t.photoId, t.email)],
+).enableRLS();
+
+export type PhotoRelease = typeof photoReleases.$inferSelect;

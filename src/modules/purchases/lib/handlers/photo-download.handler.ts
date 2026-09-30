@@ -11,6 +11,7 @@ import { getClientIp } from "@/modules/auth/lib/utils/auth.util"
 import { DOWNLOAD_URL_TTL_SECONDS } from "../constants/purchases.constants"
 import {
   getEntitledPhotoKeys,
+  getReleasedPhotoKeys,
   getTaggedPhotoKeys,
   recordDownloads,
 } from "../services/download.service"
@@ -37,6 +38,8 @@ export async function photoDownloadHandler(request: Request, photoId: string): P
     const access = await getViewerAccess(user)
     if (access.freeDownload) photo = await getTaggedPhotoKeys(user, photoId)
   }
+  // Package photos: released to the viewer, no purchase needed.
+  if (!photo) photo = await getReleasedPhotoKeys(user, photoId)
   if (!photo) return new NextResponse(null, { status: 404, headers: NO_STORE })
 
   await recordDownloads(user, [photo.photoId], {

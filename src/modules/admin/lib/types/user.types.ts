@@ -24,6 +24,8 @@ export type AdminUserPhoto = {
   eventName: string
   /** The person holds an entitlement (bought, or granted by an approval). */
   owned: boolean
+  /** Released to this person as a package photo. */
+  released: boolean
 }
 
 export type AdminUserOrder = {
