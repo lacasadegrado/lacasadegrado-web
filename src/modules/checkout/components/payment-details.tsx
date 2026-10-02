@@ -44,7 +44,7 @@ function rowsFor(method: PaymentMethod, accounts: PaymentAccounts): Row[] {
         { label: "Tipo", value: bankTransfer.accountType },
         { label: "Titular", value: bankTransfer.holder },
         {
-          label: "RIF",
+          label: "Cédula / RIF",
           value: bankTransfer.idNumber,
           copy: idNumber(bankTransfer.idNumber),
         },
