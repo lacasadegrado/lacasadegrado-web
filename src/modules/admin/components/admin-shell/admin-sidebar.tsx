@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ChevronRight,
   ChevronsUpDown,
+  CreditCard,
   Globe,
   Images,
   LogOut,
@@ -113,6 +114,7 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     label: "Configuración",
     sections: [
       { href: ADMIN_PATHS.rates, label: "Tasa", icon: ArrowLeftRight },
+      { href: ADMIN_PATHS.paymentMethods, label: "Métodos de pago", icon: CreditCard },
       { href: ADMIN_PATHS.users, label: "Personas", icon: Users },
     ],
   },

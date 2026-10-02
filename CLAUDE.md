@@ -130,7 +130,7 @@ Fotos grid, which shows a "Vendida" badge from `soldCount` (entitlements).
 Admin shell is the shadcn sidebar (`variant="inset"`, teal via the
 `--sidebar-*` tokens) in `src/modules/admin/components/admin-shell/`;
 `ADMIN_NAV_GROUPS` there (labelled sidebar groups: Gestión, Configuración
-with Tasa and Personas) drives the nav, and its flat `ADMIN_SECTIONS` the
+with Tasa, Métodos de pago and Personas) drives the nav, and its flat `ADMIN_SECTIONS` the
 breadcrumb. A section with `items` is a collapsible group (Eventos: Todos
 los eventos / Formularios; Fotos: Todas las fotos / Impresiones, which
 keeps `/admin/prints`; Pagos: Fotos adicionales / Paquetes); `matchAdminSection`
@@ -155,8 +155,13 @@ Personas, or `npm run user:create`): `createUserWithAccess` calls
 `auth.admin.createUser` through `supabase-admin.util.ts` (service role,
 server-only) and inserts the profile with the flags; their first OTP
 attaches to that account.
-Business payment details are placeholders in
-`src/common/lib/config/business.config.ts`. Support form notifications
+Business payment details (Pago Móvil, transferencia) are edited by the
+admin at `/admin/payment-methods` (Configuración › Métodos de pago,
+migration 0012 `payment_accounts`, one jsonb row per method parsed with
+`PAYMENT_DETAILS_SCHEMAS` in the checkout module, which also normalizes
+phone, ID and account number). `getPaymentAccounts()` feeds the payment
+screen's `PaymentDetails` and the admin preview; a method never saved
+falls back to the placeholders in `src/common/lib/config/business.config.ts`. Support form notifications
 go to `SUPPORT_NOTIFY_EMAIL` (one address, unrelated to admins). Grant admin with
 `npm run admin:grant -- <email>` after that person has logged in once.
 Admins land on `/admin` after login (and when they hit `/login` or the

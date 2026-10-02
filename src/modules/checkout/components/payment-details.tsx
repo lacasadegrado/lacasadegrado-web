@@ -1,6 +1,7 @@
 import { CopyButton } from "@/common/components/copy-button/copy-button";
-import { BUSINESS } from "@/common/lib/config/business.config";
 import type { PaymentMethod } from "@/common/lib/db/schema";
+
+import type { PaymentAccounts } from "../lib/schemas/payment-account.schema";
 
 type Row = { label: string; value: string; /** What goes on the clipboard; defaults to value. */ copy?: string };
 
@@ -14,36 +15,38 @@ function idNumber(value: string): string {
   return value.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 }
 
-function rowsFor(method: PaymentMethod): Row[] {
+function rowsFor(method: PaymentMethod, accounts: PaymentAccounts): Row[] {
+  const pagoMovil = accounts.pago_movil;
+  const bankTransfer = accounts.bank_transfer;
   switch (method) {
     case "pago_movil":
       return [
         {
           label: "Banco",
-          value: `${BUSINESS.pagoMovil.bank} (${BUSINESS.pagoMovil.bankCode})`,
-          copy: BUSINESS.pagoMovil.bankCode,
+          value: `${pagoMovil.bank} (${pagoMovil.bankCode})`,
+          copy: pagoMovil.bankCode,
         },
-        { label: "Teléfono", value: BUSINESS.pagoMovil.phone, copy: digits(BUSINESS.pagoMovil.phone) },
+        { label: "Teléfono", value: pagoMovil.phone, copy: digits(pagoMovil.phone) },
         {
           label: "Cédula / RIF",
-          value: BUSINESS.pagoMovil.idNumber,
-          copy: idNumber(BUSINESS.pagoMovil.idNumber),
+          value: pagoMovil.idNumber,
+          copy: idNumber(pagoMovil.idNumber),
         },
       ];
     case "bank_transfer":
       return [
-        { label: "Banco", value: BUSINESS.bankTransfer.bank },
+        { label: "Banco", value: bankTransfer.bank },
         {
           label: "Cuenta",
-          value: BUSINESS.bankTransfer.accountNumber,
-          copy: digits(BUSINESS.bankTransfer.accountNumber),
+          value: bankTransfer.accountNumber,
+          copy: digits(bankTransfer.accountNumber),
         },
-        { label: "Tipo", value: BUSINESS.bankTransfer.accountType },
-        { label: "Titular", value: BUSINESS.bankTransfer.holder },
+        { label: "Tipo", value: bankTransfer.accountType },
+        { label: "Titular", value: bankTransfer.holder },
         {
           label: "RIF",
-          value: BUSINESS.bankTransfer.idNumber,
-          copy: idNumber(BUSINESS.bankTransfer.idNumber),
+          value: bankTransfer.idNumber,
+          copy: idNumber(bankTransfer.idNumber),
         },
       ];
     default:
@@ -53,6 +56,8 @@ function rowsFor(method: PaymentMethod): Row[] {
 
 type PaymentDetailsProps = {
   method: PaymentMethod;
+  /** From `getPaymentAccounts()`; the admin preview passes its draft. */
+  accounts: PaymentAccounts;
   /** Amount in bolívares as "8.137,36"; last row and part of the copied block. */
   amountVes: string | null;
 };
@@ -80,8 +85,8 @@ function DetailRow({ label, value, copy, strong }: Row & { strong?: boolean }) {
 }
 
 /** The business's receiving details for a manual method: one copy per row, plus copy-everything. */
-export function PaymentDetails({ method, amountVes }: PaymentDetailsProps) {
-  const rows = rowsFor(method);
+export function PaymentDetails({ method, accounts, amountVes }: PaymentDetailsProps) {
+  const rows = rowsFor(method, accounts);
   if (rows.length === 0) return null;
 
   const lines = rows.map((row) => `${row.label}: ${row.copy ?? row.value}`);

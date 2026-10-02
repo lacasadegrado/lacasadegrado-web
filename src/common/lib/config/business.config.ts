@@ -9,7 +9,11 @@ export const BUSINESS = {
   legalName: "La Casa de Grado C.A.",
   rif: "J-00000000-0",
 
-  /** Pago Móvil receiving account. */
+  /**
+   * Pago Móvil receiving account. FALLBACK ONLY: the real details are
+   * edited in the admin (Configuración › Métodos de pago, table
+   * `payment_accounts`); these show while nothing has been saved.
+   */
   pagoMovil: {
     bank: "Banco de Venezuela",
     bankCode: "0102",
@@ -17,7 +21,7 @@ export const BUSINESS = {
     idNumber: "V-00000000",
   },
 
-  /** Bank transfer receiving account. */
+  /** Bank transfer receiving account. Fallback only, like pagoMovil. */
   bankTransfer: {
     bank: "Banco de Venezuela",
     accountNumber: "0102-0000-00-0000000000",

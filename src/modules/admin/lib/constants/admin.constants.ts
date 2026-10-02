@@ -13,6 +13,7 @@ export const ADMIN_PATHS = {
   packagePaymentsExportApi: "/api/admin/package-payments/export",
   prints: "/admin/prints",
   rates: "/admin/rates",
+  paymentMethods: "/admin/payment-methods",
   users: "/admin/users",
   user: (profileId: string) => `/admin/users/${profileId}`,
   paymentProofApi: (paymentId: string) => `/api/admin/payments/${paymentId}/proof`,

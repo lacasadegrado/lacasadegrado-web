@@ -12,6 +12,7 @@ import { getOrderForUser } from "@/modules/orders/lib/services/order.service";
 
 import { PaymentDetails } from "../components/payment-details";
 import { PaymentForm } from "../components/payment-form";
+import { getPaymentAccounts } from "../lib/services/payment-account.service";
 import {
   CHECKOUT_PATHS,
   PAYMENT_METHODS,
@@ -53,6 +54,7 @@ export async function PaymentScreen({ orderId, step: rawStep }: PaymentScreenPro
   const amountVes = order.eurToVes ? formatVesNumber(order.totalCents, order.eurToVes) : null;
 
   if (step === PAYMENT_STEPS.pay) {
+    const { accounts } = await getPaymentAccounts();
     return (
       <div className="mx-auto max-w-lg space-y-6">
         <div>
@@ -81,7 +83,7 @@ export async function PaymentScreen({ orderId, step: rawStep }: PaymentScreenPro
 
         <section className="space-y-3">
           <h2 className="text-base font-semibold">Datos para {method?.label ?? "el pago"}</h2>
-          <PaymentDetails method={order.paymentMethod} amountVes={amountVes} />
+          <PaymentDetails method={order.paymentMethod} accounts={accounts} amountVes={amountVes} />
           <p className="text-sm text-muted-foreground">
             Paga el monto exacto. Si el monto no coincide, la verificación tarda más.
           </p>
