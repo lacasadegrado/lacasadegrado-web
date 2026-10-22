@@ -223,9 +223,11 @@ everything under `forms/<formId>/`; `npm run forms:cleanup` (dry run
 unless `--yes`, 24 h safety margin) removes unused files of live forms.
 Payment details on the forms are deliberately absent until the owner
 decides. `CopyButton` lives in `src/common/components/copy-button/`.
-Preview blur is sigma 5 since 2026-09-30 (was 12; similar photos were
-indistinguishable). `npm run photos:regenerate-previews -- --yes` rebuilds
-every preview from its original with the current `PREVIEW_DERIVATIVE`.
+Previews have NO blur since 2026-10-21 (`blurSigma: 0`; it was 12, then 5
+from 2026-09-30, and did not help sell). The only protection is the dense,
+fairly opaque tiled watermark in `buildWatermarkSvg` (`WATERMARK_DENSITY`
+0.6, white 0.6 / outline 0.4). `npm run photos:regenerate-previews -- --yes`
+rebuilds every preview from its original with the current settings.
 Photo releases (2026-09-30, migration 0011): package photos the admin
 frees for specific photos, unlike Personas' free_download which frees
 everything. `photos.released_at` = released for everyone tagged;

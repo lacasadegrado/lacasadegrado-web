@@ -7,7 +7,7 @@ import { buildWatermarkSvg } from "@/common/lib/utils/logo-svg.util";
 import { CLEAN_DERIVATIVE, PREVIEW_DERIVATIVE } from "../constants/admin.constants";
 
 export type PreviewDerivative = {
-  /** Blurred, watermarked WebP shown before purchase. */
+  /** Watermarked WebP shown before purchase (no blur since 2026-10-21). */
   preview: Buffer;
   /** Same size, untouched, shown after purchase. */
   clean: Buffer;
@@ -18,8 +18,8 @@ export type PreviewDerivative = {
 
 /**
  * Security rule 7. Runs once at ingest, never on request:
- * longest edge to 1400px, Gaussian blur (PREVIEW_DERIVATIVE.blurSigma), tiled diagonal
- * watermark, WebP quality 70. The original bytes are never touched.
+ * longest edge to 1400px, optional Gaussian blur (PREVIEW_DERIVATIVE.blurSigma,
+ * 0 = none), dense tiled diagonal watermark, WebP quality 70. The original bytes are never touched.
  * The clean derivative is the same resize without blur or watermark.
  */
 export async function generatePreview(
@@ -53,9 +53,13 @@ export async function generatePreview(
     buildWatermarkSvg({ width: info.width, height: info.height }),
   );
 
+  const blurSigma = options.blurSigma ?? PREVIEW_DERIVATIVE.blurSigma;
+  const base = sharp(resized);
+  // sharp rejects sigma below 0.3; 0 means "watermark only".
+  const watermarked = blurSigma >= 0.3 ? base.blur(blurSigma) : base;
+
   const [preview, clean] = await Promise.all([
-    sharp(resized)
-      .blur(options.blurSigma ?? PREVIEW_DERIVATIVE.blurSigma)
+    watermarked
       .composite([{ input: watermark, blend: "over" }])
       .webp({ quality: PREVIEW_DERIVATIVE.webpQuality })
       .toBuffer(),

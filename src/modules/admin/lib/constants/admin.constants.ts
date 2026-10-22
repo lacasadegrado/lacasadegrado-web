@@ -35,11 +35,12 @@ export const PHOTO_UPLOAD = {
 export const PREVIEW_DERIVATIVE = {
   maxEdge: 1400,
   /**
-   * Lowered from 12 on 2026-09-30: people could not tell similar photos
-   * apart. At 5 faces and poses read, the photo is still no use unbought.
+   * 0 = no blur, since 2026-10-21: the blur did not help sell (12 until
+   * 2026-09-30, then 5). The dense watermark is the only protection now.
+   * sharp's minimum is 0.3, so anything below that skips the blur.
    * Existing previews are regenerated with `npm run photos:regenerate-previews`.
    */
-  blurSigma: 5,
+  blurSigma: 0,
   webpQuality: 70,
 } as const;
 

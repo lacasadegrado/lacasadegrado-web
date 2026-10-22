@@ -1,14 +1,14 @@
 /**
- * Rebuilds the blurred, watermarked preview of every photo from its
+ * Rebuilds the watermarked preview of every photo from its
  * original, with the current PREVIEW_DERIVATIVE settings (e.g. after
- * changing the blur). Overwrites each `preview_key` object in place, so
+ * changing the blur or the watermark). Overwrites each `preview_key` object in place, so
  * no row changes; originals and clean derivatives are not touched.
  *
  *   npm run photos:regenerate-previews                  # dry run: counts only
  *   npm run photos:regenerate-previews -- --yes         # regenerates all
  *   npm run photos:regenerate-previews -- --yes --limit 3   # the 3 oldest, to check first
  *   npm run photos:regenerate-previews -- --yes --photo <id> --sigma 0.3
- *       one photo with another blur (0.3 is sharp's minimum), to test; run
+ *       one photo with another blur (0 = none, 0.3 is sharp's minimum), to test; run
  *       it again without --sigma to put that photo back on the normal blur
  *
  * Uses the same generatePreview() as ingest, so the result is identical
@@ -37,7 +37,7 @@ async function main() {
   if (photoIndex >= 0 && !/^[0-9a-f-]{36}$/i.test(photoId ?? "")) throw new Error("--photo needs a photo id.");
   const sigmaIndex = args.indexOf("--sigma");
   const sigma = sigmaIndex >= 0 ? Number(args[sigmaIndex + 1]) : PREVIEW_DERIVATIVE.blurSigma;
-  if (!Number.isFinite(sigma) || sigma < 0.3 || sigma > 100) throw new Error("--sigma must be between 0.3 and 100.");
+  if (!Number.isFinite(sigma) || sigma < 0 || sigma > 100) throw new Error("--sigma must be between 0 (no blur) and 100.");
   // A test blur must never reach every customer's previews by accident.
   if (sigmaIndex >= 0 && !photoId) throw new Error("--sigma only works together with --photo <id>.");
 

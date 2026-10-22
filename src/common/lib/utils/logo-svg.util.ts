@@ -14,6 +14,9 @@ export function logoMarkSvgPaths(color: string): string {
     .join("");
 }
 
+/** Tile size relative to the original layout; smaller = more repetitions. */
+const WATERMARK_DENSITY = 0.6;
+
 type WatermarkOptions = {
   width: number;
   height: number;
@@ -22,12 +25,13 @@ type WatermarkOptions = {
 /**
  * A full-size SVG that tiles the mark and brand name diagonally across
  * the image. Light and dark strokes are layered so it reads on both light
- * and dark photographs. Opacity is deliberate: visible, not defacing; the
- * blur underneath does the real protecting.
+ * and dark photographs. Since previews have no blur (2026-10-21) this is
+ * the only protection, so it is dense (tiles at 0.6 of the old size, so it
+ * crosses faces) and fairly opaque, hard to crop around or clean up.
  */
 export function buildWatermarkSvg({ width, height }: WatermarkOptions): string {
   const label = BRAND.name.toUpperCase();
-  const unit = Math.max(220, Math.round(Math.min(width, height) / 2.6));
+  const unit = Math.max(132, Math.round((Math.min(width, height) / 2.6) * WATERMARK_DENSITY));
   const [vx, vy, vw, vh] = LOGO_MARK.viewBox.split(" ").map(Number);
   const markHeight = Math.round(unit * 0.16);
   const scale = markHeight / vh;
@@ -56,7 +60,7 @@ export function buildWatermarkSvg({ width, height }: WatermarkOptions): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>
     <pattern id="wm" width="${tileWidth}" height="${tileHeight}" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">
-      ${tileContent("rgba(255,255,255,0.42)", "rgba(0,0,0,0.28)")}
+      ${tileContent("rgba(255,255,255,0.6)", "rgba(0,0,0,0.4)")}
     </pattern>
   </defs>
   <rect width="${width}" height="${height}" fill="url(#wm)"/>
