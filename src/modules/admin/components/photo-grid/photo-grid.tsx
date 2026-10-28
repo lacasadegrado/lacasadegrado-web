@@ -6,7 +6,7 @@ import { useId, useState } from "react";
 import { Button } from "@/common/components/ui/button";
 import { Input } from "@/common/components/ui/input";
 
-import type { AdminPhoto } from "../../lib/types/admin.types";
+import type { AdminPhoto, EmailSuggestion } from "../../lib/types/admin.types";
 import { BulkActionsBar } from "./bulk-actions-bar";
 import { PhotoCard } from "./photo-card";
 
@@ -18,8 +18,8 @@ function matchesEmail(photo: AdminPhoto, query: string): boolean {
 
 type PhotoGridProps = {
   photos: AdminPhoto[];
-  /** Emails already tagged anywhere in the event, offered as autocomplete. */
-  taggedEmails: string[];
+  /** Emails tagged in the event or collected by its forms, offered as autocomplete. */
+  emailSuggestions: EmailSuggestion[];
   /** Selected on mount, e.g. the batch that was just uploaded. */
   defaultSelectedIds?: string[];
   /** "dialog" drops the email search and pins the toolbar to the modal's top. */
@@ -34,7 +34,7 @@ type PhotoGridProps = {
  */
 export function PhotoGrid({
   photos,
-  taggedEmails,
+  emailSuggestions,
   defaultSelectedIds,
   variant = "page",
 }: PhotoGridProps) {
@@ -117,12 +117,13 @@ export function PhotoGrid({
             onSelectAll={() => setSelected(new Set(visible.map((photo) => photo.id)))}
             onClear={() => setSelected(new Set())}
             stickyClassName={variant === "dialog" ? "top-0" : undefined}
-            taggedEmails={taggedEmails}
+            suggestions={emailSuggestions}
             selectedEmails={selectedEmails}
           />
           <datalist id={emailListId}>
-            {taggedEmails.map((email) => (
-              <option key={email} value={email} />
+            {/* The label lets the admin type the person's name and pick their email. */}
+            {emailSuggestions.map((suggestion) => (
+              <option key={suggestion.email} value={suggestion.email} label={suggestion.name ?? undefined} />
             ))}
           </datalist>
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

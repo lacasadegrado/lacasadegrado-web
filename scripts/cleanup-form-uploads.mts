@@ -65,10 +65,10 @@ const s3 = new S3Client({
 
 try {
   const referenced = new Set<string>();
-  const rows = await sql<{ answers: unknown; proof_key: string }[]>`
+  const rows = await sql<{ answers: unknown; proof_key: string | null }[]>`
     select answers, proof_key from form_submissions`;
   for (const row of rows) {
-    referenced.add(row.proof_key);
+    if (row.proof_key) referenced.add(row.proof_key);
     collectKeys(row.answers, referenced);
   }
 

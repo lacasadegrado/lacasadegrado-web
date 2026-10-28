@@ -16,12 +16,15 @@ import {
   AlertDialogTrigger,
 } from "@/common/components/ui/alert-dialog";
 import { Button } from "@/common/components/ui/button";
+import { Badge } from "@/common/components/ui/badge";
 import { formatDateTime } from "@/common/lib/utils/date.util";
+import { FORM_KIND_LABELS } from "@/modules/forms/lib/constants/forms.constants";
 import { publicFormUrl } from "@/modules/forms/lib/utils/form-url.util";
 
 import { deleteFormAction, type FormActionOutcome } from "../../lib/actions/form.action";
 import { ADMIN_PATHS } from "../../lib/constants/admin.constants";
 import type { AdminFormSummary } from "../../lib/types/form-admin.types";
+import { formResponsesHref } from "../../lib/utils/form-links.util";
 import { FormStatusBadge } from "./form-status-badge";
 
 export function FormsList({ eventId, forms }: { eventId: string; forms: AdminFormSummary[] }) {
@@ -50,6 +53,7 @@ export function FormsList({ eventId, forms }: { eventId: string; forms: AdminFor
                   {form.title}
                 </Link>
                 <FormStatusBadge status={form.status} />
+                <Badge variant="outline">{FORM_KIND_LABELS[form.kind]}</Badge>
               </div>
               <p className="text-sm text-muted-foreground">
                 {form.submissionCount === 1 ? "1 respuesta" : `${form.submissionCount} respuestas`} ·
@@ -70,7 +74,7 @@ export function FormsList({ eventId, forms }: { eventId: string; forms: AdminFor
               </Button>
               {form.submissionCount > 0 ? (
                 <Button asChild size="sm" variant="outline">
-                  <Link href={`${ADMIN_PATHS.packagePayments}?event=${eventId}&form=${form.id}`}>
+                  <Link href={formResponsesHref({ ...form, eventId })}>
                     Ver respuestas
                   </Link>
                 </Button>

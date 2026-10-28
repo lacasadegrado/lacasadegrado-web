@@ -9,7 +9,7 @@ import { Input } from "@/common/components/ui/input";
 import { Label } from "@/common/components/ui/label";
 import { Textarea } from "@/common/components/ui/textarea";
 import { FORM_LIMITS } from "@/modules/forms/lib/constants/forms.constants";
-import { formFieldsSchema } from "@/modules/forms/lib/schemas/form-field.schema";
+import { formFieldsSchema, validateFieldsForKind } from "@/modules/forms/lib/schemas/form-field.schema";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
 import { createField, type AddableFieldType } from "@/modules/forms/lib/utils/form-fields.util";
 
@@ -112,7 +112,9 @@ export function FormBuilder({ form }: { form: AdminFormDetail }) {
     const local = formFieldsSchema.safeParse(draft.fields);
     const localIssues: Issue[] = [];
     if (title.length < 3) localIssues.push({ path: ["title"], message: "Escribe un título de al menos 3 caracteres." });
-    if (!local.success) {
+    if (local.success) {
+      localIssues.push(...validateFieldsForKind(local.data, form.kind));
+    } else {
       localIssues.push(
         ...local.error.issues.map((issue) => ({
           path: issue.path.map((part) => (typeof part === "number" ? part : String(part))),
@@ -166,6 +168,7 @@ export function FormBuilder({ form }: { form: AdminFormDetail }) {
         slug={form.slug}
         status={form.status}
         activePackageCount={form.activePackageCount}
+        kind={form.kind}
         dirty={dirty}
       />
 
@@ -221,8 +224,9 @@ export function FormBuilder({ form }: { form: AdminFormDetail }) {
               Campos
             </h2>
             <p className="text-sm text-muted-foreground">
-              Los campos del sistema (correo, paquete, referencia y comprobante) siempre están y son
-              obligatorios; puedes cambiarles el texto y el orden.
+              {form.kind === "package_payment"
+                ? "Los campos del sistema (correo, paquete, referencia y comprobante) siempre están; puedes cambiarles el texto, el orden y si son obligatorios."
+                : "El correo es el campo del sistema: siempre está, pero puedes cambiarle el texto, el orden y si es obligatorio."}
             </p>
           </div>
           <p className="text-sm text-muted-foreground tabular-nums">
@@ -252,7 +256,16 @@ export function FormBuilder({ form }: { form: AdminFormDetail }) {
               expanded={expanded.has(field.id)}
               errors={byField.get(index) ?? []}
               onExpandedChange={(open) => toggleExpanded(field.id, open)}
-              onChange={(next) => setFields((fields) => fields.map((item, i) => (i === index ? next : item)))}
+              onChange={(next) =>
+                setFields((fields) =>
+                  fields.map((item, i) => {
+                    if (i === index) return next;
+                    // Only one field can be the person's name.
+                    if (next.personName && item.personName) return { ...item, personName: undefined } as FormField;
+                    return item;
+                  }),
+                )
+              }
               onMove={(direction) => moveField(index, direction)}
               onRemove={() => {
                 setFields((fields) => fields.filter((_, i) => i !== index));

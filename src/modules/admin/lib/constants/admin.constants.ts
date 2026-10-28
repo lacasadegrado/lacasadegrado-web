@@ -4,6 +4,9 @@ export const ADMIN_PATHS = {
   eventForms: "/admin/events/forms",
   eventFormsFor: (eventId: string) => `/admin/events/forms?event=${eventId}`,
   formBuilder: (formId: string) => `/admin/events/forms/${formId}`,
+  formResponses: (formId: string) => `/admin/events/forms/${formId}/responses`,
+  formResponse: (formId: string, submissionId: string) =>
+    `/admin/events/forms/${formId}/responses/${submissionId}`,
   photos: "/admin/photos",
   payments: "/admin/payments",
   packagePayments: "/admin/payments/packages",

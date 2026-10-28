@@ -34,6 +34,7 @@ export async function createFormAction(
   const parsed = createFormSchema.safeParse({
     eventId: formData.get("eventId"),
     title: formData.get("title"),
+    kind: formData.get("kind"),
   });
   if (!parsed.success) {
     return {
@@ -65,7 +66,11 @@ export async function saveFormAction(input: SaveFormInput): Promise<SaveFormResu
 
   const { formId, ...data } = parsed.data;
   const saved = await saveForm(formId, data);
-  if (!saved) return { ok: false, message: "No encontramos el formulario." };
+  if (!saved.ok) {
+    return saved.reason === "invalid"
+      ? { ok: false, message: "Hay campos por corregir antes de guardar.", issues: saved.issues }
+      : { ok: false, message: "No encontramos el formulario." };
+  }
 
   revalidateForms();
   return { ok: true, message: "Cambios guardados.", version: saved.version };

@@ -1,4 +1,4 @@
-import type { FormStatus } from "@/common/lib/db/schema";
+import type { FormKind, FormStatus } from "@/common/lib/db/schema";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
 
 export type AdminPackage = {
@@ -18,6 +18,7 @@ export type AdminFormSummary = {
   title: string;
   slug: string;
   status: FormStatus;
+  kind: FormKind;
   updatedAt: Date;
   submissionCount: number;
 };

@@ -10,7 +10,12 @@ import { Label } from "@/common/components/ui/label";
 import { eurToCents } from "@/common/lib/utils/money.util";
 
 import { PHOTO_UPLOAD } from "../../lib/constants/admin.constants";
-import type { AdminPhoto, PrepareUploadResponse, UploadResponse } from "../../lib/types/admin.types";
+import type {
+  AdminPhoto,
+  EmailSuggestion,
+  PrepareUploadResponse,
+  UploadResponse,
+} from "../../lib/types/admin.types";
 import { JustUploadedDialog } from "./just-uploaded-dialog";
 import { UploadQueue, type QueueItem } from "./upload-queue";
 
@@ -18,6 +23,8 @@ type PhotoUploaderProps = {
   eventId: string;
   /** The event's photos, for the dialog that opens after a batch. */
   photos: AdminPhoto[];
+  /** Tagging suggestions for the just-uploaded dialog (event tags and form emails). */
+  emailSuggestions: EmailSuggestion[];
   defaultPriceCents: number;
   defaultPrintPriceCents: number;
 };
@@ -33,6 +40,7 @@ let nextItemId = 0;
 export function PhotoUploader({
   eventId,
   photos,
+  emailSuggestions,
   defaultPriceCents,
   defaultPrintPriceCents,
 }: PhotoUploaderProps) {
@@ -230,6 +238,7 @@ export function PhotoUploader({
       <JustUploadedDialog
         photoIds={justUploadedIds}
         photos={photos}
+        emailSuggestions={emailSuggestions}
         loading={refreshing}
         onClose={() => setJustUploadedIds([])}
       />

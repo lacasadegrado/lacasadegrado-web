@@ -35,7 +35,7 @@ import {
   bulkTagPhotosAction,
   bulkUpdatePriceAction,
 } from "../../lib/actions/photo.action";
-import type { BulkActionOutcome } from "../../lib/types/admin.types";
+import type { BulkActionOutcome, EmailSuggestion } from "../../lib/types/admin.types";
 import { ReleasePhotosDialog } from "./release-photos-dialog";
 
 type BulkActionsBarProps = {
@@ -47,26 +47,41 @@ type BulkActionsBarProps = {
   selectedEmails: string[];
   /** Overrides the sticky offset, which assumes the admin header. */
   stickyClassName?: string;
-  /** Emails already tagged in the event, suggested while typing. */
-  taggedEmails: string[];
+  /** Emails tagged in the event or collected by its forms, with names when known. */
+  suggestions: EmailSuggestion[];
 };
 
 const MAX_EMAIL_SUGGESTIONS = 8;
 
-/** The email being typed: whatever follows the last separator. */
-function currentToken(text: string): string {
-  return /[^\s,;]*$/.exec(text)?.[0] ?? "";
+/** "García" and "garcia" match: accents and case do not matter when searching names. */
+function fold(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
 /**
- * Tagged emails that match what is being typed and are not in the list
- * yet. A textarea cannot use a `<datalist>`, so these render as buttons.
+ * What is being typed: the end of the text after the last line break,
+ * comma or semicolon, minus any complete emails before it on that line.
+ * It can be part of an email or a name with spaces ("christian melo").
  */
-function suggestEmails(text: string, taggedEmails: string[]): string[] {
-  const token = currentToken(text).toLowerCase();
+function currentQuery(text: string): string {
+  const segment = /[^\n,;]*$/.exec(text)?.[0] ?? "";
+  return segment.replace(/^(\s*\S+@\S+\s+)+/, "");
+}
+
+/**
+ * Suggestions that match what is being typed (every word, in the email
+ * or the name) and are not in the list yet. A textarea cannot use a
+ * `<datalist>`, so these render as buttons.
+ */
+function suggestEmails(text: string, suggestions: EmailSuggestion[]): EmailSuggestion[] {
+  const words = fold(currentQuery(text)).split(/\s+/).filter(Boolean);
   const entered = new Set(text.toLowerCase().split(/[\s,;]+/));
-  return taggedEmails
-    .filter((email) => !entered.has(email) && (!token || email.includes(token)))
+  return suggestions
+    .filter((suggestion) => {
+      if (entered.has(suggestion.email)) return false;
+      const haystack = fold(`${suggestion.name ?? ""} ${suggestion.email}`);
+      return words.every((word) => haystack.includes(word));
+    })
     .slice(0, MAX_EMAIL_SUGGESTIONS);
 }
 
@@ -81,7 +96,7 @@ export function BulkActionsBar({
   onSelectAll,
   onClear,
   stickyClassName,
-  taggedEmails,
+  suggestions,
   selectedEmails,
 }: BulkActionsBarProps) {
   const [outcome, setOutcome] = useState<BulkActionOutcome | null>(null);
@@ -93,11 +108,11 @@ export function BulkActionsBar({
   const [priceEur, setPriceEur] = useState("5.00");
   const [printPriceEur, setPrintPriceEur] = useState("7.00");
   const count = selectedIds.length;
-  const emailSuggestions = suggestEmails(emails, taggedEmails);
+  const emailSuggestions = suggestEmails(emails, suggestions);
 
   /** Replaces the partial email being typed with the chosen one. */
   function pickEmail(email: string) {
-    setEmails((text) => `${text.slice(0, text.length - currentToken(text).length)}${email}\n`);
+    setEmails((text) => `${text.slice(0, text.length - currentQuery(text).length)}${email}\n`);
   }
 
   function run(action: () => Promise<BulkActionOutcome>, close: () => void) {
@@ -160,19 +175,24 @@ export function BulkActionsBar({
                   />
                   {emailSuggestions.length > 0 ? (
                     <div className="space-y-1.5">
-                      <p className="text-xs text-muted-foreground">Ya etiquetados en este evento:</p>
+                      <p className="text-xs text-muted-foreground">
+                        Sugerencias de este evento (etiquetas y formularios). Escribe un nombre o un correo:
+                      </p>
                       <ul className="flex flex-wrap gap-1.5">
-                        {emailSuggestions.map((email) => (
-                          <li key={email}>
+                        {emailSuggestions.map((suggestion) => (
+                          <li key={suggestion.email}>
                             <Button
                               type="button"
                               variant="secondary"
                               size="xs"
-                              onClick={() => pickEmail(email)}
-                              aria-label={`Agregar ${email}`}
-                              className="max-w-[16rem] font-normal"
+                              onClick={() => pickEmail(suggestion.email)}
+                              aria-label={`Agregar ${suggestion.name ? `${suggestion.name}, ` : ""}${suggestion.email}`}
+                              title={suggestion.email}
+                              className="max-w-[20rem] font-normal"
                             >
-                              <span className="truncate">{email}</span>
+                              <span className="truncate">
+                                {suggestion.name ? `${suggestion.name} · ${suggestion.email}` : suggestion.email}
+                              </span>
                             </Button>
                           </li>
                         ))}

@@ -64,3 +64,13 @@ export type FormStatus = (typeof formStatusEnum.enumValues)[number];
 export const formAttemptKindEnum = pgEnum("form_attempt_kind", ["upload", "submit"]);
 
 export type FormAttemptKind = (typeof formAttemptKindEnum.enumValues)[number];
+
+/**
+ * What a form is for. `package_payment` reports a prepaid package (package,
+ * reference and proof system fields; answers in Pagos › Paquetes).
+ * `general` collects anything else (only the email system field; answers
+ * in Eventos › Formularios › Respuestas).
+ */
+export const formKindEnum = pgEnum("form_kind", ["package_payment", "general"]);
+
+export type FormKind = (typeof formKindEnum.enumValues)[number];

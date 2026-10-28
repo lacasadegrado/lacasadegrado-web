@@ -8,9 +8,11 @@ import { RadioGroup, RadioGroupItem } from "@/common/components/ui/radio-group";
 import { Textarea } from "@/common/components/ui/textarea";
 import { formatEur } from "@/common/lib/utils/money.util";
 
+import { SEARCHABLE_SELECT_THRESHOLD } from "../../lib/constants/forms.constants";
 import type { FormField, FormFileAnswer } from "../../lib/types/form.types";
 import type { PublicForm } from "../../lib/types/public-form.types";
 import { FileFieldInput } from "./file-field-input";
+import { SearchableSelect } from "./searchable-select";
 
 type FormFieldInputProps = {
   field: FormField;
@@ -72,6 +74,18 @@ export function FormFieldInput({
           />
         );
       case "select":
+        if (field.options.length > SEARCHABLE_SELECT_THRESHOLD) {
+          return (
+            <SearchableSelect
+              id={inputId}
+              options={field.options}
+              value={(value as string) ?? ""}
+              onChange={(next) => onValue(field.id, next)}
+              describedBy={describedBy}
+              invalid={invalid}
+            />
+          );
+        }
         return (
           <NativeSelect
             id={inputId}

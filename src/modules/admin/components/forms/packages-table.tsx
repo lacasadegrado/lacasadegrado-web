@@ -44,7 +44,8 @@ export function PackagesTable({ packages }: { packages: AdminPackage[] }) {
   if (packages.length === 0) {
     return (
       <p className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-        Este evento todavía no tiene paquetes. Agrega al menos uno para poder abrir un formulario.
+        Este evento todavía no tiene paquetes. Los formularios de pago necesitan al menos uno para
+        abrirse; los generales no.
       </p>
     );
   }

@@ -10,8 +10,7 @@ import {
   DialogTitle,
 } from "@/common/components/ui/dialog";
 
-import type { AdminPhoto } from "../../lib/types/admin.types";
-import { collectTaggedEmails } from "../../lib/utils/email-list.util";
+import type { AdminPhoto, EmailSuggestion } from "../../lib/types/admin.types";
 import { PhotoGrid } from "../photo-grid/photo-grid";
 
 type JustUploadedDialogProps = {
@@ -19,6 +18,8 @@ type JustUploadedDialogProps = {
   photoIds: string[];
   /** Every photo of the event, as the server rendered it after the refresh. */
   photos: AdminPhoto[];
+  /** Tagging suggestions for the event. */
+  emailSuggestions: EmailSuggestion[];
   /** True while the grid is being refreshed and the new rows may be missing. */
   loading: boolean;
   onClose: () => void;
@@ -29,7 +30,7 @@ type JustUploadedDialogProps = {
  * admin can tag, price or delete the batch right away. It reads from the
  * server list, so every bulk action's revalidation shows up here too.
  */
-export function JustUploadedDialog({ photoIds, photos, loading, onClose }: JustUploadedDialogProps) {
+export function JustUploadedDialog({ photoIds, photos, emailSuggestions, loading, onClose }: JustUploadedDialogProps) {
   const ids = new Set(photoIds);
   const recent = photos.filter((photo) => ids.has(photo.id));
 
@@ -57,8 +58,8 @@ export function JustUploadedDialog({ photoIds, photos, loading, onClose }: JustU
           <PhotoGrid
             key={photoIds.join(",")}
             photos={recent}
-            // From the whole event: the fresh batch has no tags yet.
-            taggedEmails={collectTaggedEmails(photos)}
+            // From the whole event (tags and forms): the fresh batch has no tags yet.
+            emailSuggestions={emailSuggestions}
             defaultSelectedIds={photoIds}
             variant="dialog"
           />

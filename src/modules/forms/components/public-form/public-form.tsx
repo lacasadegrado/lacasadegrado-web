@@ -13,10 +13,9 @@ import { submitFormAction } from "../../lib/actions/public-form.action";
 import { FORM_HONEYPOT_FIELD } from "../../lib/constants/forms.constants";
 import { buildAnswersSchema } from "../../lib/schemas/form-answers.schema";
 import type { FormFileAnswer } from "../../lib/types/form.types";
-import type { PublicForm as PublicFormData } from "../../lib/types/public-form.types";
+import type { PublicForm as PublicFormData, SubmitReceipt } from "../../lib/types/public-form.types";
 import { FormFieldInput } from "./form-field-input";
 
-type Receipt = { packageName: string; priceCents: number; reference: string; email: string };
 
 function firstErrors(issues: { path: PropertyKey[]; message: string }[]): Record<string, string> {
   const errors: Record<string, string> = {};
@@ -50,7 +49,7 @@ export function PublicForm({ form }: { form: PublicFormData }) {
   const [uploading, setUploading] = useState<Set<string>>(() => new Set());
   const [honeypot, setHoneypot] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [receipt, setReceipt] = useState<SubmitReceipt | null>(null);
   const [submitting, startSubmitting] = useTransition();
   const fieldIds = form.fields.map((field) => field.id);
 
@@ -110,7 +109,7 @@ export function PublicForm({ form }: { form: PublicFormData }) {
     startSubmitting(async () => {
       const result = await submitFormAction({ slug: form.slug, draftId, answers: values, honeypot });
       if (result.ok) {
-        setReceipt(result);
+        setReceipt(result.receipt);
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
@@ -132,29 +131,41 @@ export function PublicForm({ form }: { form: PublicFormData }) {
   }
 
   if (receipt) {
+    const isPayment = receipt.kind === "package_payment";
     return (
       <section aria-live="polite" className="space-y-5 rounded-lg border bg-card p-6">
         <CircleCheck aria-hidden="true" className="size-10 text-primary" />
         <div className="space-y-2">
-          <h2 className="text-2xl">Recibimos tu comprobante</h2>
+          <h2 className="text-2xl">{isPayment ? "Recibimos tu comprobante" : "Recibimos tu respuesta"}</h2>
           <p className="text-muted-foreground">
-            Vamos a verificar tu pago. Si falta algún dato te escribimos
+            {isPayment ? "Vamos a verificar tu pago. " : ""}Si falta algún dato te escribimos
             {receipt.email ? (
               <>
                 {" "}a <strong className="text-foreground">{receipt.email}</strong>
               </>
-            ) : null}
+            ) : (
+              " por los datos de contacto que dejaste"
+            )}
             .
           </p>
         </div>
-        {receipt.packageName ? (
+        {receipt.packageName || receipt.reference ? (
           <dl className="grid gap-x-6 gap-y-1 rounded-md bg-muted p-4 text-sm sm:grid-cols-[auto_1fr]">
-            <dt className="text-muted-foreground">Paquete</dt>
-            <dd className="font-medium">
-              {receipt.packageName} · {formatEur(receipt.priceCents)}
-            </dd>
-            <dt className="text-muted-foreground">Referencia</dt>
-            <dd className="font-medium">{receipt.reference}</dd>
+            {receipt.packageName ? (
+              <>
+                <dt className="text-muted-foreground">Paquete</dt>
+                <dd className="font-medium">
+                  {receipt.packageName}
+                  {receipt.priceCents !== null ? ` · ${formatEur(receipt.priceCents)}` : ""}
+                </dd>
+              </>
+            ) : null}
+            {receipt.reference ? (
+              <>
+                <dt className="text-muted-foreground">Referencia</dt>
+                <dd className="font-medium">{receipt.reference}</dd>
+              </>
+            ) : null}
           </dl>
         ) : null}
         <Button type="button" variant="outline" onClick={startOver}>
@@ -203,12 +214,18 @@ export function PublicForm({ form }: { form: PublicFormData }) {
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-6">
         <Button type="submit" size="lg" disabled={submitting || uploading.size > 0}>
-          {submitting ? "Enviando…" : uploading.size > 0 ? "Subiendo archivos…" : "Enviar comprobante"}
+          {submitting
+            ? "Enviando…"
+            : uploading.size > 0
+              ? "Subiendo archivos…"
+              : form.kind === "package_payment"
+                ? "Enviar comprobante"
+                : "Enviar respuesta"}
         </Button>
         <p className="text-sm text-muted-foreground">
           Los campos con <span aria-hidden="true">*</span>
           <span className="sr-only">asterisco</span> son obligatorios. Usamos tus datos solo para
-          verificar tu pago, como explica la{" "}
+          {form.kind === "package_payment" ? " verificar tu pago" : " gestionar tu solicitud"}, como explica la{" "}
           <Link href={LEGAL_PATHS.privacy} className="underline underline-offset-4" target="_blank">
             política de privacidad
           </Link>

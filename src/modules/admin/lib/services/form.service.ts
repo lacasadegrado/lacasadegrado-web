@@ -5,10 +5,10 @@ import { randomBytes } from "node:crypto";
 import { and, count, desc, eq } from "drizzle-orm";
 
 import { db } from "@/common/lib/db";
-import { events, formSubmissions, forms, photoPackages, type FormStatus } from "@/common/lib/db/schema";
+import { events, formSubmissions, forms, photoPackages, type FormKind, type FormStatus } from "@/common/lib/db/schema";
 import { deleteObjects, listObjects } from "@/common/lib/storage/storage.service";
 import { FORM_UPLOAD_PREFIX } from "@/modules/forms/lib/constants/forms.constants";
-import { formFieldsSchema } from "@/modules/forms/lib/schemas/form-field.schema";
+import { formFieldsSchema, validateFieldsForKind } from "@/modules/forms/lib/schemas/form-field.schema";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
 import { createDefaultFormFields } from "@/modules/forms/lib/utils/form-fields.util";
 
@@ -33,6 +33,7 @@ export async function listFormsForEvent(eventId: string): Promise<AdminFormSumma
       title: forms.title,
       slug: forms.slug,
       status: forms.status,
+      kind: forms.kind,
       updatedAt: forms.updatedAt,
       submissionCount: count(formSubmissions.id),
     })
@@ -47,6 +48,7 @@ export async function listFormsForEvent(eventId: string): Promise<AdminFormSumma
 export async function createForm(input: {
   eventId: string;
   title: string;
+  kind: FormKind;
   createdBy: string;
 }): Promise<{ id: string }> {
   const [row] = await db
@@ -55,7 +57,8 @@ export async function createForm(input: {
       eventId: input.eventId,
       title: input.title,
       slug: newFormSlug(),
-      fields: createDefaultFormFields(),
+      kind: input.kind,
+      fields: createDefaultFormFields(input.kind),
       createdBy: input.createdBy,
     })
     .returning({ id: forms.id });
@@ -72,6 +75,7 @@ export async function getFormForBuilder(formId: string): Promise<AdminFormDetail
       description: forms.description,
       slug: forms.slug,
       status: forms.status,
+      kind: forms.kind,
       fields: forms.fields,
       version: forms.version,
       updatedAt: forms.updatedAt,
@@ -106,15 +110,23 @@ export async function getFormForBuilder(formId: string): Promise<AdminFormDetail
 export async function saveForm(
   formId: string,
   input: { title: string; description: string | null; fields: FormField[] },
-): Promise<{ version: number; eventId: string } | null> {
+): Promise<
+  | { ok: true; version: number; eventId: string }
+  | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "invalid"; issues: { path: (string | number)[]; message: string }[] }
+> {
   return db.transaction(async (tx) => {
     const [current] = await tx
-      .select({ fields: forms.fields, version: forms.version, eventId: forms.eventId })
+      .select({ fields: forms.fields, version: forms.version, eventId: forms.eventId, kind: forms.kind })
       .from(forms)
       .where(eq(forms.id, formId))
       .for("update")
       .limit(1);
-    if (!current) return null;
+    if (!current) return { ok: false, reason: "not_found" as const };
+
+    // The kind is fixed at creation; the fields must match it.
+    const issues = validateFieldsForKind(input.fields, current.kind);
+    if (issues.length > 0) return { ok: false, reason: "invalid" as const, issues };
 
     // jsonb reorders keys; parsing both through the schema gives the same order.
     const fieldsChanged =
@@ -125,7 +137,7 @@ export async function saveForm(
       .update(forms)
       .set({ title: input.title, description: input.description, fields: input.fields, version })
       .where(eq(forms.id, formId));
-    return { version, eventId: current.eventId };
+    return { ok: true as const, version, eventId: current.eventId };
   });
 }
 
@@ -133,16 +145,16 @@ export type SetFormStatusResult =
   | { ok: true; eventId: string }
   | { ok: false; reason: "not_found" | "no_packages" };
 
-/** Opening needs at least one active package, or the select would be empty. */
+/** A payment form needs at least one active package to open, or its select would be empty. */
 export async function setFormStatus(formId: string, status: FormStatus): Promise<SetFormStatusResult> {
   const [form] = await db
-    .select({ eventId: forms.eventId })
+    .select({ eventId: forms.eventId, kind: forms.kind })
     .from(forms)
     .where(eq(forms.id, formId))
     .limit(1);
   if (!form) return { ok: false, reason: "not_found" };
 
-  if (status === "open") {
+  if (status === "open" && form.kind === "package_payment") {
     const [packages] = await db
       .select({ total: count() })
       .from(photoPackages)

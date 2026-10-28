@@ -12,8 +12,8 @@ import {
   DEFAULT_PRINT_PRICE_CENTS,
 } from "../lib/constants/admin.constants";
 import { listEvents } from "../lib/services/event.service";
+import { listEmailSuggestionsForEvent } from "../lib/services/email-suggestion.service";
 import { listPhotosForEvent } from "../lib/services/photo.service";
-import { collectTaggedEmails } from "../lib/utils/email-list.util";
 
 type AdminPhotosScreenProps = {
   eventId?: string;
@@ -22,7 +22,9 @@ type AdminPhotosScreenProps = {
 export async function AdminPhotosScreen({ eventId }: AdminPhotosScreenProps) {
   const events = await listEvents();
   const event = eventId ? events.find((item) => item.id === eventId) : undefined;
-  const photos = event ? await listPhotosForEvent(event.id) : [];
+  const [photos, emailSuggestions] = event
+    ? await Promise.all([listPhotosForEvent(event.id), listEmailSuggestionsForEvent(event.id)])
+    : [[], []];
 
   return (
     <div className="space-y-8">
@@ -56,13 +58,13 @@ export async function AdminPhotosScreen({ eventId }: AdminPhotosScreenProps) {
               </h2>
               <p className="text-sm text-muted-foreground">
                 {event.institution} · {formatDateOnly(event.eventDate)}. Cada foto se
-                guarda en original y se genera una vista previa borrosa con marca de
-                agua.
+                guarda en original y se genera una vista previa con marca de agua.
               </p>
             </div>
             <PhotoUploader
               eventId={event.id}
               photos={photos}
+              emailSuggestions={emailSuggestions}
               defaultPriceCents={DEFAULT_PHOTO_PRICE_CENTS}
               defaultPrintPriceCents={DEFAULT_PRINT_PRICE_CENTS}
             />
@@ -79,7 +81,7 @@ export async function AdminPhotosScreen({ eventId }: AdminPhotosScreenProps) {
                 digital. Cada tarjeta también acepta un correo, precios o borrarse por separado.
               </p>
             </div>
-            <PhotoGrid photos={photos} taggedEmails={collectTaggedEmails(photos)} />
+            <PhotoGrid photos={photos} emailSuggestions={emailSuggestions} />
           </section>
         </>
       ) : events.length > 0 ? (

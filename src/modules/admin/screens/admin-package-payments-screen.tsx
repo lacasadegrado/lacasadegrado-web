@@ -39,10 +39,13 @@ function queryString(params: Record<string, string | number | undefined>): strin
 }
 
 export async function AdminPackagePaymentsScreen({ params }: { params: PackagePaymentSearchParams }) {
-  const filters = toPackagePaymentFilters(params);
+  // This page is only for payment forms; general forms have their own answers page.
+  const filters = { ...toPackagePaymentFilters(params), kind: "package_payment" as const };
   const [events, forms, packages, { rows, total }, summary] = await Promise.all([
     listEvents(),
-    params.event ? listFormsForEvent(params.event) : Promise.resolve([]),
+    params.event
+      ? listFormsForEvent(params.event).then((list) => list.filter((form) => form.kind === "package_payment"))
+      : Promise.resolve([]),
     params.event ? listPackagesForEvent(params.event) : Promise.resolve([]),
     listPackagePayments(filters, params.page),
     summarizePackagePayments(filters),
@@ -101,8 +104,12 @@ export async function AdminPackagePaymentsScreen({ params }: { params: PackagePa
               <TableBody>
                 {summary.map((line) => (
                   <TableRow key={`${line.packageName}-${line.priceCents}`}>
-                    <TableCell>{line.packageName}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatEur(line.priceCents)}</TableCell>
+                    <TableCell className={line.packageName ? undefined : "text-muted-foreground"}>
+                      {line.packageName ?? "Sin paquete"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {line.priceCents !== null ? formatEur(line.priceCents) : "—"}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">{line.count}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatEur(line.totalCents)}</TableCell>
                   </TableRow>
@@ -152,27 +159,42 @@ export async function AdminPackagePaymentsScreen({ params }: { params: PackagePa
                 {rows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="whitespace-nowrap tabular-nums">{formatDateTime(row.submittedAt)}</TableCell>
-                    <TableCell>{row.email}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {row.packageName}{" "}
-                      <span className="text-muted-foreground tabular-nums">· {formatEur(row.packagePriceCents)}</span>
+                    <TableCell>
+                      {row.email ?? <span className="text-muted-foreground">Sin correo</span>}
+                      {row.personName ? <span className="block text-xs text-muted-foreground">{row.personName}</span> : null}
                     </TableCell>
-                    <TableCell className="font-mono text-sm">{row.reference}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {row.packageName ? (
+                        <>
+                          {row.packageName}{" "}
+                          {row.packagePriceCents !== null ? (
+                            <span className="text-muted-foreground tabular-nums">· {formatEur(row.packagePriceCents)}</span>
+                          ) : null}
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">Sin paquete</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {row.reference ?? <span className="font-sans text-muted-foreground">—</span>}
+                    </TableCell>
                     <TableCell className="max-w-56 whitespace-normal text-sm text-muted-foreground">
                       {row.formTitle}
                       <span className="block text-xs">{row.eventName}</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-2">
-                        <Button asChild variant="outline" size="sm">
-                          <a
-                            href={ADMIN_PATHS.packagePaymentFileApi(row.id, "proof", 0)}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Comprobante
-                          </a>
-                        </Button>
+                        {row.hasProof ? (
+                          <Button asChild variant="outline" size="sm">
+                            <a
+                              href={ADMIN_PATHS.packagePaymentFileApi(row.id, "proof", 0)}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Comprobante
+                            </a>
+                          </Button>
+                        ) : null}
                         <Button asChild size="sm">
                           <Link href={ADMIN_PATHS.packagePayment(row.id)}>Ver</Link>
                         </Button>

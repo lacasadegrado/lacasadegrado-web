@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 
 import { CopyButton } from "@/common/components/copy-button/copy-button";
 import { Button } from "@/common/components/ui/button";
-import type { FormStatus } from "@/common/lib/db/schema";
+import type { FormKind, FormStatus } from "@/common/lib/db/schema";
 import { FORMS_PATHS } from "@/modules/forms/lib/constants/forms.constants";
 import { publicFormUrl } from "@/modules/forms/lib/utils/form-url.util";
 
@@ -17,6 +17,8 @@ type FormStatusControlsProps = {
   slug: string;
   status: FormStatus;
   activePackageCount: number;
+  /** Only payment forms need packages to open. */
+  kind: FormKind;
   /** Unsaved builder changes: people would see the saved version, so save first. */
   dirty: boolean;
 };
@@ -27,12 +29,19 @@ const STATUS_HINT: Record<FormStatus, string> = {
   closed: "Cerrado: el link avisa que ya no recibe respuestas.",
 };
 
-export function FormStatusControls({ formId, slug, status, activePackageCount, dirty }: FormStatusControlsProps) {
+export function FormStatusControls({
+  formId,
+  slug,
+  status,
+  activePackageCount,
+  kind,
+  dirty,
+}: FormStatusControlsProps) {
   const [outcome, setOutcome] = useState<FormActionOutcome | null>(null);
   const [pending, startTransition] = useTransition();
   const url = publicFormUrl(slug);
   const next: FormStatus = status === "open" ? "closed" : "open";
-  const blockedByPackages = next === "open" && activePackageCount === 0;
+  const blockedByPackages = kind === "package_payment" && next === "open" && activePackageCount === 0;
 
   return (
     <section aria-label="Estado y link" className="space-y-3 rounded-lg border p-4">

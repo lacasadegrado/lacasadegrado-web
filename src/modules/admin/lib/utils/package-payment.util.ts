@@ -19,7 +19,7 @@ export function fileAnswers(value: unknown): FormFileAnswer[] {
  * One answer as text for the detail page and the Excel. Files are handled
  * apart (they become links); the package shows its snapshot name.
  */
-export function answerText(field: FormField, value: unknown, packageName: string): string | null {
+export function answerText(field: FormField, value: unknown, packageName: string | null): string | null {
   if (value === undefined || value === null || value === "") return null;
   switch (field.type) {
     case "package":

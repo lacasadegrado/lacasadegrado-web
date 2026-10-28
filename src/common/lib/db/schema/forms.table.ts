@@ -1,7 +1,7 @@
 import { index, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { citext } from "./citext.type";
-import { formStatusEnum } from "./enums.table";
+import { formKindEnum, formStatusEnum } from "./enums.table";
 import { events } from "./events.table";
 import { photoPackages } from "./photo-packages.table";
 import { profiles } from "./profiles.table";
@@ -25,6 +25,8 @@ export const forms = pgTable(
     /** Public, unguessable path segment. */
     slug: text("slug").notNull().unique(),
     status: formStatusEnum("status").notNull().default("draft"),
+    /** Fixed at creation; existing forms are payment forms. */
+    kind: formKindEnum("kind").notNull().default("package_payment"),
     fields: jsonb("fields").$type<unknown>().notNull(),
     /** Bumped whenever `fields` changes; submissions record the one they saw. */
     version: integer("version").notNull().default(1),
@@ -58,16 +60,18 @@ export const formSubmissions = pgTable(
     formId: uuid("form_id")
       .notNull()
       .references(() => forms.id, { onDelete: "restrict" }),
-    packageId: uuid("package_id")
-      .notNull()
-      .references(() => photoPackages.id, { onDelete: "restrict" }),
+    /**
+     * The system-field columns are null when the form has no such field
+     * (general forms) or the admin made it optional and it was left empty.
+     */
+    packageId: uuid("package_id").references(() => photoPackages.id, { onDelete: "restrict" }),
     /** Snapshots: the package can be renamed or repriced later. */
-    packageName: text("package_name").notNull(),
-    packagePriceCents: integer("package_price_cents").notNull(),
-    email: citext("email").notNull(),
-    reference: text("reference").notNull(),
+    packageName: text("package_name"),
+    packagePriceCents: integer("package_price_cents"),
+    email: citext("email"),
+    reference: text("reference"),
     /** R2 key of the payment proof. Server-only. */
-    proofKey: text("proof_key").notNull(),
+    proofKey: text("proof_key"),
     answers: jsonb("answers").$type<unknown>().notNull(),
     fieldsSnapshot: jsonb("fields_snapshot").$type<unknown>().notNull(),
     formVersion: integer("form_version").notNull(),

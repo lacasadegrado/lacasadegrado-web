@@ -30,7 +30,7 @@ export async function PublicFormScreen({ slug }: { slug: string }) {
         ) : null}
 
         <div className="mt-10">
-          {form.status === "open" && form.packages.length > 0 ? (
+          {form.status === "open" && (form.kind === "general" || form.packages.length > 0) ? (
             <PublicForm form={form} />
           ) : (
             <div className="rounded-lg border border-dashed p-6">

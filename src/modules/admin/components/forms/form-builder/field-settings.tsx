@@ -10,6 +10,8 @@ import { Textarea } from "@/common/components/ui/textarea";
 import {
   FORM_FILE_ACCEPT_LABELS,
   FORM_LIMITS,
+  PERSON_NAME_FIELD_TYPES,
+  SEARCHABLE_SELECT_THRESHOLD,
 } from "@/modules/forms/lib/constants/forms.constants";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
 
@@ -91,7 +93,9 @@ function OptionsSetting({ options, onChange }: { options: string[]; onChange: (o
         }}
       />
       <p className="text-xs text-muted-foreground">
-        {options.length} opci{options.length === 1 ? "ón" : "ones"} (máximo {FORM_LIMITS.maxOptions}).
+        {options.length} opci{options.length === 1 ? "ón" : "ones"} (máximo {FORM_LIMITS.maxOptions}). Puedes
+        pegar una columna de Excel. Con más de {SEARCHABLE_SELECT_THRESHOLD} opciones, la lista se puede buscar al
+        responder.
       </p>
     </div>
   );
@@ -130,13 +134,34 @@ export function FieldSettings({ field, onChange }: FieldSettingsProps) {
         <Checkbox
           id={`${id}-required`}
           checked={field.required}
-          disabled={system}
           onCheckedChange={(checked) => update({ required: checked === true })}
         />
-        <Label htmlFor={`${id}-required`}>
-          Obligatorio{system ? " (siempre, es un campo del sistema)" : ""}
-        </Label>
+        <Label htmlFor={`${id}-required`}>Obligatorio</Label>
       </div>
+      {system && !field.required ? (
+        <p className="text-xs text-muted-foreground">
+          {field.system === "email"
+            ? "Si lo dejan vacío, no se envía el correo de confirmación ni se suma a las sugerencias para etiquetar."
+            : "Si lo dejan vacío, la respuesta aparece sin ese dato en Pagos › Paquetes y en el Excel."}
+        </p>
+      ) : null}
+
+      {(PERSON_NAME_FIELD_TYPES as readonly string[]).includes(field.type) ? (
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id={`${id}-person-name`}
+            checked={field.personName ?? false}
+            onCheckedChange={(checked) => update({ personName: checked === true || undefined })}
+            className="mt-0.5"
+          />
+          <Label htmlFor={`${id}-person-name`} className="block font-normal">
+            <span>Es el nombre de la persona</span>
+            <span className="block text-xs text-muted-foreground">
+              Al etiquetar fotos, el correo de quien responda aparece sugerido con este nombre.
+            </span>
+          </Label>
+        </div>
+      ) : null}
 
       <TypeSettings field={field} update={update} />
     </div>

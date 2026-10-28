@@ -7,6 +7,7 @@ import { events, formSubmissions, forms } from "@/common/lib/db/schema";
 import { FORM_UPLOAD_PREFIX } from "@/modules/forms/lib/constants/forms.constants";
 import { formFieldsSchema } from "@/modules/forms/lib/schemas/form-field.schema";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
+import { personNameFrom } from "@/modules/forms/lib/utils/person-name.util";
 
 import type {
   PackagePaymentDetail,
@@ -30,6 +31,7 @@ function whereFor(filters: PackagePaymentFilters): SQL | undefined {
   if (filters.eventId) conditions.push(eq(forms.eventId, filters.eventId));
   if (filters.formId) conditions.push(eq(formSubmissions.formId, filters.formId));
   if (filters.packageId) conditions.push(eq(formSubmissions.packageId, filters.packageId));
+  if (filters.kind) conditions.push(eq(forms.kind, filters.kind));
   const query = filters.query?.trim();
   if (query) {
     const pattern = likePattern(query);
@@ -40,6 +42,7 @@ function whereFor(filters: PackagePaymentFilters): SQL | undefined {
   return conditions.length > 0 ? and(...conditions) : undefined;
 }
 
+/** Selected server-side only; `toRow` turns proofKey into a boolean before anything leaves. */
 const rowColumns = {
   id: formSubmissions.id,
   submittedAt: formSubmissions.submittedAt,
@@ -47,10 +50,51 @@ const rowColumns = {
   reference: formSubmissions.reference,
   packageName: formSubmissions.packageName,
   packagePriceCents: formSubmissions.packagePriceCents,
+  proofKey: formSubmissions.proofKey,
   formId: formSubmissions.formId,
+  formKind: forms.kind,
   formTitle: forms.title,
   eventName: events.name,
+  answers: formSubmissions.answers,
+  fieldsSnapshot: formSubmissions.fieldsSnapshot,
 };
+
+type RawRow = {
+  id: string;
+  submittedAt: Date;
+  email: string | null;
+  reference: string | null;
+  packageName: string | null;
+  packagePriceCents: number | null;
+  proofKey: string | null;
+  formId: string;
+  formKind: PackagePaymentRow["formKind"];
+  formTitle: string;
+  eventName: string;
+  answers: unknown;
+  fieldsSnapshot: unknown;
+};
+
+/** The list row plus the parsed answers and fields, kept apart so lists never carry them. */
+function toRow(raw: RawRow): { row: PackagePaymentRow; answers: Record<string, unknown>; fields: FormField[] } {
+  const answers = answersRecord(raw.answers);
+  const fields = parseSnapshot(raw.fieldsSnapshot);
+  const row: PackagePaymentRow = {
+    id: raw.id,
+    submittedAt: raw.submittedAt,
+    email: raw.email,
+    reference: raw.reference,
+    packageName: raw.packageName,
+    packagePriceCents: raw.packagePriceCents,
+    personName: personNameFrom(fields, answers),
+    hasProof: raw.proofKey !== null,
+    formId: raw.formId,
+    formKind: raw.formKind,
+    formTitle: raw.formTitle,
+    eventName: raw.eventName,
+  };
+  return { row, answers, fields };
+}
 
 /** Newest first, one page at a time. */
 export async function listPackagePayments(
@@ -74,7 +118,8 @@ export async function listPackagePayments(
       .innerJoin(forms, eq(forms.id, formSubmissions.formId))
       .where(where),
   ]);
-  return { rows, total: totals?.total ?? 0 };
+  // Lists never carry answers or fields; only the export and detail do.
+  return { rows: rows.map((raw) => toRow(raw).row), total: totals?.total ?? 0 };
 }
 
 /**
@@ -104,8 +149,6 @@ async function loadSubmission(id: string) {
       ...rowColumns,
       eventId: forms.eventId,
       formVersion: formSubmissions.formVersion,
-      answers: formSubmissions.answers,
-      fieldsSnapshot: formSubmissions.fieldsSnapshot,
     })
     .from(formSubmissions)
     .innerJoin(forms, eq(forms.id, formSubmissions.formId))
@@ -130,20 +173,12 @@ export async function getPackagePayment(id: string): Promise<PackagePaymentDetai
   const row = await loadSubmission(id);
   if (!row) return null;
 
-  const answers = answersRecord(row.answers);
+  const { row: base, answers, fields } = toRow(row);
   return {
-    id: row.id,
-    submittedAt: row.submittedAt,
-    email: row.email,
-    reference: row.reference,
-    packageName: row.packageName,
-    packagePriceCents: row.packagePriceCents,
-    formId: row.formId,
-    formTitle: row.formTitle,
-    eventName: row.eventName,
+    ...base,
     eventId: row.eventId,
     formVersion: row.formVersion,
-    answers: parseSnapshot(row.fieldsSnapshot).map((field) => ({
+    answers: fields.map((field) => ({
       fieldId: field.id,
       label: field.label,
       type: field.type,
@@ -176,16 +211,15 @@ export async function getPackagePaymentFileKey(id: string, fieldId: string, inde
 /** Everything matching the filters, oldest first, for the spreadsheet. */
 export async function listPackagePaymentsForExport(filters: PackagePaymentFilters): Promise<PackagePaymentExportRow[]> {
   const rows = await db
-    .select({ ...rowColumns, answers: formSubmissions.answers, fieldsSnapshot: formSubmissions.fieldsSnapshot })
+    .select(rowColumns)
     .from(formSubmissions)
     .innerJoin(forms, eq(forms.id, formSubmissions.formId))
     .innerJoin(events, eq(events.id, forms.eventId))
     .where(whereFor(filters))
     .orderBy(asc(formSubmissions.submittedAt));
 
-  return rows.map(({ answers, fieldsSnapshot, ...row }) => ({
-    ...row,
-    answers: answersRecord(answers),
-    fields: parseSnapshot(fieldsSnapshot),
-  }));
+  return rows.map((raw) => {
+    const { row, answers, fields } = toRow(raw);
+    return { ...row, answers, fields };
+  });
 }

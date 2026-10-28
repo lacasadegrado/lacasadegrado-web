@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { formStatusEnum } from "@/common/lib/db/schema/enums.table";
+import { formKindEnum, formStatusEnum } from "@/common/lib/db/schema/enums.table";
 import { FORM_LIMITS } from "@/modules/forms/lib/constants/forms.constants";
 import { formFieldsSchema } from "@/modules/forms/lib/schemas/form-field.schema";
 
@@ -42,6 +42,7 @@ export const createFormSchema = z.object({
     .trim()
     .min(3, { error: "Escribe un título de al menos 3 caracteres." })
     .max(FORM_LIMITS.titleMax),
+  kind: z.enum(formKindEnum.enumValues, { error: "Elige el tipo de formulario." }),
 });
 
 export const saveFormSchema = z.object({

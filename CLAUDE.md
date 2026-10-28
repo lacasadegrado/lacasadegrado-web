@@ -221,6 +221,20 @@ after a day) plus a honeypot field; both actions are public on purpose.
 Orphan uploads: deleting a form (only possible without answers) removes
 everything under `forms/<formId>/`; `npm run forms:cleanup` (dry run
 unless `--yes`, 24 h safety margin) removes unused files of live forms.
+Forms v2 (2026-10-27, migration 0013): `forms.kind` is `package_payment`
+(email, package, reference, proof system fields; answers in Pagos ›
+Paquetes) or `general` (only the email system field; answers at
+`/admin/events/forms/[formId]/responses`, same detail screen and Excel
+via `kind=general`). System fields exist exactly once per their kind
+(`FORM_KIND_SYSTEM_ROLES`, `validateFieldsForKind` on save) but the admin
+can make them optional, so the `form_submissions` system columns are
+nullable: no email = no receipt and no per-email rate limit. One field may
+be marked `personName` (short text, list or radio). Lists take up to 1000
+options and render as a searchable, accent-insensitive combobox
+(`SearchableSelect`, cmdk) above `SEARCHABLE_SELECT_THRESHOLD`. Tagging
+suggestions come from `listEmailSuggestionsForEvent`: emails tagged in
+the event plus emails the event's forms collected, labelled with the
+person's name; suggestions only, nothing creates people.
 Payment details on the forms are deliberately absent until the owner
 decides. `CopyButton` lives in `src/common/components/copy-button/`.
 Previews have NO blur since 2026-10-21 (`blurSigma: 0`; it was 12, then 5

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { formKindEnum } from "@/common/lib/db/schema/enums.table";
+
 /** A bad value in the URL just drops that filter instead of erroring. */
 const optionalId = z.uuid().optional().catch(undefined);
 
@@ -12,6 +14,8 @@ export const packagePaymentFiltersSchema = z.object({
   form: optionalId,
   package: optionalId,
   q: z.string().trim().max(100).optional().catch(undefined),
+  /** Payment forms unless a general form's page asks otherwise. */
+  kind: z.enum(formKindEnum.enumValues).catch("package_payment"),
   page: z.coerce.number().int().min(1).max(10_000).catch(1),
 });
 
@@ -23,6 +27,7 @@ export function toPackagePaymentFilters(params: PackagePaymentSearchParams) {
     formId: params.form,
     packageId: params.package,
     query: params.q || undefined,
+    kind: params.kind,
   };
 }
 

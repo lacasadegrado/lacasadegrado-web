@@ -4,10 +4,12 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { Button } from "@/common/components/ui/button";
+import { FORM_KIND_LABELS } from "@/modules/forms/lib/constants/forms.constants";
 
 import { FormBuilder } from "../components/forms/form-builder/form-builder";
 import { ADMIN_PATHS } from "../lib/constants/admin.constants";
 import { getFormForBuilder } from "../lib/services/form.service";
+import { formResponsesHref } from "../lib/utils/form-links.util";
 
 export async function AdminFormBuilderScreen({ formId }: { formId: string }) {
   // A malformed id would make Postgres throw instead of returning nothing.
@@ -25,10 +27,12 @@ export async function AdminFormBuilderScreen({ formId }: { formId: string }) {
           <ArrowLeft aria-hidden="true" className="size-4" /> Formularios de {form.eventName}
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-bold">Editar formulario</h1>
+          <h1 className="text-2xl font-bold">
+          Editar formulario <span className="text-base font-normal text-muted-foreground">· {FORM_KIND_LABELS[form.kind]}</span>
+        </h1>
           {form.submissionCount > 0 ? (
             <Button asChild variant="outline" size="sm">
-              <Link href={`${ADMIN_PATHS.packagePayments}?event=${form.eventId}&form=${form.id}`}>
+              <Link href={formResponsesHref(form)}>
                 Ver {form.submissionCount === 1 ? "1 respuesta" : `${form.submissionCount} respuestas`}
               </Link>
             </Button>

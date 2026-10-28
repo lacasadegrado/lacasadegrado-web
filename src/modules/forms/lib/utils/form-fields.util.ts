@@ -1,3 +1,5 @@
+import type { FormKind } from "@/common/lib/db/schema";
+
 import { FORM_LIMITS } from "../constants/forms.constants";
 import type { FormField } from "../types/form.types";
 
@@ -7,10 +9,33 @@ export function newFieldId(): string {
 }
 
 /**
- * What a new form starts with: the four system fields plus the person's
- * name, in the order someone reporting a payment would fill them.
+ * What a new form starts with. A payment form: the four system fields
+ * plus the person's name, in the order someone reporting a payment would
+ * fill them. A general form: the email and the person's name; the admin
+ * adds the rest. Every field starts required; the admin can relax it.
  */
-export function createDefaultFormFields(): FormField[] {
+export function createDefaultFormFields(kind: FormKind = "package_payment"): FormField[] {
+  if (kind === "general") {
+    return [
+      {
+        id: "email",
+        system: "email",
+        type: "email",
+        label: "Correo electrónico",
+        helpText: "Usa el mismo correo con el que entrarás a ver tus fotos.",
+        required: true,
+      },
+      {
+        id: newFieldId(),
+        type: "short_text",
+        label: "Nombre y apellido",
+        required: true,
+        minLength: 3,
+        maxLength: 120,
+        personName: true,
+      },
+    ];
+  }
   return [
     {
       id: "email",
@@ -27,6 +52,7 @@ export function createDefaultFormFields(): FormField[] {
       required: true,
       minLength: 3,
       maxLength: 120,
+      personName: true,
     },
     {
       id: "package",

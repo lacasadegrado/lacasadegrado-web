@@ -21,7 +21,7 @@ import { buildAnswersSchema } from "../schemas/form-answers.schema";
 import { formFieldsSchema } from "../schemas/form-field.schema";
 import type { PrepareFormUploadInput } from "../schemas/public-form.schema";
 import type { FormAnswers, FormField, FormFileAnswer } from "../types/form.types";
-import type { PublicForm } from "../types/public-form.types";
+import type { PublicForm, SubmitReceipt } from "../types/public-form.types";
 import { buildFormSubmittedEmail } from "../utils/form-email.util";
 import { isSubmitAllowed, isUploadAllowed, recordFormAttempt } from "./form-rate-limit.service";
 
@@ -35,6 +35,7 @@ async function loadForm(slug: string): Promise<LoadedForm | null> {
       title: forms.title,
       description: forms.description,
       status: forms.status,
+      kind: forms.kind,
       fields: forms.fields,
       version: forms.version,
       eventId: forms.eventId,
@@ -66,6 +67,7 @@ async function loadForm(slug: string): Promise<LoadedForm | null> {
     title: row.title,
     description: row.description,
     status: row.status,
+    kind: row.kind,
     eventName: row.eventName,
     institution: row.institution,
     eventDate: row.eventDate,
@@ -86,6 +88,7 @@ export const getPublicForm = cache(async (slug: string): Promise<PublicForm | nu
     title: form.title,
     description: form.description,
     status: form.status,
+    kind: form.kind,
     eventName: form.eventName,
     institution: form.institution,
     eventDate: form.eventDate,
@@ -154,15 +157,17 @@ async function verifyFiles(
 }
 
 export type SubmitFormOutcome =
-  | { ok: true; packageName: string; priceCents: number; reference: string; email: string }
+  | { ok: true; receipt: SubmitReceipt }
   | { ok: false; reason: "not_found" | "not_open" | "rate_limited" }
   | { ok: false; reason: "invalid"; fieldErrors: Record<string, string> };
 
 /**
  * Validates the answers against the form's current fields and active
  * packages, checks the files, stores the submission with snapshots of
- * the fields and the package, and emails a receipt. The receipt failing
- * never fails the submission.
+ * the fields and the package, and emails a receipt when there is an
+ * email. Any system field may be absent (general forms) or left empty
+ * (the admin made it optional). The receipt failing never fails the
+ * submission.
  */
 export async function submitPublicForm(
   input: { slug: string; draftId: string; answers: Record<string, unknown> },
@@ -183,11 +188,11 @@ export async function submitPublicForm(
   }
   const answers = parsed.data as FormAnswers;
 
-  // The system fields always exist and are required, so these are set.
-  const email = answers.email as string;
-  const packageId = answers.package as string;
-  const reference = answers.reference as string;
-  const proof = answers.proof as FormFileAnswer[];
+  // System fields may be missing or empty: the schema already checked types.
+  const email = typeof answers.email === "string" ? answers.email : null;
+  const packageId = typeof answers.package === "string" ? answers.package : null;
+  const reference = typeof answers.reference === "string" ? answers.reference : null;
+  const proof = Array.isArray(answers.proof) ? (answers.proof as FormFileAnswer[]) : [];
 
   if (!(await isSubmitAllowed(form.id, email, ip))) return { ok: false, reason: "rate_limited" };
 
@@ -201,33 +206,42 @@ export async function submitPublicForm(
   }
   if (Object.keys(fieldErrors).length > 0) return { ok: false, reason: "invalid", fieldErrors };
 
-  const chosen = form.packages.find((option) => option.id === packageId);
-  if (!chosen) return { ok: false, reason: "invalid", fieldErrors: { package: "Elige un paquete de la lista." } };
+  const chosen = packageId ? form.packages.find((option) => option.id === packageId) : undefined;
+  if (packageId && !chosen) {
+    return { ok: false, reason: "invalid", fieldErrors: { package: "Elige un paquete de la lista." } };
+  }
 
   await db.insert(formSubmissions).values({
     formId: form.id,
-    packageId: chosen.id,
-    packageName: chosen.name,
-    packagePriceCents: chosen.priceCents,
+    packageId: chosen?.id ?? null,
+    packageName: chosen?.name ?? null,
+    packagePriceCents: chosen?.priceCents ?? null,
     email,
     reference,
-    proofKey: proof[0].key,
+    proofKey: proof[0]?.key ?? null,
     answers,
     fieldsSnapshot: form.fields,
     formVersion: form.version,
   });
-  await recordFormAttempt({ kind: "submit", formId: form.id, ip, email });
+  await recordFormAttempt({ kind: "submit", formId: form.id, ip, email: email ?? undefined });
 
-  const receipt = buildFormSubmittedEmail({
-    formTitle: form.title,
-    eventName: form.eventName,
-    packageName: chosen.name,
-    priceCents: chosen.priceCents,
+  const receipt: SubmitReceipt = {
+    kind: form.kind,
+    packageName: chosen?.name ?? null,
+    priceCents: chosen?.priceCents ?? null,
     reference,
-    appUrl: getServerEnv().NEXT_PUBLIC_APP_URL,
-  });
-  const sent = await sendEmail({ to: email, ...receipt });
-  if (!sent) console.error("[forms] receipt email failed", { formId: form.id });
+    email,
+  };
+  if (email) {
+    const message = buildFormSubmittedEmail({
+      formTitle: form.title,
+      eventName: form.eventName,
+      receipt,
+      appUrl: getServerEnv().NEXT_PUBLIC_APP_URL,
+    });
+    const sent = await sendEmail({ to: email, ...message });
+    if (!sent) console.error("[forms] receipt email failed", { formId: form.id });
+  }
 
-  return { ok: true, packageName: chosen.name, priceCents: chosen.priceCents, reference, email };
+  return { ok: true, receipt };
 }

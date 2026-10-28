@@ -66,3 +66,10 @@ export type PrepareUploadResponse =
 export type UploadResponse =
   | { ok: true; id: string; filename: string }
   | { ok: false; error: string };
+
+/**
+ * A suggested email when tagging photos: already tagged in the event, or
+ * collected by one of the event's forms. `name` comes from the form field
+ * marked as the person's name, when there is one.
+ */
+export type EmailSuggestion = { email: string; name: string | null };

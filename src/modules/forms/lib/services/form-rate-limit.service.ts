@@ -26,14 +26,17 @@ export async function isUploadAllowed(ip: string | null): Promise<boolean> {
   return (await countSince("upload", windowSeconds, eq(formAttempts.ip, ip))) < max;
 }
 
-export async function isSubmitAllowed(formId: string, email: string, ip: string | null): Promise<boolean> {
-  const perEmail = FORM_RATE_LIMITS.submitsPerEmailPerForm;
-  const byEmail = await countSince(
-    "submit",
-    perEmail.windowSeconds,
-    and(eq(formAttempts.formId, formId), eq(formAttempts.email, email)) as SQL,
-  );
-  if (byEmail >= perEmail.max) return false;
+/** Without an email (optional or absent field) only the IP limit applies. */
+export async function isSubmitAllowed(formId: string, email: string | null, ip: string | null): Promise<boolean> {
+  if (email) {
+    const perEmail = FORM_RATE_LIMITS.submitsPerEmailPerForm;
+    const byEmail = await countSince(
+      "submit",
+      perEmail.windowSeconds,
+      and(eq(formAttempts.formId, formId), eq(formAttempts.email, email)) as SQL,
+    );
+    if (byEmail >= perEmail.max) return false;
+  }
 
   if (!ip) return true;
   const perIp = FORM_RATE_LIMITS.submitsPerIp;

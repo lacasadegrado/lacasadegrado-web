@@ -55,7 +55,7 @@ export async function submitFormAction(input: {
 
   // A bot filled the hidden field: answer like a success, store nothing.
   if (parsed.data.honeypot) {
-    return { ok: true, packageName: "", priceCents: 0, reference: "", email: "" };
+    return { ok: true, receipt: { kind: "general", packageName: null, priceCents: null, reference: null, email: null } };
   }
 
   const result = await submitPublicForm(parsed.data, getClientIp(await headers()));

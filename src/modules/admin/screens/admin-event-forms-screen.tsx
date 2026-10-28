@@ -28,8 +28,9 @@ export async function AdminEventFormsScreen({ eventId }: AdminEventFormsScreenPr
       <div>
         <h1 className="text-2xl font-bold">Formularios</h1>
         <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-          Formularios con link público, sin iniciar sesión, para que las personas reporten el pago
-          de un paquete de fotos del evento. Cada evento tiene sus paquetes y puede tener varios
+          Formularios con link público, sin iniciar sesión: de pago, para que las personas reporten
+          el pago de un paquete de fotos del evento, o generales, para pedir cualquier otro dato
+          (tallas, asistencia, contacto). Cada evento tiene sus paquetes y puede tener varios
           formularios.
         </p>
       </div>

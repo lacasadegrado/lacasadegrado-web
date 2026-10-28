@@ -1,10 +1,12 @@
 import ExcelJS from "exceljs";
 
+import type { FormKind } from "@/common/lib/db/schema";
 import { toCaracasWallClock } from "@/common/lib/utils/date.util";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
 
 import { ADMIN_PATHS } from "../constants/admin.constants";
 import type { PackagePaymentExportRow, PackagePaymentSummary } from "../types/package-payment.types";
+import { submissionHref } from "./form-links.util";
 import { answerText, fileAnswers } from "./package-payment.util";
 
 const EUR_FORMAT = '#,##0.00 "€"';
@@ -33,15 +35,19 @@ function styleHeader(sheet: ExcelJS.Worksheet) {
 }
 
 /**
- * Two sheets: every answer (links point at app routes, which ask for an
+ * Every answer on one sheet (links point at app routes, which ask for an
  * admin session, so the file can be kept and shared without exposing any
- * proof) and a per-package summary.
+ * proof). Payment forms add the package, price, reference and proof
+ * columns and a per-package summary sheet; general forms do not. Empty
+ * system values (optional fields left blank) stay blank.
  */
 export async function buildPackagePaymentsWorkbook(
   rows: PackagePaymentExportRow[],
   summary: PackagePaymentSummary[],
   appUrl: string,
+  kind: FormKind = "package_payment",
 ): Promise<ArrayBuffer> {
+  const isPayment = kind === "package_payment";
   const absolute = (path: string) => new URL(path, appUrl).toString();
   const extra = customColumns(rows);
 
@@ -54,11 +60,19 @@ export async function buildPackagePaymentsWorkbook(
     { header: "Fecha", key: "date", width: 18, style: { numFmt: "dd/mm/yyyy hh:mm" } },
     { header: "Evento", key: "event", width: 24 },
     { header: "Formulario", key: "form", width: 28 },
-    { header: "Paquete", key: "package", width: 22 },
-    { header: "Precio", key: "price", width: 12, style: { numFmt: EUR_FORMAT } },
+    ...(isPayment
+      ? [
+          { header: "Paquete", key: "package", width: 22 },
+          { header: "Precio", key: "price", width: 12, style: { numFmt: EUR_FORMAT } },
+        ]
+      : []),
     { header: "Correo", key: "email", width: 30 },
-    { header: "Referencia", key: "reference", width: 18 },
-    { header: "Comprobante", key: "proof", width: 18 },
+    ...(isPayment
+      ? [
+          { header: "Referencia", key: "reference", width: 18 },
+          { header: "Comprobante", key: "proof", width: 18 },
+        ]
+      : []),
     { header: "Detalle", key: "detail", width: 14 },
     ...extra.map((field) => ({ header: field.label, key: `f:${field.id}`, width: 24 })),
   ];
@@ -68,14 +82,18 @@ export async function buildPackagePaymentsWorkbook(
       date: toCaracasWallClock(row.submittedAt),
       event: row.eventName,
       form: row.formTitle,
-      package: row.packageName,
-      price: row.packagePriceCents / 100,
       email: row.email,
-      // Text, so Excel keeps leading zeros of bank references.
-      reference: row.reference,
-      proof: { text: "Ver comprobante", hyperlink: absolute(ADMIN_PATHS.packagePaymentFileApi(row.id, "proof", 0)) },
-      detail: { text: "Ver respuesta", hyperlink: absolute(ADMIN_PATHS.packagePayment(row.id)) },
+      detail: { text: "Ver respuesta", hyperlink: absolute(submissionHref(row)) },
     };
+    if (isPayment) {
+      values.package = row.packageName;
+      values.price = row.packagePriceCents !== null ? row.packagePriceCents / 100 : null;
+      // Text, so Excel keeps leading zeros of bank references.
+      values.reference = row.reference;
+      values.proof = row.hasProof
+        ? { text: "Ver comprobante", hyperlink: absolute(ADMIN_PATHS.packagePaymentFileApi(row.id, "proof", 0)) }
+        : null;
+    }
 
     for (const field of extra) {
       const own = row.fields.find((item) => item.id === field.id);
@@ -96,8 +114,11 @@ export async function buildPackagePaymentsWorkbook(
     }
 
     const added = sheet.addRow(values);
-    added.getCell("reference").numFmt = "@";
-    for (const cell of [added.getCell("proof"), added.getCell("detail")]) cell.font = LINK_FONT;
+    added.getCell("detail").font = LINK_FONT;
+    if (isPayment) {
+      added.getCell("reference").numFmt = "@";
+      if (row.hasProof) added.getCell("proof").font = LINK_FONT;
+    }
     for (const field of extra) {
       const cell = added.getCell(`f:${field.id}`);
       if (typeof cell.value === "object" && cell.value && "hyperlink" in cell.value) cell.font = LINK_FONT;
@@ -108,6 +129,8 @@ export async function buildPackagePaymentsWorkbook(
     sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: sheet.columnCount } };
   }
 
+  if (!isPayment) return (await workbook.xlsx.writeBuffer()) as ArrayBuffer;
+
   const totals = workbook.addWorksheet("Resumen");
   totals.columns = [
     { header: "Paquete", key: "package", width: 26 },
@@ -116,7 +139,12 @@ export async function buildPackagePaymentsWorkbook(
     { header: "Total reportado", key: "total", width: 16, style: { numFmt: EUR_FORMAT } },
   ];
   for (const line of summary) {
-    totals.addRow({ package: line.packageName, price: line.priceCents / 100, count: line.count, total: line.totalCents / 100 });
+    totals.addRow({
+      package: line.packageName ?? "Sin paquete",
+      price: line.priceCents !== null ? line.priceCents / 100 : null,
+      count: line.count,
+      total: line.totalCents / 100,
+    });
   }
   const totalRow = totals.addRow({
     package: "Total",

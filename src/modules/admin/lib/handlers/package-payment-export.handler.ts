@@ -23,14 +23,15 @@ export async function packagePaymentExportHandler(request: Request): Promise<Res
     listPackagePaymentsForExport(filters),
     summarizePackagePayments(filters),
   ]);
-  const buffer = await buildPackagePaymentsWorkbook(rows, summary, getServerEnv().NEXT_PUBLIC_APP_URL);
+  const buffer = await buildPackagePaymentsWorkbook(rows, summary, getServerEnv().NEXT_PUBLIC_APP_URL, params.kind);
   const today = toCaracasWallClock(new Date()).toISOString().slice(0, 10);
+  const prefix = params.kind === "general" ? "respuestas-formulario" : "pagos-paquetes";
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
       ...NO_STORE,
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="pagos-paquetes-${today}.xlsx"`,
+      "Content-Disposition": `attachment; filename="${prefix}-${today}.xlsx"`,
     },
   });
 }

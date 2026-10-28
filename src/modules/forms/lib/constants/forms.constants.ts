@@ -1,4 +1,4 @@
-import type { FormStatus } from "@/common/lib/db/schema";
+import type { FormKind, FormStatus } from "@/common/lib/db/schema";
 
 /** Every field type the builder offers. `package` is system-only. */
 export const FORM_FIELD_TYPES = [
@@ -32,9 +32,11 @@ export const FORM_FIELD_TYPE_LABELS: Record<(typeof FORM_FIELD_TYPES)[number], s
 };
 
 /**
- * Fields every form has, which the payment flow depends on. The admin can
- * reword and move them, never remove them or make them optional. Their id
- * is their role, so `answers.email` is always the email.
+ * Fields the app itself reads (the email for receipts and tagging, the
+ * package, reference and proof for Pagos › Paquetes). The admin can
+ * reword, move and make them optional, never remove them. Their id is
+ * their role, so `answers.email` is always the email. Which ones a form
+ * has depends on its kind: FORM_KIND_SYSTEM_ROLES.
  */
 export const FORM_SYSTEM_FIELDS = {
   email: "email",
@@ -47,7 +49,8 @@ export const FORM_LIMITS = {
   maxFields: 40,
   labelMax: 200,
   helpTextMax: 500,
-  maxOptions: 50,
+  /** Long enough for a whole graduating class pasted from a spreadsheet. */
+  maxOptions: 1000,
   optionMax: 200,
   shortTextMax: 500,
   longTextMax: 5000,
@@ -124,3 +127,27 @@ export const FORM_RATE_LIMITS = {
 
 /** Name of the hidden field that only bots fill in. */
 export const FORM_HONEYPOT_FIELD = "website";
+
+/** System fields each kind of form has, every one exactly once. */
+export const FORM_KIND_SYSTEM_ROLES = {
+  package_payment: ["email", "package", "reference", "proof"],
+  general: ["email"],
+} as const satisfies Record<FormKind, readonly (keyof typeof FORM_SYSTEM_FIELDS)[]>;
+
+export const FORM_KIND_LABELS = {
+  package_payment: "Pago de paquete",
+  general: "General",
+} as const satisfies Record<FormKind, string>;
+
+export const FORM_KIND_DESCRIPTIONS = {
+  package_payment:
+    "Para reportar el pago de un paquete: correo, paquete, referencia y comprobante. Las respuestas van a Pagos › Paquetes.",
+  general:
+    "Para todo lo demás (tallas, asistencia, datos de contacto). Solo trae el correo; las respuestas se ven en el mismo formulario.",
+} as const satisfies Record<FormKind, string>;
+
+/** Field types that can hold the person's name, for the tagging suggestions. */
+export const PERSON_NAME_FIELD_TYPES = ["short_text", "select", "radio"] as const;
+
+/** Above this many options the public page shows a searchable list. */
+export const SEARCHABLE_SELECT_THRESHOLD = 12;
