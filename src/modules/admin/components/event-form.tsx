@@ -103,12 +103,11 @@ function EventFields({ state, action, pending }: EventFieldsProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="event-date">Fecha</Label>
+        <Label htmlFor="event-date">Fecha (opcional)</Label>
         <Input
           id="event-date"
           name="eventDate"
           type="date"
-          required
           value={eventDate}
           onChange={(event) => setEventDate(event.target.value)}
           aria-invalid={Boolean(errors.eventDate) || undefined}

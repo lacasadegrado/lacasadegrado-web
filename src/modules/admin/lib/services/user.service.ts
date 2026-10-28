@@ -101,7 +101,7 @@ export async function getUserDetail(profileId: string): Promise<AdminUserDetail 
       // Bought photos first, then by event and filename.
       .orderBy(
         desc(sql`${entitlements.id} is not null`),
-        desc(events.eventDate),
+        sql`${events.eventDate} desc nulls last`,
         asc(photos.originalFilename),
       ),
     db

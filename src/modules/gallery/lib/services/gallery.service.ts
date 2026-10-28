@@ -39,7 +39,7 @@ export async function listGalleryForUser(viewer: SessionUser): Promise<GalleryEv
     .where(eq(photoTags.email, viewer.email))
     // Newest event first; inside an event, photos already theirs (bought or released) come first.
     .orderBy(
-      desc(events.eventDate),
+      sql`${events.eventDate} desc nulls last`,
       desc(events.createdAt),
       desc(sql`${entitlements.id} is not null or ${releasedForEmail(viewer.email)}`),
       asc(photos.createdAt),

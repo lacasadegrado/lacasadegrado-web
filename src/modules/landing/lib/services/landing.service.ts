@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, desc, eq, gt } from "drizzle-orm";
+import { and, count, desc, eq, gt, sql } from "drizzle-orm";
 
 import { db } from "@/common/lib/db";
 import { events, photos } from "@/common/lib/db/schema";
@@ -26,6 +26,6 @@ export async function listPublishedEvents(limit = 8): Promise<PublishedEvent[]> 
     .where(and(eq(events.isActive, true)))
     .groupBy(events.id)
     .having(gt(count(photos.id), 0))
-    .orderBy(desc(events.eventDate), desc(events.createdAt))
+    .orderBy(sql`${events.eventDate} desc nulls last`, desc(events.createdAt))
     .limit(limit);
 }

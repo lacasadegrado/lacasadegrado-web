@@ -20,8 +20,8 @@ export type GalleryEvent = {
   id: string;
   name: string;
   institution: string;
-  /** YYYY-MM-DD */
-  eventDate: string;
+  /** YYYY-MM-DD, or null when the event has no date yet. */
+  eventDate: string | null;
   photos: GalleryPhoto[];
 };
 

@@ -57,7 +57,8 @@ export async function AdminPhotosScreen({ eventId }: AdminPhotosScreenProps) {
                 Subir fotos a {event.name}
               </h2>
               <p className="text-sm text-muted-foreground">
-                {event.institution} · {formatDateOnly(event.eventDate)}. Cada foto se
+                {event.institution}
+                {event.eventDate ? ` · ${formatDateOnly(event.eventDate)}` : null}. Cada foto se
                 guarda en original y se genera una vista previa con marca de agua.
               </p>
             </div>

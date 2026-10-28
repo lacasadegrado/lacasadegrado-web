@@ -23,6 +23,7 @@ export async function listEvents(): Promise<AdminEvent[]> {
     .from(events)
     .leftJoin(photos, eq(photos.eventId, events.id))
     .groupBy(events.id)
+    // Postgres sorts nulls first on desc: events still without a date stay on top.
     .orderBy(desc(events.eventDate), desc(events.createdAt));
   return rows;
 }

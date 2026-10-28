@@ -236,7 +236,12 @@ suggestions come from `listEmailSuggestionsForEvent`: emails tagged in
 the event plus emails the event's forms collected, labelled with the
 person's name; suggestions only, nothing creates people.
 Payment details on the forms are deliberately absent until the owner
-decides. `CopyButton` lives in `src/common/components/copy-button/`.
+decides.
+Event date is optional (2026-10-28, migration 0014): `eventDate` is
+`string | null` everywhere; screens drop the date and its " · " when null
+(admin table says "Sin fecha"), the admin list keeps undated events on top
+and customer lists sort them last (`desc nulls last`), and the default
+slug has no year without a date. `CopyButton` lives in `src/common/components/copy-button/`.
 Previews have NO blur since 2026-10-21 (`blurSigma: 0`; it was 12, then 5
 from 2026-09-30, and did not help sell). The only protection is the dense,
 fairly opaque tiled watermark in `buildWatermarkSvg` (`WATERMARK_DENSITY`

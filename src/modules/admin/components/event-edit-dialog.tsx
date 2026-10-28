@@ -94,13 +94,12 @@ export function EventEditDialog({ event }: { event: AdminEvent }) {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor={`${prefix}-date`}>Fecha</Label>
+              <Label htmlFor={`${prefix}-date`}>Fecha (opcional)</Label>
               <Input
                 id={`${prefix}-date`}
                 name="eventDate"
                 type="date"
-                defaultValue={event.eventDate}
-                required
+                defaultValue={event.eventDate ?? ""}
                 aria-invalid={Boolean(errors.eventDate) || undefined}
               />
               <FieldError

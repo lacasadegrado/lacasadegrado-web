@@ -9,10 +9,11 @@ export function slugify(input: string): string {
     .slice(0, 80);
 }
 
-/** Default slug for an event: name plus year, so reruns stay unique. */
-export function eventSlug(name: string, eventDate: string): string {
-  const year = eventDate.slice(0, 4);
+/** Default slug for an event: name plus year (when dated), so reruns stay unique. */
+export function eventSlug(name: string, eventDate: string | null): string {
+  const year = eventDate?.slice(0, 4) ?? "";
   const base = slugify(name);
+  if (!year) return base;
   if (!base) return year;
   return base.includes(year) ? base : slugify(`${base} ${year}`);
 }

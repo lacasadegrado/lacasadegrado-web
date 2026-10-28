@@ -25,7 +25,8 @@ export function PublishedEvents({ events }: { events: PublishedEvent[] }) {
                 <p className="text-sm text-muted-foreground">{event.institution}</p>
               </div>
               <p className="text-sm text-muted-foreground tabular-nums">
-                {formatDateOnly(event.eventDate)} · {event.photoCount} foto
+                {event.eventDate ? `${formatDateOnly(event.eventDate)} · ` : null}
+                {event.photoCount} foto
                 {event.photoCount === 1 ? "" : "s"}
               </p>
             </li>

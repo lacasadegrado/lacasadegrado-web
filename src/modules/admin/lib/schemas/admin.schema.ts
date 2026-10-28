@@ -23,7 +23,11 @@ export const createEventSchema = z.object({
     .trim()
     .min(2, { error: "Escribe la institución." })
     .max(120),
-  eventDate: z.iso.date({ error: "Elige la fecha del evento." }),
+  /** Optional: an empty date input arrives as "" and is stored as null. */
+  eventDate: z
+    .union([z.iso.date({ error: "Elige una fecha válida." }), z.literal("")])
+    .nullish()
+    .transform((value) => value || null),
   slug: slugSchema,
   isActive: checkboxSchema,
 });

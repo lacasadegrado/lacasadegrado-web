@@ -12,7 +12,8 @@ export function PurchasesEventSection({ event }: { event: PurchasedEvent }) {
           {event.name}
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          {event.institution} · {formatDateOnly(event.eventDate)} ·{" "}
+          {event.institution} ·{" "}
+          {event.eventDate ? `${formatDateOnly(event.eventDate)} · ` : null}
           {event.photos.length} foto
           {event.photos.length === 1 ? "" : "s"}
         </p>

@@ -52,7 +52,11 @@ export function EventsTable({ events }: { events: AdminEvent[] }) {
                 </div>
               </TableCell>
               <TableCell className="whitespace-nowrap">
-                {formatDateOnly(event.eventDate)}
+                {event.eventDate ? (
+                  formatDateOnly(event.eventDate)
+                ) : (
+                  <span className="text-muted-foreground">Sin fecha</span>
+                )}
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {event.photoCount}

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/common/lib/db";
 import { entitlements, events, photos } from "@/common/lib/db/schema";
@@ -30,7 +30,7 @@ export async function listPurchasesForUser(viewer: SessionUser): Promise<Purchas
     .innerJoin(photos, eq(photos.id, entitlements.photoId))
     .innerJoin(events, eq(events.id, photos.eventId))
     .where(eq(entitlements.profileId, viewer.id))
-    .orderBy(desc(events.eventDate), desc(events.createdAt), desc(entitlements.grantedAt));
+    .orderBy(sql`${events.eventDate} desc nulls last`, desc(events.createdAt), desc(entitlements.grantedAt));
 
   const byEvent = new Map<string, PurchasedEvent>();
   for (const row of rows) {

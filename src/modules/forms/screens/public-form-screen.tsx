@@ -20,7 +20,8 @@ export async function PublicFormScreen({ slug }: { slug: string }) {
       <SiteHeader />
       <main id="contenido" className="mx-auto w-full max-w-2xl flex-1 px-4 py-10 sm:px-6 sm:py-14">
         <p className="text-sm text-muted-foreground">
-          {form.eventName} · {form.institution} · {formatDateOnly(form.eventDate)}
+          {form.eventName} · {form.institution}
+          {form.eventDate ? ` · ${formatDateOnly(form.eventDate)}` : null}
         </p>
         <h1 className="mt-2 text-3xl sm:text-4xl">{form.title}</h1>
         {form.description ? (

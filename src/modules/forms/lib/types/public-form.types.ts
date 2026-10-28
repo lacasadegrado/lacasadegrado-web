@@ -14,8 +14,8 @@ export type PublicForm = {
   kind: FormKind;
   eventName: string;
   institution: string;
-  /** YYYY-MM-DD */
-  eventDate: string;
+  /** YYYY-MM-DD, or null when the event has no date yet. */
+  eventDate: string | null;
   fields: FormField[];
   packages: (FormPackageOption & { description: string | null })[];
 };

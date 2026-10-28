@@ -5,7 +5,8 @@ export const events = pgTable("events", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   institution: text("institution").notNull(),
-  eventDate: date("event_date", { mode: "string" }).notNull(),
+  /** Optional: some events are created before the date is set. */
+  eventDate: date("event_date", { mode: "string" }),
   slug: text("slug").notNull().unique(),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
