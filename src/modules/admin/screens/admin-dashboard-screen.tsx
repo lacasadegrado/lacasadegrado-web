@@ -77,17 +77,21 @@ export async function AdminDashboardScreen({ range, eventId }: { range: Dashboar
   const hasRevenue = data.revenueSeries.some((point) => point.photos > 0 || point.packages > 0);
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Resumen</h1>
-          <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-            Lo que entró es solo lo confirmado: pedidos de fotos aprobados y pagos de paquetes
-            confirmados. Los bolívares usan la tasa del día de cada pago.
-          </p>
-        </div>
-        <DashboardFilters range={range} eventId={eventId} events={events.map((event) => ({ id: event.id, name: event.name }))} />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Resumen</h1>
+        <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+          Lo que entró es solo lo confirmado: pedidos de fotos aprobados y pagos de paquetes
+          confirmados. Los bolívares usan la tasa del día de cada pago.
+        </p>
       </div>
+      {/* Keyed so back/forward navigation resets the selects to what is shown. */}
+      <DashboardFilters
+        key={`${range}-${eventId ?? ""}`}
+        range={range}
+        eventId={eventId}
+        events={events.map((event) => ({ id: event.id, name: event.name }))}
+      >
 
       <section aria-labelledby="pending-heading" className="space-y-3">
         <h2 id="pending-heading" className="text-lg font-semibold">
@@ -345,6 +349,7 @@ export async function AdminDashboardScreen({ range, eventId }: { range: Dashboar
           </ul>
         </section>
       ) : null}
+      </DashboardFilters>
     </div>
   );
 }

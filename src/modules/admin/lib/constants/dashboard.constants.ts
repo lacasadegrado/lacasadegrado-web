@@ -14,6 +14,8 @@ export type DashboardRange = (typeof DASHBOARD_RANGES)[number]["value"];
 export const DASHBOARD = {
   /** Lists of people (to remind, never downloaded, top buyers) show this many. */
   listLimit: 8,
+  /** Queries in flight at once; well under the db pool so none share a connection. */
+  queryConcurrency: 4,
   /** Up to this many days the revenue chart has one bar per day; then per week, then per month. */
   dailyMaxDays: 62,
   weeklyMaxDays: 200,

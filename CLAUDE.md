@@ -269,7 +269,11 @@ November 2026 (built 2026-11-03, migration 0015):
   `SUPPORT_NOTIFY_EMAIL`.
 - Dashboard at `/admin` ("Resumen"): `dashboard.service.ts`, raw SQL,
   ranges in Caracas time (`dashboard-range.util.ts`), chart via shadcn
-  `chart` (recharts).
+  `chart` (recharts). Its 18 queries run 4 at a time (`runLimited`): with
+  more queries in flight than pool connections (max 10) postgres-js
+  pipelines them on one connection, and Supabase's transaction pooler then
+  hangs it until the statement timeout. Never fire a large `Promise.all` of
+  queries. Raw `sql` params take ISO strings cast `::timestamptz`, not Dates.
 Previews have NO blur since 2026-10-21 (`blurSigma: 0`; it was 12, then 5
 from 2026-09-30, and did not help sell). The only protection is the dense,
 fairly opaque tiled watermark in `buildWatermarkSvg` (`WATERMARK_DENSITY`
