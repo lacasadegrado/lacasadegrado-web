@@ -19,6 +19,15 @@ async function countSince(kind: FormAttemptKind, windowSeconds: number, where: S
   return row?.total ?? 0;
 }
 
+/** Attempts of one kind in the window, by IP or by email (any form). */
+export async function countAttemptsSince(
+  kind: FormAttemptKind,
+  windowSeconds: number,
+  by: { ip: string } | { email: string },
+): Promise<number> {
+  return countSince(kind, windowSeconds, "ip" in by ? eq(formAttempts.ip, by.ip) : eq(formAttempts.email, by.email));
+}
+
 /** Without an IP (local dev, odd proxies) the IP limits cannot apply. */
 export async function isUploadAllowed(ip: string | null): Promise<boolean> {
   if (!ip) return true;

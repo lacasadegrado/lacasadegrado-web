@@ -12,10 +12,12 @@ import {
   TableRow,
 } from "@/common/components/ui/table";
 import { formatDateTime } from "@/common/lib/utils/date.util";
+import { Badge } from "@/common/components/ui/badge";
 import { formatEur } from "@/common/lib/utils/money.util";
 
 import { PackagePaymentsFilters } from "../components/package-payments/package-payments-filters";
 import { ADMIN_PATHS } from "../lib/constants/admin.constants";
+import { PACKAGE_PAYMENT_STATUS_BADGE, PACKAGE_PAYMENT_STATUS_LABELS } from "../lib/constants/sale.constants";
 import {
   toPackagePaymentFilters,
   type PackagePaymentSearchParams,
@@ -50,11 +52,12 @@ export async function AdminPackagePaymentsScreen({ params }: { params: PackagePa
     listPackagePayments(filters, params.page),
     summarizePackagePayments(filters),
   ]);
-  const current = { event: params.event, form: params.form, package: params.package, q: params.q };
+  const current = { event: params.event, form: params.form, package: params.package, status: params.status, q: params.q };
   const pages = Math.max(1, Math.ceil(total / PACKAGE_PAYMENTS_PAGE_SIZE));
-  const filtered = Boolean(params.event || params.form || params.package || params.q);
+  const filtered = Boolean(params.event || params.form || params.package || params.status || params.q);
   const summaryCount = summary.reduce((acc, line) => acc + line.count, 0);
   const summaryTotal = summary.reduce((acc, line) => acc + line.totalCents, 0);
+  const summaryConfirmed = summary.reduce((acc, line) => acc + line.confirmedCents, 0);
 
   return (
     <div className="space-y-8">
@@ -62,8 +65,9 @@ export async function AdminPackagePaymentsScreen({ params }: { params: PackagePa
         <div>
           <h1 className="text-2xl font-bold">Pagos de paquetes</h1>
           <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-            Respuestas de los formularios de paquetes prepagados. La app no verifica estos pagos:
-            descarga el Excel y compáralo con el banco.
+            Cada pago reportado de un paquete, incluidos los abonos. Compáralo con el banco y
+            confírmalo o recházalo en su detalle: solo lo confirmado cuenta como pagado. El avance de
+            cada persona está en Abonos.
           </p>
         </div>
         {total > 0 ? (
@@ -97,8 +101,9 @@ export async function AdminPackagePaymentsScreen({ params }: { params: PackagePa
                 <TableRow>
                   <TableHead>Paquete</TableHead>
                   <TableHead className="text-right">Precio</TableHead>
-                  <TableHead className="text-right">Respuestas</TableHead>
-                  <TableHead className="text-right">Total reportado</TableHead>
+                  <TableHead className="text-right">Pagos</TableHead>
+                  <TableHead className="text-right">Reportado</TableHead>
+                  <TableHead className="text-right">Confirmado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -112,6 +117,7 @@ export async function AdminPackagePaymentsScreen({ params }: { params: PackagePa
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{line.count}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatEur(line.totalCents)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatEur(line.confirmedCents)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -122,6 +128,7 @@ export async function AdminPackagePaymentsScreen({ params }: { params: PackagePa
                   </TableCell>
                   <TableCell className="text-right font-semibold tabular-nums">{summaryCount}</TableCell>
                   <TableCell className="text-right font-semibold tabular-nums">{formatEur(summaryTotal)}</TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums">{formatEur(summaryConfirmed)}</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
@@ -131,7 +138,7 @@ export async function AdminPackagePaymentsScreen({ params }: { params: PackagePa
 
       <section aria-labelledby="answers-heading" className="space-y-3">
         <h2 id="answers-heading" className="text-lg font-semibold">
-          {total === 1 ? "1 respuesta" : `${total} respuestas`}
+          {total === 1 ? "1 pago" : `${total} pagos`}
         </h2>
 
         {rows.length === 0 ? (
@@ -148,7 +155,9 @@ export async function AdminPackagePaymentsScreen({ params }: { params: PackagePa
                   <TableHead>Fecha</TableHead>
                   <TableHead>Correo</TableHead>
                   <TableHead>Paquete</TableHead>
+                  <TableHead className="text-right">Monto</TableHead>
                   <TableHead>Referencia</TableHead>
+                  <TableHead>Estado</TableHead>
                   <TableHead>Formulario</TableHead>
                   <TableHead>
                     <span className="sr-only">Acciones</span>
@@ -165,18 +174,30 @@ export async function AdminPackagePaymentsScreen({ params }: { params: PackagePa
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {row.packageName ? (
-                        <>
-                          {row.packageName}{" "}
-                          {row.packagePriceCents !== null ? (
-                            <span className="text-muted-foreground tabular-nums">· {formatEur(row.packagePriceCents)}</span>
-                          ) : null}
-                        </>
+                        row.packageName
                       ) : (
                         <span className="text-muted-foreground">Sin paquete</span>
                       )}
                     </TableCell>
+                    <TableCell className="text-right whitespace-nowrap tabular-nums">
+                      {formatEur(row.amountCents ?? row.packagePriceCents ?? 0)}
+                      {row.installmentsCovered && row.planInstallments && row.planInstallments > 1 ? (
+                        <span className="block text-xs text-muted-foreground">
+                          {row.installmentsCovered} de {row.planInstallments} cuotas
+                        </span>
+                      ) : null}
+                    </TableCell>
                     <TableCell className="font-mono text-sm">
                       {row.reference ?? <span className="font-sans text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell>
+                      {row.paymentStatus ? (
+                        <Badge variant={PACKAGE_PAYMENT_STATUS_BADGE[row.paymentStatus]}>
+                          {PACKAGE_PAYMENT_STATUS_LABELS[row.paymentStatus]}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="max-w-56 whitespace-normal text-sm text-muted-foreground">
                       {row.formTitle}

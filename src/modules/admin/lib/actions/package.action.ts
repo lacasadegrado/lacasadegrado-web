@@ -41,6 +41,7 @@ function packageFields(formData: FormData) {
     name: formData.get("name"),
     description: formData.get("description") ?? undefined,
     priceEur: String(formData.get("priceEur") ?? "").replace(",", "."),
+    installments: formData.get("installments") ?? 1,
   };
 }
 

@@ -8,6 +8,7 @@ import { Label } from "@/common/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/common/components/ui/native-select";
 import { Textarea } from "@/common/components/ui/textarea";
 import {
+  CONDITION_SOURCE_TYPES,
   FORM_FILE_ACCEPT_LABELS,
   FORM_LIMITS,
   PERSON_NAME_FIELD_TYPES,
@@ -17,8 +18,116 @@ import type { FormField } from "@/modules/forms/lib/types/form.types";
 
 type FieldSettingsProps = {
   field: FormField;
+  /** Earlier questions; choice ones can show or hide this one. */
+  previousFields: FormField[];
   onChange: (field: FormField) => void;
 };
+
+type ChoiceField = Extract<FormField, { type: (typeof CONDITION_SOURCE_TYPES)[number] }>;
+
+function isChoiceField(field: FormField): field is ChoiceField {
+  return (CONDITION_SOURCE_TYPES as readonly string[]).includes(field.type);
+}
+
+/**
+ * "Show only if…": pick an earlier choice question and the options that
+ * reveal this one. Like Google Forms' branching, without sections.
+ */
+function ConditionSetting({
+  field,
+  sources,
+  update,
+}: {
+  field: FormField;
+  sources: ChoiceField[];
+  update: (patch: Partial<FormField>) => void;
+}) {
+  const id = useId();
+  const condition = field.showIf;
+  const source = condition ? sources.find((item) => item.id === condition.fieldId) : undefined;
+
+  return (
+    <div className="space-y-3 rounded-md border border-dashed p-3">
+      <div className="flex items-start gap-2">
+        <Checkbox
+          id={`${id}-conditional`}
+          checked={Boolean(condition)}
+          disabled={!condition && sources.length === 0}
+          onCheckedChange={(checked) =>
+            update({ showIf: checked === true && sources[0] ? { fieldId: sources[0].id, values: [] } : undefined })
+          }
+          className="mt-0.5"
+        />
+        <Label htmlFor={`${id}-conditional`} className="block font-normal">
+          <span>Mostrar solo según una respuesta anterior</span>
+          <span className="block text-xs text-muted-foreground">
+            {sources.length === 0
+              ? "Pon antes una lista, una opción única o casillas para poder usarlo."
+              : "La pregunta aparece solo si eligen ciertas opciones. Si no se muestra, no es obligatoria."}
+          </span>
+        </Label>
+      </div>
+
+      {condition ? (
+        <div className="space-y-3 pl-6">
+          <div className="space-y-1.5">
+            <Label htmlFor={`${id}-source`} className="text-xs">
+              Depende de
+            </Label>
+            <NativeSelect
+              id={`${id}-source`}
+              value={condition.fieldId}
+              onChange={(event) => update({ showIf: { fieldId: event.target.value, values: [] } })}
+              className="h-8"
+            >
+              {source ? null : (
+                <NativeSelectOption value={condition.fieldId}>Elige una pregunta</NativeSelectOption>
+              )}
+              {sources.map((item) => (
+                <NativeSelectOption key={item.id} value={item.id}>
+                  {item.label.trim() || "Pregunta sin título"}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </div>
+          {source ? (
+            <fieldset className="space-y-1.5">
+              <legend className="text-xs font-medium">Mostrar si eligen</legend>
+              <ul className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+                {source.options.map((option, index) => {
+                  const optionId = `${id}-value-${index}`;
+                  const checked = condition.values.includes(option);
+                  return (
+                    <li key={option} className="flex items-center gap-2">
+                      <Checkbox
+                        id={optionId}
+                        checked={checked}
+                        onCheckedChange={(next) =>
+                          update({
+                            showIf: {
+                              fieldId: condition.fieldId,
+                              values:
+                                next === true
+                                  ? [...condition.values, option]
+                                  : condition.values.filter((value) => value !== option),
+                            },
+                          })
+                        }
+                      />
+                      <Label htmlFor={optionId} className="font-normal">
+                        {option}
+                      </Label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </fieldset>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 /** "" clears an optional bound; anything else is parsed as a number. */
 function parseOptionalNumber(value: string): number | undefined {
@@ -101,10 +210,11 @@ function OptionsSetting({ options, onChange }: { options: string[]; onChange: (o
   );
 }
 
-export function FieldSettings({ field, onChange }: FieldSettingsProps) {
+export function FieldSettings({ field, previousFields, onChange }: FieldSettingsProps) {
   const id = useId();
   const update = (patch: Partial<FormField>) => onChange({ ...field, ...patch } as FormField);
   const system = Boolean(field.system);
+  const sources = previousFields.filter(isChoiceField);
 
   return (
     <div className="space-y-4">
@@ -164,6 +274,8 @@ export function FieldSettings({ field, onChange }: FieldSettingsProps) {
       ) : null}
 
       <TypeSettings field={field} update={update} />
+
+      {system ? null : <ConditionSetting field={field} sources={sources} update={update} />}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { SidebarInset, SidebarProvider } from "@/common/components/ui/sidebar";
 import { TooltipProvider } from "@/common/components/ui/tooltip";
 import { getSessionUser } from "@/modules/auth/lib/services/session.service";
 
+import { countPendingPackagePayments } from "../../lib/services/package-review.service";
 import { countPendingReviews } from "../../lib/services/payment-review.service";
 import { countPendingPrints } from "../../lib/services/print.service";
 import { AdminHeader } from "./admin-header";
@@ -14,9 +15,10 @@ import { AdminSidebar } from "./admin-sidebar";
  * The layout above has already verified the session is an admin.
  */
 export async function AdminShell({ children }: { children: ReactNode }) {
-  const [user, pendingPayments, pendingPrints] = await Promise.all([
+  const [user, pendingPayments, pendingPackages, pendingPrints] = await Promise.all([
     getSessionUser(),
     countPendingReviews(),
+    countPendingPackagePayments(),
     countPendingPrints(),
   ]);
 
@@ -26,6 +28,7 @@ export async function AdminShell({ children }: { children: ReactNode }) {
         <AdminSidebar
           email={user?.email ?? ""}
           pendingPayments={pendingPayments}
+          pendingPackages={pendingPackages}
           pendingPrints={pendingPrints}
         />
         <SidebarInset id="contenido" className="min-w-0">

@@ -9,7 +9,7 @@ import { Textarea } from "@/common/components/ui/textarea";
 import { formatEur } from "@/common/lib/utils/money.util";
 
 import { SEARCHABLE_SELECT_THRESHOLD } from "../../lib/constants/forms.constants";
-import type { FormField, FormFileAnswer } from "../../lib/types/form.types";
+import type { FormField, FormFileAnswer, PrepareUpload } from "../../lib/types/form.types";
 import type { PublicForm } from "../../lib/types/public-form.types";
 import { FileFieldInput } from "./file-field-input";
 import { SearchableSelect } from "./searchable-select";
@@ -18,7 +18,7 @@ type FormFieldInputProps = {
   field: FormField;
   value: unknown;
   error?: string;
-  slug: string;
+  prepareUpload: PrepareUpload;
   draftId: string;
   packages: PublicForm["packages"];
   onValue: (fieldId: string, value: unknown) => void;
@@ -43,7 +43,7 @@ export function FormFieldInput({
   field,
   value,
   error,
-  slug,
+  prepareUpload,
   draftId,
   packages,
   onValue,
@@ -119,6 +119,7 @@ export function FormFieldInput({
               {packages.map((option) => (
                 <NativeSelectOption key={option.id} value={option.id}>
                   {option.name} · {formatEur(option.priceCents)}
+                  {option.installments > 1 ? ` · hasta ${option.installments} cuotas` : ""}
                 </NativeSelectOption>
               ))}
             </NativeSelect>
@@ -184,7 +185,7 @@ export function FormFieldInput({
         return (
           <FileFieldInput
             field={field}
-            slug={slug}
+            prepareUpload={prepareUpload}
             draftId={draftId}
             inputId={inputId}
             describedBy={describedBy}

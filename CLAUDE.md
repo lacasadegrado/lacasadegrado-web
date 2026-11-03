@@ -203,8 +203,9 @@ the one Zod schema for answers on both browser and server. `forms.fields`
 and the submission snapshots are jsonb typed `unknown`: always parse on
 read. Builder at `/admin/events/forms` (packages + forms per event) and
 `/admin/events/forms/[formId]`; the version bumps only when fields change.
-Submissions grant nothing and are never verified in the app: the admin
-reads them at `/admin/payments/packages` (filters in the query string
+Submissions grant nothing (since 0015 the admin confirms or rejects
+package payments, see Abonos below); the admin reads them at
+`/admin/payments/packages` (filters in the query string
 `?event=&form=&package=&q=&page=`, per-package summary, detail at
 `/admin/payments/packages/[id]`) and exports the same filter to .xlsx
 (exceljs; `buildPackagePaymentsWorkbook` in the admin utils, Caracas
@@ -242,6 +243,33 @@ Event date is optional (2026-10-28, migration 0014): `eventDate` is
 (admin table says "Sin fecha"), the admin list keeps undated events on top
 and customer lists sort them last (`desc nulls last`), and the default
 slug has no year without a date. `CopyButton` lives in `src/common/components/copy-button/`.
+November 2026 (built 2026-11-03, migration 0015):
+- Conditional questions: any non-system field may have `showIf`
+  `{ fieldId, values }` pointing back to an earlier select/radio/checkboxes
+  field. `visibleFieldIds` (forms utils) is the single rule, used by the
+  public page, `buildAnswersSchema` (hidden answers are dropped, never
+  required or stored) and the admin detail.
+- Ventas at `/admin/sales` (+ `[orderId]`): orders with buyer, events,
+  photos bought (clean derivative), payments, downloads. `sale.service.ts`.
+- Abonos: `photo_packages.installments` (1-6). Every package payment joins
+  a `package_plans` row (one per person + package; an open plan with the
+  same email is reused and gets a new link). Payments stay in
+  `form_submissions` with `plan_id`, `installments_covered`, `amount_cents`,
+  `eur_to_ves` (day's rate) and `payment_status` pending/confirmed/rejected;
+  only confirmed money counts and the plan turns `paid` when it covers the
+  price (`reviewPackagePayment`, row locks). Later abonos go through
+  `/abono/<token>` (public, noindex; only the SHA-256 is stored, so lost
+  links are replaced via "Enviarme mi enlace" on the form or on
+  rejection). Admin: Pagos › Paquetes (status filter, confirm/reject on the
+  detail) and Pagos › Abonos (`/admin/payments/plans`).
+- Admin notifications: `notifications` table, one row per admin, written by
+  `notifyAdmins` (never throws) on photo payment reported, package payment
+  reported and package fully paid; bell in the admin header polls
+  `/api/admin/notifications`. The support form still emails
+  `SUPPORT_NOTIFY_EMAIL`.
+- Dashboard at `/admin` ("Resumen"): `dashboard.service.ts`, raw SQL,
+  ranges in Caracas time (`dashboard-range.util.ts`), chart via shadcn
+  `chart` (recharts).
 Previews have NO blur since 2026-10-21 (`blurSigma: 0`; it was 12, then 5
 from 2026-09-30, and did not help sell). The only protection is the dense,
 fairly opaque tiled watermark in `buildWatermarkSvg` (`WATERMARK_DENSITY`

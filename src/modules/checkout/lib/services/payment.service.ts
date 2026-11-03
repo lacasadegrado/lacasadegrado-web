@@ -11,7 +11,9 @@ import { orders, payments } from "@/common/lib/db/schema";
 import { sendEmail } from "@/common/lib/email/email.service";
 import { getPresignedPutUrl, headObject } from "@/common/lib/storage/storage.service";
 import { extensionForImageType } from "@/common/lib/utils/mime.util";
-import { STORAGE_PREFIXES } from "@/modules/admin/lib/constants/admin.constants";
+import { formatEur } from "@/common/lib/utils/money.util";
+import { ADMIN_PATHS, STORAGE_PREFIXES } from "@/modules/admin/lib/constants/admin.constants";
+import { notifyAdmins } from "@/modules/admin/lib/services/notification.service";
 import type { SessionUser } from "@/modules/auth/lib/types/auth.types";
 
 import { PROOF_UPLOAD } from "../constants/checkout.constants";
@@ -118,6 +120,13 @@ export async function submitPayment(
   });
   const sent = await sendEmail({ to: viewer.email, ...email });
   if (!sent) console.error("[checkout] confirmation email not sent", { orderId: order.id });
+
+  await notifyAdmins({
+    kind: "order_payment",
+    title: "Pago de fotos por revisar",
+    body: `${input.payerName} · ${formatEur(order.totalCents)} · ref. ${input.reference}`,
+    href: ADMIN_PATHS.payments,
+  });
 
   return { ok: true, orderId: order.id };
 }

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { formKindEnum, formStatusEnum } from "@/common/lib/db/schema/enums.table";
-import { FORM_LIMITS } from "@/modules/forms/lib/constants/forms.constants";
+import { FORM_LIMITS, PLAN_LIMITS } from "@/modules/forms/lib/constants/forms.constants";
 import { formFieldsSchema } from "@/modules/forms/lib/schemas/form-field.schema";
 
 const priceEurSchema = z.coerce
@@ -22,6 +22,11 @@ export const createPackageSchema = z.object({
   name: z.string().trim().min(2, { error: "Escribe el nombre del paquete." }).max(120),
   description: optionalText(500),
   priceEur: priceEurSchema,
+  installments: z.coerce
+    .number({ error: "Elige en cuántas cuotas se puede pagar." })
+    .int()
+    .min(1, { error: "Mínimo 1 (pago único)." })
+    .max(PLAN_LIMITS.maxInstallments, { error: `Máximo ${PLAN_LIMITS.maxInstallments} cuotas.` }),
 });
 
 export const updatePackageSchema = createPackageSchema.omit({ eventId: true }).extend({

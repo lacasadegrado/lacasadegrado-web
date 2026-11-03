@@ -18,6 +18,8 @@ export const photoPackages = pgTable(
     name: text("name").notNull(),
     description: text("description"),
     priceCents: integer("price_cents").notNull(),
+    /** Equal parts the price can be paid in (abonos); 1 = paid at once. */
+    installments: integer("installments").notNull().default(1),
     /** Inactive packages leave the select but keep their submissions. */
     isActive: boolean("is_active").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),

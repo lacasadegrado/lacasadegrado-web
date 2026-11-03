@@ -5,9 +5,11 @@
  *   npm run db:purge -- --keep correo@dominio.com --yes [--rates]
  *
  * Deletes, in dependency order: download logs, entitlements, payments,
- * order items, orders, photo tags, photos, events, support messages, OTP
- * attempts, and every auth user except the kept one (profiles cascade).
- * Then removes the R2 objects those photos and payment proofs pointed at.
+ * order items, orders, photo tags, photos, form attempts, form answers,
+ * payment plans, forms, packages, notifications, events, support
+ * messages, OTP attempts, and every auth user except the kept one
+ * (profiles cascade). Then removes the R2 objects those photos and
+ * payment proofs pointed at; files sent through forms (`forms/`) stay.
  * Without --yes it only prints what would be deleted. --rates also wipes
  * the exchange-rate history (e.g. after changing the base currency).
  *
@@ -60,6 +62,10 @@ try {
     (select count(*) from payments)::int as payments,
     (select count(*) from entitlements)::int as entitlements,
     (select count(*) from download_logs)::int as download_logs,
+    (select count(*) from forms)::int as forms,
+    (select count(*) from form_submissions)::int as form_submissions,
+    (select count(*) from package_plans)::int as package_plans,
+    (select count(*) from notifications)::int as notifications,
     (select count(*) from support_messages)::int as support_messages,
     (select count(*) from otp_attempts)::int as otp_attempts,
     (select count(*) from exchange_rates)::int as exchange_rates`;
@@ -89,6 +95,13 @@ try {
     await tx`delete from orders`;
     await tx`delete from photo_tags`;
     await tx`delete from photos`;
+    // Forms, packages and payment plans hang off events with restrict FKs.
+    await tx`delete from form_attempts`;
+    await tx`delete from form_submissions`;
+    await tx`delete from package_plans`;
+    await tx`delete from forms`;
+    await tx`delete from photo_packages`;
+    await tx`delete from notifications`;
     await tx`delete from events`;
     await tx`delete from support_messages`;
     await tx`delete from otp_attempts`;

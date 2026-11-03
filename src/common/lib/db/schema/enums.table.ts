@@ -61,7 +61,7 @@ export const formStatusEnum = pgEnum("form_status", ["draft", "open", "closed"])
 export type FormStatus = (typeof formStatusEnum.enumValues)[number];
 
 /** What a public form visitor did, for the per-IP and per-email limits. */
-export const formAttemptKindEnum = pgEnum("form_attempt_kind", ["upload", "submit"]);
+export const formAttemptKindEnum = pgEnum("form_attempt_kind", ["upload", "submit", "plan_link"]);
 
 export type FormAttemptKind = (typeof formAttemptKindEnum.enumValues)[number];
 
@@ -74,3 +74,25 @@ export type FormAttemptKind = (typeof formAttemptKindEnum.enumValues)[number];
 export const formKindEnum = pgEnum("form_kind", ["package_payment", "general"]);
 
 export type FormKind = (typeof formKindEnum.enumValues)[number];
+
+/**
+ * Review of one package payment (a first payment or an abono). Only
+ * `confirmed` ones count toward the plan's balance.
+ */
+export const packagePaymentStatusEnum = pgEnum("package_payment_status", ["pending", "confirmed", "rejected"]);
+
+export type PackagePaymentStatus = (typeof packagePaymentStatusEnum.enumValues)[number];
+
+/** A payment plan is `paid` once its confirmed payments cover the price. */
+export const packagePlanStatusEnum = pgEnum("package_plan_status", ["open", "paid"]);
+
+export type PackagePlanStatus = (typeof packagePlanStatusEnum.enumValues)[number];
+
+/** What an in-app admin notification is about. */
+export const notificationKindEnum = pgEnum("notification_kind", [
+  "order_payment",
+  "package_payment",
+  "package_paid",
+]);
+
+export type NotificationKind = (typeof notificationKindEnum.enumValues)[number];

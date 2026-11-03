@@ -8,7 +8,9 @@ import {
   CreditCard,
   Globe,
   Images,
+  LayoutDashboard,
   LogOut,
+  Receipt,
   Users,
   Wallet,
   type LucideIcon,
@@ -52,7 +54,7 @@ import { signOutAction } from "@/modules/auth/lib/actions/auth.action"
 
 import { ADMIN_PATHS } from "../../lib/constants/admin.constants"
 
-type AdminBadge = "payments" | "prints"
+type AdminBadge = "payments" | "packages" | "prints"
 
 type AdminNavLink = {
   href: string
@@ -81,6 +83,7 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
   {
     label: "Gestión",
     sections: [
+      { href: ADMIN_PATHS.root, label: "Resumen", icon: LayoutDashboard },
       {
         href: ADMIN_PATHS.events,
         label: "Eventos",
@@ -105,9 +108,11 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
         icon: Wallet,
         items: [
           { href: ADMIN_PATHS.payments, label: "Fotos adicionales", badge: "payments" },
-          { href: ADMIN_PATHS.packagePayments, label: "Paquetes" },
+          { href: ADMIN_PATHS.packagePayments, label: "Paquetes", badge: "packages" },
+          { href: ADMIN_PATHS.packagePlans, label: "Abonos" },
         ],
       },
+      { href: ADMIN_PATHS.sales, label: "Ventas", icon: Receipt },
     ],
   },
   {
@@ -148,6 +153,7 @@ export function matchAdminSection(
 
 const BADGE_LABEL: Record<AdminBadge, string> = {
   payments: "pagos por verificar",
+  packages: "pagos de paquetes por revisar",
   prints: "impresiones por entregar",
 }
 
@@ -161,15 +167,17 @@ function badgeClass(active: boolean): string {
 type AdminSidebarProps = {
   email: string
   pendingPayments: number
+  pendingPackages: number
   pendingPrints: number
 }
 
-export function AdminSidebar({ email, pendingPayments, pendingPrints }: AdminSidebarProps) {
+export function AdminSidebar({ email, pendingPayments, pendingPackages, pendingPrints }: AdminSidebarProps) {
   const pathname = usePathname()
   const { isMobile, setOpenMobile } = useSidebar()
   const current = matchAdminSection(pathname)
   const counts: Record<AdminBadge, number> = {
     payments: pendingPayments,
+    packages: pendingPackages,
     prints: pendingPrints,
   }
 

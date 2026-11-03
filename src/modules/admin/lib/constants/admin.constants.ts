@@ -11,9 +11,13 @@ export const ADMIN_PATHS = {
   payments: "/admin/payments",
   packagePayments: "/admin/payments/packages",
   packagePayment: (submissionId: string) => `/admin/payments/packages/${submissionId}`,
+  packagePlans: "/admin/payments/plans",
+  packagePlan: (planId: string) => `/admin/payments/plans/${planId}`,
   packagePaymentFileApi: (submissionId: string, fieldId: string, index: number) =>
     `/api/admin/package-payments/${submissionId}/files/${fieldId}/${index}`,
   packagePaymentsExportApi: "/api/admin/package-payments/export",
+  sales: "/admin/sales",
+  sale: (orderId: string) => `/admin/sales/${orderId}`,
   prints: "/admin/prints",
   rates: "/admin/rates",
   paymentMethods: "/admin/payment-methods",

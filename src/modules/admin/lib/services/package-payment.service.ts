@@ -1,12 +1,13 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, ilike, or, sql, sum, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/common/lib/db";
-import { events, formSubmissions, forms } from "@/common/lib/db/schema";
+import { events, formSubmissions, forms, packagePlans, profiles } from "@/common/lib/db/schema";
 import { FORM_UPLOAD_PREFIX } from "@/modules/forms/lib/constants/forms.constants";
 import { formFieldsSchema } from "@/modules/forms/lib/schemas/form-field.schema";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
+import { visibleFieldIds } from "@/modules/forms/lib/utils/form-conditions.util";
 import { personNameFrom } from "@/modules/forms/lib/utils/person-name.util";
 
 import type {
@@ -32,6 +33,7 @@ function whereFor(filters: PackagePaymentFilters): SQL | undefined {
   if (filters.formId) conditions.push(eq(formSubmissions.formId, filters.formId));
   if (filters.packageId) conditions.push(eq(formSubmissions.packageId, filters.packageId));
   if (filters.kind) conditions.push(eq(forms.kind, filters.kind));
+  if (filters.paymentStatus) conditions.push(eq(formSubmissions.paymentStatus, filters.paymentStatus));
   const query = filters.query?.trim();
   if (query) {
     const pattern = likePattern(query);
@@ -57,6 +59,15 @@ const rowColumns = {
   eventName: events.name,
   answers: formSubmissions.answers,
   fieldsSnapshot: formSubmissions.fieldsSnapshot,
+  paymentStatus: formSubmissions.paymentStatus,
+  amountCents: formSubmissions.amountCents,
+  installmentsCovered: formSubmissions.installmentsCovered,
+  planInstallments: packagePlans.installments,
+  planPersonName: packagePlans.personName,
+  planId: formSubmissions.planId,
+  eurToVes: formSubmissions.eurToVes,
+  rejectionReason: formSubmissions.rejectionReason,
+  reviewedAt: formSubmissions.reviewedAt,
 };
 
 type RawRow = {
@@ -73,6 +84,15 @@ type RawRow = {
   eventName: string;
   answers: unknown;
   fieldsSnapshot: unknown;
+  paymentStatus: PackagePaymentRow["paymentStatus"];
+  amountCents: number | null;
+  installmentsCovered: number | null;
+  planInstallments: number | null;
+  planPersonName: string | null;
+  planId: string | null;
+  eurToVes: string | null;
+  rejectionReason: string | null;
+  reviewedAt: Date | null;
 };
 
 /** The list row plus the parsed answers and fields, kept apart so lists never carry them. */
@@ -86,12 +106,21 @@ function toRow(raw: RawRow): { row: PackagePaymentRow; answers: Record<string, u
     reference: raw.reference,
     packageName: raw.packageName,
     packagePriceCents: raw.packagePriceCents,
-    personName: personNameFrom(fields, answers),
+    // Abonos only ask for reference and proof: the name comes from the plan.
+    personName: personNameFrom(fields, answers) ?? raw.planPersonName,
     hasProof: raw.proofKey !== null,
     formId: raw.formId,
     formKind: raw.formKind,
     formTitle: raw.formTitle,
     eventName: raw.eventName,
+    paymentStatus: raw.paymentStatus,
+    amountCents: raw.amountCents,
+    installmentsCovered: raw.installmentsCovered,
+    planInstallments: raw.planInstallments,
+    planId: raw.planId,
+    eurToVes: raw.eurToVes ? Number(raw.eurToVes) : null,
+    rejectionReason: raw.rejectionReason,
+    reviewedAt: raw.reviewedAt,
   };
   return { row, answers, fields };
 }
@@ -108,6 +137,7 @@ export async function listPackagePayments(
       .from(formSubmissions)
       .innerJoin(forms, eq(forms.id, formSubmissions.formId))
       .innerJoin(events, eq(events.id, forms.eventId))
+      .leftJoin(packagePlans, eq(packagePlans.id, formSubmissions.planId))
       .where(where)
       .orderBy(desc(formSubmissions.submittedAt))
       .limit(PACKAGE_PAYMENTS_PAGE_SIZE)
@@ -124,8 +154,9 @@ export async function listPackagePayments(
 
 /**
  * Count and sum per package over the filtered answers, by the snapshot
- * name and price each person saw. Sums what people reported, not what
- * reached the bank: verification happens outside the app.
+ * name and price each person saw. A payment's own amount when it has one
+ * (abonos), else the package price; rejected payments never count, and
+ * only confirmed ones are money that arrived.
  */
 export async function summarizePackagePayments(filters: PackagePaymentFilters): Promise<PackagePaymentSummary[]> {
   const rows = await db
@@ -133,14 +164,15 @@ export async function summarizePackagePayments(filters: PackagePaymentFilters): 
       packageName: formSubmissions.packageName,
       priceCents: formSubmissions.packagePriceCents,
       count: count(),
-      totalCents: sum(formSubmissions.packagePriceCents),
+      totalCents: sql<number>`coalesce(sum(coalesce(${formSubmissions.amountCents}, ${formSubmissions.packagePriceCents})) filter (where ${formSubmissions.paymentStatus} is distinct from 'rejected'), 0)::int`,
+      confirmedCents: sql<number>`coalesce(sum(coalesce(${formSubmissions.amountCents}, ${formSubmissions.packagePriceCents})) filter (where ${formSubmissions.paymentStatus} = 'confirmed'), 0)::int`,
     })
     .from(formSubmissions)
     .innerJoin(forms, eq(forms.id, formSubmissions.formId))
     .where(whereFor(filters))
     .groupBy(formSubmissions.packageName, formSubmissions.packagePriceCents)
     .orderBy(asc(formSubmissions.packagePriceCents), asc(formSubmissions.packageName));
-  return rows.map((row) => ({ ...row, totalCents: Number(row.totalCents ?? 0) }));
+  return rows;
 }
 
 async function loadSubmission(id: string) {
@@ -149,10 +181,13 @@ async function loadSubmission(id: string) {
       ...rowColumns,
       eventId: forms.eventId,
       formVersion: formSubmissions.formVersion,
+      reviewedByEmail: profiles.email,
     })
     .from(formSubmissions)
     .innerJoin(forms, eq(forms.id, formSubmissions.formId))
     .innerJoin(events, eq(events.id, forms.eventId))
+    .leftJoin(packagePlans, eq(packagePlans.id, formSubmissions.planId))
+    .leftJoin(profiles, eq(profiles.id, formSubmissions.reviewedBy))
     .where(eq(formSubmissions.id, id))
     .limit(1);
   return row ?? null;
@@ -174,11 +209,14 @@ export async function getPackagePayment(id: string): Promise<PackagePaymentDetai
   if (!row) return null;
 
   const { row: base, answers, fields } = toRow(row);
+  // Questions a condition hid from this person are left out, not shown as empty.
+  const visible = visibleFieldIds(fields, answers);
   return {
     ...base,
     eventId: row.eventId,
     formVersion: row.formVersion,
-    answers: fields.map((field) => ({
+    reviewedByEmail: row.reviewedByEmail,
+    answers: fields.filter((field) => visible.has(field.id)).map((field) => ({
       fieldId: field.id,
       label: field.label,
       type: field.type,
@@ -215,6 +253,7 @@ export async function listPackagePaymentsForExport(filters: PackagePaymentFilter
     .from(formSubmissions)
     .innerJoin(forms, eq(forms.id, formSubmissions.formId))
     .innerJoin(events, eq(events.id, forms.eventId))
+    .leftJoin(packagePlans, eq(packagePlans.id, formSubmissions.planId))
     .where(whereFor(filters))
     .orderBy(asc(formSubmissions.submittedAt));
 

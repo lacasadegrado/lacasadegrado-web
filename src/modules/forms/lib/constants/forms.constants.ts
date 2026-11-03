@@ -87,6 +87,13 @@ export const FORM_MESSAGES = {
 export const FORMS_PATHS = {
   /** Public page, no login. */
   public: (slug: string) => `/f/${slug}`,
+  /** A payment plan's private page for the next abonos, no login. */
+  plan: (token: string) => `/abono/${token}`,
+} as const;
+
+export const PLAN_LIMITS = {
+  /** Most parts a package price can be split into. */
+  maxInstallments: 6,
 } as const;
 
 export const FORM_STATUS_LABELS = {
@@ -122,6 +129,9 @@ export const FORM_RATE_LIMITS = {
   uploadsPerIp: { max: 40, windowSeconds: 60 * 60 },
   submitsPerIp: { max: 10, windowSeconds: 60 * 60 },
   submitsPerEmailPerForm: { max: 5, windowSeconds: 60 * 60 },
+  /** "Send me my link again" requests. */
+  planLinksPerIp: { max: 5, windowSeconds: 60 * 60 },
+  planLinksPerEmail: { max: 3, windowSeconds: 60 * 60 },
   retentionSeconds: 24 * 60 * 60,
 } as const;
 
@@ -148,6 +158,9 @@ export const FORM_KIND_DESCRIPTIONS = {
 
 /** Field types that can hold the person's name, for the tagging suggestions. */
 export const PERSON_NAME_FIELD_TYPES = ["short_text", "select", "radio"] as const;
+
+/** Questions whose answer can show or hide later questions. */
+export const CONDITION_SOURCE_TYPES = ["select", "radio", "checkboxes"] as const;
 
 /** Above this many options the public page shows a searchable list. */
 export const SEARCHABLE_SELECT_THRESHOLD = 12;

@@ -5,6 +5,7 @@ import { SiteHeader } from "@/common/components/site-header/site-header";
 import { formatDateOnly } from "@/common/lib/utils/date.util";
 
 import { PublicForm } from "../components/public-form/public-form";
+import { ResendPlanLink } from "../components/resend-plan-link/resend-plan-link";
 import { getPublicForm } from "../lib/services/public-form.service";
 
 /**
@@ -46,6 +47,13 @@ export async function PublicFormScreen({ slug }: { slug: string }) {
             </div>
           )}
         </div>
+
+        {/* Below the form, for whoever comes back; it stays after the form closes, like abonos. */}
+        {form.kind === "package_payment" && form.packages.some((option) => option.installments > 1) ? (
+          <div className="mt-12">
+            <ResendPlanLink slug={form.slug} />
+          </div>
+        ) : null}
       </main>
       <SiteFooter />
     </>

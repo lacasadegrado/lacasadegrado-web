@@ -11,6 +11,7 @@ import { NativeSelect, NativeSelectOption } from "@/common/components/ui/native-
 import { formatEur } from "@/common/lib/utils/money.util";
 
 import { ADMIN_PATHS } from "../../lib/constants/admin.constants";
+import { PACKAGE_PAYMENT_STATUS_LABELS } from "../../lib/constants/sale.constants";
 
 type Option = { id: string; label: string };
 
@@ -18,7 +19,7 @@ type PackagePaymentsFiltersProps = {
   events: Option[];
   forms: Option[];
   packages: { id: string; name: string; priceCents: number }[];
-  current: { event?: string; form?: string; package?: string; q?: string };
+  current: { event?: string; form?: string; package?: string; status?: string; q?: string };
 };
 
 /** Builds the list URL; changing any filter goes back to page 1. */
@@ -38,7 +39,7 @@ export function PackagePaymentsFilters({ events, forms, packages, current }: Pac
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
       <div className="space-y-1.5">
         <Label htmlFor="filter-event">Evento</Label>
         <NativeSelect
@@ -85,6 +86,22 @@ export function PackagePaymentsFilters({ events, forms, packages, current }: Pac
           {packages.map((option) => (
             <NativeSelectOption key={option.id} value={option.id}>
               {option.name} · {formatEur(option.priceCents)}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="filter-status">Estado</Label>
+        <NativeSelect
+          id="filter-status"
+          value={current.status ?? ""}
+          onChange={(event) => go({ status: event.target.value || undefined })}
+        >
+          <NativeSelectOption value="">Todos</NativeSelectOption>
+          {Object.entries(PACKAGE_PAYMENT_STATUS_LABELS).map(([value, label]) => (
+            <NativeSelectOption key={value} value={value}>
+              {label}
             </NativeSelectOption>
           ))}
         </NativeSelect>

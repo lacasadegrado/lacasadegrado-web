@@ -1,4 +1,4 @@
-import type { FormKind, FormStatus } from "@/common/lib/db/schema";
+import type { FormKind, FormStatus, PackagePaymentStatus, PackagePlanStatus } from "@/common/lib/db/schema";
 
 import type { FormField, FormPackageOption } from "./form.types";
 
@@ -18,6 +18,8 @@ export type PublicForm = {
   eventDate: string | null;
   fields: FormField[];
   packages: (FormPackageOption & { description: string | null })[];
+  /** Latest EUR to VES rate, to show amounts in bolívares; null when none is stored. */
+  eurToVes: number | null;
 };
 
 export type PrepareFormUploadResult =
@@ -35,4 +37,56 @@ export type SubmitReceipt = {
   priceCents: number | null;
   reference: string | null;
   email: string | null;
+  /** Set when the payment belongs to a payment plan (any package payment). */
+  plan: PlanReceipt | null;
 };
+
+export type PlanReceipt = {
+  /** Absolute link to the plan page, for the next abonos. */
+  url: string;
+  amountCents: number;
+  eurToVes: number | null;
+  installmentsCovered: number;
+  installments: number;
+  priceCents: number;
+  /** Confirmed so far; this payment is still under review. */
+  confirmedCents: number;
+  /** Under review, including this payment. */
+  pendingCents: number;
+};
+
+/** A payment of a plan, as its private page lists it. */
+export type PublicPlanPayment = {
+  submittedAt: Date;
+  amountCents: number;
+  installmentsCovered: number;
+  status: PackagePaymentStatus;
+  rejectionReason: string | null;
+};
+
+/** Everything the plan page (`/abono/<token>`) shows. Nothing beyond this plan. */
+export type PublicPlan = {
+  formTitle: string;
+  formSlug: string;
+  eventName: string;
+  packageName: string;
+  personName: string | null;
+  email: string | null;
+  priceCents: number;
+  installments: number;
+  status: PackagePlanStatus;
+  confirmedCents: number;
+  pendingCents: number;
+  /** Parts confirmed or under review; the next payment starts after them. */
+  reservedInstallments: number;
+  payments: PublicPlanPayment[];
+  /** The form's reference and proof questions, asked again on each abono. */
+  fields: FormField[];
+  eurToVes: number | null;
+};
+
+export type SubmitPlanPaymentResult =
+  | { ok: true; receipt: PlanReceipt }
+  | { ok: false; message: string; fieldErrors?: Record<string, string> };
+
+export type ResendPlanLinkResult = { ok: true } | { ok: false; message: string };

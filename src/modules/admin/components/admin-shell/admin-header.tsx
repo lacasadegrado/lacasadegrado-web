@@ -17,6 +17,7 @@ import { SidebarTrigger } from "@/common/components/ui/sidebar";
 
 import { ADMIN_PATHS } from "../../lib/constants/admin.constants";
 import { matchAdminSection } from "./admin-sidebar";
+import { NotificationBell } from "./notification-bell";
 
 export function AdminHeader() {
   const pathname = usePathname();
@@ -56,7 +57,8 @@ export function AdminHeader() {
           ) : null}
         </BreadcrumbList>
       </Breadcrumb>
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-1">
+        <NotificationBell />
         <ThemeToggle />
       </div>
     </header>

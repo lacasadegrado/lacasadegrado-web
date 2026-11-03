@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-import { FORM_LIMITS } from "../constants/forms.constants";
+import { emailSchema } from "@/modules/auth/lib/schemas/auth.schema";
+
+import { FORM_LIMITS, PLAN_LIMITS } from "../constants/forms.constants";
 
 const slugSchema = z.string().regex(/^[a-z0-9]{6,40}$/);
 
@@ -26,12 +28,33 @@ export const prepareFormUploadSchema = z.object({
     }),
 });
 
+const installmentsSchema = z.int().min(1).max(PLAN_LIMITS.maxInstallments);
+
 /** `answers` is validated afterwards against the form's own schema. */
 export const submitFormSchema = z.object({
   slug: slugSchema,
   draftId: draftIdSchema,
   answers: z.record(z.string(), z.unknown()),
+  /** Parts of the package price paid now; checked against the plan. */
+  installments: installmentsSchema.optional(),
   honeypot: z.string().max(500).optional(),
+});
+
+/** The plan link's token: 32 random bytes in base64url. */
+const planTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
+
+export const preparePlanUploadSchema = prepareFormUploadSchema.omit({ slug: true }).extend({ token: planTokenSchema });
+
+export const submitPlanPaymentSchema = z.object({
+  token: planTokenSchema,
+  draftId: draftIdSchema,
+  installments: installmentsSchema,
+  answers: z.record(z.string(), z.unknown()),
+});
+
+export const resendPlanLinkSchema = z.object({
+  slug: slugSchema,
+  email: emailSchema,
 });
 
 export type PrepareFormUploadInput = z.infer<typeof prepareFormUploadSchema>;

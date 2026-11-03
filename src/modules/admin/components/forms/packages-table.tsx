@@ -74,7 +74,12 @@ export function PackagesTable({ packages }: { packages: AdminPackage[] }) {
                     <p className="text-sm text-muted-foreground">{pkg.description}</p>
                   ) : null}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{formatEur(pkg.priceCents)}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatEur(pkg.priceCents)}
+                  {pkg.installments > 1 ? (
+                    <div className="text-xs text-muted-foreground">en {pkg.installments} cuotas</div>
+                  ) : null}
+                </TableCell>
                 <TableCell>
                   <Badge variant={pkg.isActive ? "secondary" : "outline"}>
                     {pkg.isActive ? "Activo" : "Inactivo"}

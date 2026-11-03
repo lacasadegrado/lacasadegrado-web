@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { FormKind } from "@/common/lib/db/schema";
 
 import {
+  CONDITION_SOURCE_TYPES,
   FORM_FILE_ACCEPT,
   FORM_KIND_SYSTEM_ROLES,
   FORM_LIMITS,
@@ -20,9 +21,11 @@ const systemRoleSchema = z.enum(
   Object.keys(FORM_SYSTEM_FIELDS) as [keyof typeof FORM_SYSTEM_FIELDS, ...(keyof typeof FORM_SYSTEM_FIELDS)[]],
 );
 
+const fieldIdSchema = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/, { error: "Id de campo inválido." });
+
 const baseField = {
   /** Stable key of the answer. System fields use their role as id. */
-  id: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/, { error: "Id de campo inválido." }),
+  id: fieldIdSchema,
   label: z
     .string()
     .trim()
@@ -36,6 +39,20 @@ const baseField = {
    * tagging suggestions. One field per form at most.
    */
   personName: z.boolean().optional(),
+  /**
+   * Shown only when an earlier choice question (list, single choice or
+   * checkboxes) has one of these options picked. Hidden questions are
+   * neither required nor stored. Never on system fields.
+   */
+  showIf: z
+    .object({
+      fieldId: fieldIdSchema,
+      values: z
+        .array(z.string().trim().min(1).max(FORM_LIMITS.optionMax))
+        .min(1, { error: "Elige al menos una opción que muestre esta pregunta." })
+        .max(FORM_LIMITS.maxOptions),
+    })
+    .optional(),
 };
 
 const lengthBounds = (max: number) => ({
@@ -114,6 +131,27 @@ function boundsError(field: z.infer<typeof formFieldSchema>): string | null {
 }
 
 /**
+ * A condition points back to an earlier choice question, using options it
+ * still has; null when it does. Pointing back keeps the rules acyclic.
+ */
+function showIfError(fields: z.infer<typeof formFieldSchema>[], index: number): string | null {
+  const field = fields[index];
+  if (!field.showIf) return null;
+  if (field.system) return "Los campos del sistema siempre se muestran.";
+  const sourceIndex = fields.findIndex((item) => item.id === field.showIf?.fieldId);
+  if (sourceIndex === -1) return "La pregunta de la que depende ya no existe.";
+  if (sourceIndex >= index) return "Debe ir después de la pregunta de la que depende.";
+  const source = fields[sourceIndex];
+  if (!(CONDITION_SOURCE_TYPES as readonly string[]).includes(source.type) || !("options" in source)) {
+    return "Solo puede depender de una lista, una opción única o casillas.";
+  }
+  if (field.showIf.values.some((value) => !source.options.includes(value))) {
+    return "La condición usa una opción que ya no existe.";
+  }
+  return null;
+}
+
+/**
  * A whole form, whatever its kind: ids unique, each system field at most
  * once with its fixed type (required or not, the admin decides), `package`
  * only as the system field, and at most one person-name field. Old forms
@@ -144,6 +182,10 @@ export const formFieldsSchema = z
         if (field.type !== FORM_SYSTEM_FIELDS[field.system]) {
           ctx.addIssue({ code: "custom", path: [index, "type"], message: "No se puede cambiar el tipo de un campo del sistema." });
         }
+      }
+      if (field.showIf) {
+        const conditionIssue = showIfError(fields, index);
+        if (conditionIssue) ctx.addIssue({ code: "custom", path: [index, "showIf"], message: conditionIssue });
       }
       if (field.personName && !(PERSON_NAME_FIELD_TYPES as readonly string[]).includes(field.type)) {
         ctx.addIssue({

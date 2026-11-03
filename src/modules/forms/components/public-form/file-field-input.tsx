@@ -6,9 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/common/components/ui/button";
 import { Input } from "@/common/components/ui/input";
 
-import { prepareFormUploadAction } from "../../lib/actions/public-form.action";
 import { FORM_FILE_ACCEPT, FORM_FILE_ACCEPT_LABELS } from "../../lib/constants/forms.constants";
-import type { FormFieldOf, FormFileAnswer } from "../../lib/types/form.types";
+import type { FormFieldOf, FormFileAnswer, PrepareUpload } from "../../lib/types/form.types";
 
 type UploadItem = {
   localId: number;
@@ -21,7 +20,8 @@ type UploadItem = {
 
 type FileFieldInputProps = {
   field: FormFieldOf<"file">;
-  slug: string;
+  /** Presigns one file: the form's action, or the plan link's on the abono page. */
+  prepareUpload: PrepareUpload;
   draftId: string;
   inputId: string;
   describedBy?: string;
@@ -44,7 +44,7 @@ function formatSize(bytes: number): string {
  */
 export function FileFieldInput({
   field,
-  slug,
+  prepareUpload,
   draftId,
   inputId,
   describedBy,
@@ -76,8 +76,7 @@ export function FileFieldInput({
 
   async function upload(localId: number, file: File) {
     try {
-      const prepared = await prepareFormUploadAction({
-        slug,
+      const prepared = await prepareUpload({
         draftId,
         fieldId: field.id,
         name: file.name,

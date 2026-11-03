@@ -8,6 +8,8 @@ export type AdminPackage = {
   description: string | null;
   /** EUR cents. */
   priceCents: number;
+  /** Parts the price can be paid in (abonos); 1 = at once. */
+  installments: number;
   isActive: boolean;
   /** Submissions that chose it; a package with any cannot be deleted. */
   submissionCount: number;

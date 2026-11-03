@@ -5,10 +5,12 @@ import { z } from "zod";
 
 import { Badge } from "@/common/components/ui/badge";
 import { formatDateTime } from "@/common/lib/utils/date.util";
-import { formatEur } from "@/common/lib/utils/money.util";
+import { formatEur, formatVes } from "@/common/lib/utils/money.util";
 import { FORM_SYSTEM_FIELDS } from "@/modules/forms/lib/constants/forms.constants";
 
+import { PackageReviewActions } from "../components/package-payments/package-review-actions";
 import { ADMIN_PATHS } from "../lib/constants/admin.constants";
+import { PACKAGE_PAYMENT_STATUS_BADGE, PACKAGE_PAYMENT_STATUS_LABELS } from "../lib/constants/sale.constants";
 import { getPackagePayment } from "../lib/services/package-payment.service";
 
 type DetailProps = {
@@ -37,6 +39,8 @@ export async function AdminPackagePaymentDetailScreen({ submissionId, formId }: 
     : ADMIN_PATHS.formResponses(payment.formId);
   const title = payment.personName ?? payment.email ?? "Respuesta sin correo";
 
+  // Answers sent before abonos existed have no amount: they paid the package price.
+  const amountCents = payment.amountCents ?? payment.packagePriceCents;
   const proofUrl = ADMIN_PATHS.packagePaymentFileApi(payment.id, "proof", 0);
   const proofIsImage = payment.answers.find((answer) => answer.fieldId === "proof")?.files[0]?.isImage ?? false;
 
@@ -57,22 +61,73 @@ export async function AdminPackagePaymentDetailScreen({ submissionId, formId }: 
       </div>
 
       {isPayment ? (
-        <dl className="grid gap-4 rounded-lg border p-4 sm:grid-cols-3">
-          <div>
-            <dt className="text-sm text-muted-foreground">Paquete</dt>
-            <dd className="font-medium">{payment.packageName ?? "Sin paquete"}</dd>
+        <section aria-labelledby="review-heading" className="space-y-4 rounded-lg border p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="review-heading" className="text-lg font-semibold">
+              Pago
+            </h2>
+            {payment.paymentStatus ? (
+              <Badge variant={PACKAGE_PAYMENT_STATUS_BADGE[payment.paymentStatus]}>
+                {PACKAGE_PAYMENT_STATUS_LABELS[payment.paymentStatus]}
+              </Badge>
+            ) : null}
           </div>
-          <div>
-            <dt className="text-sm text-muted-foreground">Precio al enviar</dt>
-            <dd className="font-medium tabular-nums">
-              {payment.packagePriceCents !== null ? formatEur(payment.packagePriceCents) : "—"}
-            </dd>
+          <dl className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <dt className="text-sm text-muted-foreground">Paquete</dt>
+              <dd className="font-medium">
+                {payment.packageName ?? "Sin paquete"}
+                {payment.packagePriceCents !== null ? (
+                  <span className="font-normal text-muted-foreground"> · {formatEur(payment.packagePriceCents)}</span>
+                ) : null}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Monto de este pago</dt>
+              <dd className="font-medium tabular-nums">
+                {amountCents !== null ? formatEur(amountCents) : "—"}
+                {amountCents !== null && payment.eurToVes ? (
+                  <span className="block text-sm font-normal text-muted-foreground">
+                    {formatVes(amountCents, payment.eurToVes)} · tasa {payment.eurToVes.toFixed(2)}
+                  </span>
+                ) : null}
+                {payment.installmentsCovered && payment.planInstallments && payment.planInstallments > 1 ? (
+                  <span className="block text-sm font-normal text-muted-foreground">
+                    {payment.installmentsCovered} de {payment.planInstallments} cuotas
+                  </span>
+                ) : null}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Referencia</dt>
+              <dd className="font-mono font-medium">{payment.reference ?? "—"}</dd>
+            </div>
+          </dl>
+          {payment.reviewedAt ? (
+            <p className="text-sm text-muted-foreground">
+              {payment.paymentStatus === "rejected" ? "Rechazado" : "Confirmado"} el {formatDateTime(payment.reviewedAt)}
+              {payment.reviewedByEmail ? ` por ${payment.reviewedByEmail}` : ""}
+              {payment.rejectionReason ? `. Motivo: ${payment.rejectionReason}` : ""}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            {payment.paymentStatus === "pending" ? (
+              <PackageReviewActions
+                submissionId={payment.id}
+                who={title}
+                amountCents={amountCents ?? 0}
+                reference={payment.reference}
+              />
+            ) : (
+              <span />
+            )}
+            {payment.planId ? (
+              <Link href={ADMIN_PATHS.packagePlan(payment.planId)} className="text-sm underline underline-offset-4">
+                Ver plan de pagos completo
+              </Link>
+            ) : null}
           </div>
-          <div>
-            <dt className="text-sm text-muted-foreground">Referencia</dt>
-            <dd className="font-mono font-medium">{payment.reference ?? "—"}</dd>
-          </div>
-        </dl>
+        </section>
       ) : null}
 
       {payment.hasProof ? (

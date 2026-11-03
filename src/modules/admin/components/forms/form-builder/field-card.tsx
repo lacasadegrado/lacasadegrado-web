@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ChevronDown, Lock, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, GitBranch, Lock, Trash2 } from "lucide-react";
 
 import { Badge } from "@/common/components/ui/badge";
 import { Button } from "@/common/components/ui/button";
@@ -13,6 +13,8 @@ import { FieldSettings } from "./field-settings";
 
 type FieldCardProps = {
   field: FormField;
+  /** Earlier questions, for the "show only if" setting and its badge. */
+  previousFields: FormField[];
   index: number;
   total: number;
   expanded: boolean;
@@ -25,6 +27,7 @@ type FieldCardProps = {
 
 export function FieldCard({
   field,
+  previousFields,
   index,
   total,
   expanded,
@@ -35,6 +38,7 @@ export function FieldCard({
   onRemove,
 }: FieldCardProps) {
   const title = field.label.trim() || "Pregunta sin título";
+  const source = field.showIf ? previousFields.find((item) => item.id === field.showIf?.fieldId) : undefined;
 
   return (
     <Collapsible open={expanded} onOpenChange={onExpandedChange} asChild>
@@ -65,6 +69,14 @@ export function FieldCard({
                   {field.system ? (
                     <Badge variant="outline" className="gap-1 text-[0.65rem]">
                       <Lock aria-hidden="true" className="size-3" /> Del sistema
+                    </Badge>
+                  ) : null}
+                  {field.showIf ? (
+                    <Badge variant="outline" className="max-w-full gap-1 text-[0.65rem]">
+                      <GitBranch aria-hidden="true" className="size-3" />
+                      <span className="truncate">
+                        Si «{source?.label.trim() || "…"}» es {field.showIf.values.join(" o ") || "…"}
+                      </span>
                     </Badge>
                   ) : null}
                 </span>
@@ -122,7 +134,7 @@ export function FieldCard({
         ) : null}
 
         <CollapsibleContent className="border-t p-4 pl-11">
-          <FieldSettings field={field} onChange={onChange} />
+          <FieldSettings field={field} previousFields={previousFields} onChange={onChange} />
         </CollapsibleContent>
       </li>
     </Collapsible>

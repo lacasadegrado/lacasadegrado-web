@@ -1,7 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
 import { and, asc, eq } from "drizzle-orm";
 import { cache } from "react";
 
@@ -9,23 +7,23 @@ import { getServerEnv } from "@/common/lib/config/env.config";
 import { db } from "@/common/lib/db";
 import { events, formSubmissions, forms, photoPackages } from "@/common/lib/db/schema";
 import { sendEmail } from "@/common/lib/email/email.service";
-import { getPresignedPutUrl, headObject } from "@/common/lib/storage/storage.service";
+import { formatEur } from "@/common/lib/utils/money.util";
+import { ADMIN_PATHS } from "@/modules/admin/lib/constants/admin.constants";
+import { notifyAdmins } from "@/modules/admin/lib/services/notification.service";
+import { getCurrentRate, getLatestRate } from "@/modules/checkout/lib/services/exchange-rate.service";
 
-import {
-  FORM_FILE_ACCEPT,
-  FORM_FILE_EXTENSIONS,
-  FORM_UPLOAD,
-  FORM_UPLOAD_PREFIX,
-} from "../constants/forms.constants";
 import { buildAnswersSchema } from "../schemas/form-answers.schema";
 import { formFieldsSchema } from "../schemas/form-field.schema";
 import type { PrepareFormUploadInput } from "../schemas/public-form.schema";
-import type { FormAnswers, FormField, FormFileAnswer } from "../types/form.types";
+import type { FormAnswers, FormFileAnswer } from "../types/form.types";
 import type { PublicForm, SubmitReceipt } from "../types/public-form.types";
 import { buildFormSubmittedEmail } from "../utils/form-email.util";
+import { personNameFrom } from "../utils/person-name.util";
+import { presignFormFile, verifyFileAnswers } from "./form-files.service";
 import { isSubmitAllowed, isUploadAllowed, recordFormAttempt } from "./form-rate-limit.service";
+import { planReceipt, preparePlanForPayment } from "./package-plan.service";
 
-type LoadedForm = PublicForm & { id: string; version: number };
+type LoadedForm = Omit<PublicForm, "eurToVes"> & { id: string; version: number; eventId: string };
 
 async function loadForm(slug: string): Promise<LoadedForm | null> {
   const [row] = await db
@@ -55,6 +53,7 @@ async function loadForm(slug: string): Promise<LoadedForm | null> {
       name: photoPackages.name,
       description: photoPackages.description,
       priceCents: photoPackages.priceCents,
+      installments: photoPackages.installments,
     })
     .from(photoPackages)
     .where(and(eq(photoPackages.eventId, row.eventId), eq(photoPackages.isActive, true)))
@@ -63,6 +62,7 @@ async function loadForm(slug: string): Promise<LoadedForm | null> {
   return {
     id: row.id,
     version: row.version,
+    eventId: row.eventId,
     slug: row.slug,
     title: row.title,
     description: row.description,
@@ -78,11 +78,13 @@ async function loadForm(slug: string): Promise<LoadedForm | null> {
 
 /**
  * The page's data, without the internal form id and version. Cached per
- * request: the metadata and the page both read it.
+ * request: the metadata and the page both read it. The rate is the last
+ * stored one, for showing bolívares; submitting uses the day's rate.
  */
 export const getPublicForm = cache(async (slug: string): Promise<PublicForm | null> => {
   const form = await loadForm(slug);
   if (!form) return null;
+  const rate = form.kind === "package_payment" ? await getLatestRate() : null;
   return {
     slug: form.slug,
     title: form.title,
@@ -94,16 +96,9 @@ export const getPublicForm = cache(async (slug: string): Promise<PublicForm | nu
     eventDate: form.eventDate,
     fields: form.fields,
     packages: form.packages,
+    eurToVes: rate?.eurToVes ?? null,
   };
 });
-
-function draftPrefix(formId: string, draftId: string, fieldId: string): string {
-  return `${FORM_UPLOAD_PREFIX}/${formId}/${draftId}/${fieldId}/`;
-}
-
-function acceptedTypes(field: Extract<FormField, { type: "file" }>): readonly string[] {
-  return FORM_FILE_ACCEPT[field.accept];
-}
 
 export type PrepareFormUploadOutcome =
   | { ok: true; key: string; uploadUrl: string }
@@ -120,40 +115,11 @@ export async function prepareFormUpload(
 
   const field = form.fields.find((item) => item.id === input.fieldId);
   if (!field || field.type !== "file") return { ok: false, reason: "bad_field" };
-  if (!acceptedTypes(field).includes(input.type)) return { ok: false, reason: "bad_type" };
-  if (input.size > field.maxSizeMb * 1024 * 1024) return { ok: false, reason: "too_large" };
   if (!(await isUploadAllowed(ip))) return { ok: false, reason: "rate_limited" };
 
-  const extension = FORM_FILE_EXTENSIONS[input.type] ?? "bin";
-  const key = `${draftPrefix(form.id, input.draftId, field.id)}${randomUUID()}.${extension}`;
-  const uploadUrl = await getPresignedPutUrl(key, {
-    contentType: input.type,
-    expiresInSeconds: FORM_UPLOAD.uploadUrlTtlSeconds,
-  });
-  await recordFormAttempt({ kind: "upload", formId: form.id, ip });
-  return { ok: true, key, uploadUrl };
-}
-
-/**
- * A file answer is only accepted when its key sits under this draft's
- * prefix for that field (so nobody can claim another upload) and the
- * stored object has an allowed type and size.
- */
-async function verifyFiles(
-  formId: string,
-  draftId: string,
-  field: Extract<FormField, { type: "file" }>,
-  files: FormFileAnswer[],
-): Promise<boolean> {
-  const prefix = draftPrefix(formId, draftId, field.id);
-  const maxBytes = field.maxSizeMb * 1024 * 1024;
-  for (const file of files) {
-    if (!file.key.startsWith(prefix) || file.key.includes("..")) return false;
-    const info = await headObject(file.key);
-    if (!info || info.size === 0 || info.size > maxBytes) return false;
-    if (!acceptedTypes(field).includes(info.contentType ?? "")) return false;
-  }
-  return true;
+  const outcome = await presignFormFile({ formId: form.id, draftId: input.draftId, field, type: input.type, size: input.size });
+  if (outcome.ok) await recordFormAttempt({ kind: "upload", formId: form.id, ip });
+  return outcome;
 }
 
 export type SubmitFormOutcome =
@@ -163,14 +129,16 @@ export type SubmitFormOutcome =
 
 /**
  * Validates the answers against the form's current fields and active
- * packages, checks the files, stores the submission with snapshots of
- * the fields and the package, and emails a receipt when there is an
- * email. Any system field may be absent (general forms) or left empty
- * (the admin made it optional). The receipt failing never fails the
- * submission.
+ * packages, checks the files and stores the submission with snapshots of
+ * the fields and the package. A package payment joins the person's
+ * payment plan (new, or their open one for that package and email) for
+ * the parts they chose, pending review. Emails a receipt when there is
+ * an email and tells the admins. Any system field may be absent (general
+ * forms) or left empty (the admin made it optional). The receipt failing
+ * never fails the submission.
  */
 export async function submitPublicForm(
-  input: { slug: string; draftId: string; answers: Record<string, unknown> },
+  input: { slug: string; draftId: string; answers: Record<string, unknown>; installments?: number },
   ip: string | null,
 ): Promise<SubmitFormOutcome> {
   const form = await loadForm(input.slug);
@@ -196,33 +164,59 @@ export async function submitPublicForm(
 
   if (!(await isSubmitAllowed(form.id, email, ip))) return { ok: false, reason: "rate_limited" };
 
-  const fieldErrors: Record<string, string> = {};
-  for (const field of form.fields) {
-    const value = answers[field.id];
-    if (field.type !== "file" || !Array.isArray(value)) continue;
-    if (!(await verifyFiles(form.id, input.draftId, field, value as FormFileAnswer[]))) {
-      fieldErrors[field.id] = "No pudimos verificar el archivo. Vuelve a adjuntarlo.";
-    }
-  }
-  if (Object.keys(fieldErrors).length > 0) return { ok: false, reason: "invalid", fieldErrors };
+  const fileErrors = await verifyFileAnswers(form.id, input.draftId, form.fields, answers);
+  if (Object.keys(fileErrors).length > 0) return { ok: false, reason: "invalid", fieldErrors: fileErrors };
 
   const chosen = packageId ? form.packages.find((option) => option.id === packageId) : undefined;
   if (packageId && !chosen) {
     return { ok: false, reason: "invalid", fieldErrors: { package: "Elige un paquete de la lista." } };
   }
 
-  await db.insert(formSubmissions).values({
-    formId: form.id,
-    packageId: chosen?.id ?? null,
-    packageName: chosen?.name ?? null,
-    packagePriceCents: chosen?.priceCents ?? null,
-    email,
-    reference,
-    proofKey: proof[0]?.key ?? null,
-    answers,
-    fieldsSnapshot: form.fields,
-    formVersion: form.version,
+  const isPayment = form.kind === "package_payment";
+  const personName = personNameFrom(form.fields, answers);
+  const rate = isPayment && chosen ? await getCurrentRate() : null;
+
+  const stored = await db.transaction(async (tx) => {
+    const draft = chosen
+      ? await preparePlanForPayment(tx, {
+          eventId: form.eventId,
+          formId: form.id,
+          pkg: chosen,
+          email,
+          personName,
+          requestedInstallments: input.installments ?? 1,
+        })
+      : null;
+    if (draft && !draft.ok) return { ok: false as const, message: draft.message };
+
+    const [row] = await tx
+      .insert(formSubmissions)
+      .values({
+        formId: form.id,
+        packageId: chosen?.id ?? null,
+        packageName: chosen?.name ?? null,
+        packagePriceCents: chosen?.priceCents ?? null,
+        email,
+        reference,
+        proofKey: proof[0]?.key ?? null,
+        answers,
+        fieldsSnapshot: form.fields,
+        formVersion: form.version,
+        // Every payment form answer waits for review, with or without a package.
+        paymentStatus: isPayment ? "pending" : null,
+        ...(draft?.ok
+          ? {
+              planId: draft.planId,
+              installmentsCovered: draft.installmentsCovered,
+              amountCents: draft.amountCents,
+              eurToVes: rate ? rate.eurToVes.toFixed(4) : null,
+            }
+          : {}),
+      })
+      .returning({ id: formSubmissions.id });
+    return { ok: true as const, submissionId: row.id, draft };
   });
+  if (!stored.ok) return { ok: false, reason: "invalid", fieldErrors: { installments: stored.message } };
   await recordFormAttempt({ kind: "submit", formId: form.id, ip, email: email ?? undefined });
 
   const receipt: SubmitReceipt = {
@@ -231,7 +225,19 @@ export async function submitPublicForm(
     priceCents: chosen?.priceCents ?? null,
     reference,
     email,
+    plan: stored.draft?.ok ? planReceipt(stored.draft, rate?.eurToVes ?? null) : null,
   };
+
+  if (isPayment) {
+    await notifyAdmins({
+      kind: "package_payment",
+      title: "Pago de paquete por revisar",
+      body: [personName ?? email ?? "Sin correo", chosen?.name, receipt.plan ? formatEur(receipt.plan.amountCents) : null]
+        .filter(Boolean)
+        .join(" · "),
+      href: ADMIN_PATHS.packagePayment(stored.submissionId),
+    });
+  }
   if (email) {
     const message = buildFormSubmittedEmail({
       formTitle: form.title,

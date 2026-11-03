@@ -251,6 +251,7 @@ export function FormBuilder({ form }: { form: AdminFormDetail }) {
             <FieldCard
               key={field.id}
               field={field}
+              previousFields={draft.fields.slice(0, index)}
               index={index}
               total={draft.fields.length}
               expanded={expanded.has(field.id)}
@@ -260,15 +261,30 @@ export function FormBuilder({ form }: { form: AdminFormDetail }) {
                 setFields((fields) =>
                   fields.map((item, i) => {
                     if (i === index) return next;
+                    let updated = item;
                     // Only one field can be the person's name.
-                    if (next.personName && item.personName) return { ...item, personName: undefined } as FormField;
-                    return item;
+                    if (next.personName && updated.personName) updated = { ...updated, personName: undefined } as FormField;
+                    // Conditions on this question keep only options it still has.
+                    if (updated.showIf?.fieldId === next.id && "options" in next) {
+                      const values = updated.showIf.values.filter((value) => next.options.includes(value));
+                      if (values.length !== updated.showIf.values.length) {
+                        updated = { ...updated, showIf: { ...updated.showIf, values } } as FormField;
+                      }
+                    }
+                    return updated;
                   }),
                 )
               }
               onMove={(direction) => moveField(index, direction)}
               onRemove={() => {
-                setFields((fields) => fields.filter((_, i) => i !== index));
+                // Questions that depended on this one become always visible.
+                setFields((fields) =>
+                  fields
+                    .filter((_, i) => i !== index)
+                    .map((item) =>
+                      item.showIf?.fieldId === field.id ? ({ ...item, showIf: undefined } as FormField) : item,
+                    ),
+                );
                 setIssues([]);
               }}
             />

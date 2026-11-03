@@ -16,6 +16,7 @@ export async function listPackagesForEvent(eventId: string): Promise<AdminPackag
       name: photoPackages.name,
       description: photoPackages.description,
       priceCents: photoPackages.priceCents,
+      installments: photoPackages.installments,
       isActive: photoPackages.isActive,
       submissionCount: count(formSubmissions.id),
     })
@@ -31,6 +32,7 @@ export async function createPackage(input: {
   name: string;
   description: string | null;
   priceCents: number;
+  installments: number;
 }): Promise<void> {
   await db.insert(photoPackages).values(input);
 }
@@ -41,7 +43,7 @@ export async function createPackage(input: {
  */
 export async function updatePackage(
   packageId: string,
-  input: { name: string; description: string | null; priceCents: number },
+  input: { name: string; description: string | null; priceCents: number; installments: number },
 ): Promise<{ eventId: string } | null> {
   const [row] = await db
     .update(photoPackages)

@@ -1,8 +1,9 @@
-import { index, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { index, integer, jsonb, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { citext } from "./citext.type";
-import { formKindEnum, formStatusEnum } from "./enums.table";
+import { formKindEnum, formStatusEnum, packagePaymentStatusEnum } from "./enums.table";
 import { events } from "./events.table";
+import { packagePlans } from "./package-plans.table";
 import { photoPackages } from "./photo-packages.table";
 import { profiles } from "./profiles.table";
 
@@ -78,11 +79,27 @@ export const formSubmissions = pgTable(
     submittedAt: timestamp("submitted_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /**
+     * Payment fields, set on package payments only (a first payment or an
+     * abono through the plan link). `installments_covered` parts of the
+     * plan, for `amount_cents` EUR at the day's `eur_to_ves` rate.
+     */
+    planId: uuid("plan_id").references(() => packagePlans.id, { onDelete: "restrict" }),
+    installmentsCovered: integer("installments_covered"),
+    amountCents: integer("amount_cents"),
+    eurToVes: numeric("eur_to_ves", { precision: 14, scale: 4 }),
+    /** Null on general forms; only `confirmed` payments count toward the balance. */
+    paymentStatus: packagePaymentStatusEnum("payment_status"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedBy: uuid("reviewed_by").references(() => profiles.id, { onDelete: "set null" }),
+    rejectionReason: text("rejection_reason"),
   },
   (t) => [
     index("form_submissions_form_id_submitted_at_idx").on(t.formId, t.submittedAt),
     index("form_submissions_package_id_idx").on(t.packageId),
     index("form_submissions_email_idx").on(t.email),
+    index("form_submissions_plan_id_idx").on(t.planId),
+    index("form_submissions_payment_status_idx").on(t.paymentStatus),
   ],
 ).enableRLS();
 

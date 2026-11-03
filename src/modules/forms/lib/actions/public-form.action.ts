@@ -48,6 +48,7 @@ export async function submitFormAction(input: {
   slug: string;
   draftId: string;
   answers: Record<string, unknown>;
+  installments?: number;
   honeypot?: string;
 }): Promise<SubmitFormResult> {
   const parsed = submitFormSchema.safeParse(input);
@@ -55,7 +56,10 @@ export async function submitFormAction(input: {
 
   // A bot filled the hidden field: answer like a success, store nothing.
   if (parsed.data.honeypot) {
-    return { ok: true, receipt: { kind: "general", packageName: null, priceCents: null, reference: null, email: null } };
+    return {
+      ok: true,
+      receipt: { kind: "general", packageName: null, priceCents: null, reference: null, email: null, plan: null },
+    };
   }
 
   const result = await submitPublicForm(parsed.data, getClientIp(await headers()));

@@ -17,6 +17,7 @@ import {
 import { Input } from "@/common/components/ui/input";
 import { Label } from "@/common/components/ui/label";
 import { Textarea } from "@/common/components/ui/textarea";
+import { PLAN_LIMITS } from "@/modules/forms/lib/constants/forms.constants";
 
 import { createPackageAction, updatePackageAction } from "../../lib/actions/package.action";
 import type { ActionState } from "../../lib/types/admin.types";
@@ -127,6 +128,31 @@ export function PackageDialog(props: PackageDialogProps) {
             {errors.priceEur ? (
               <p id={`${prefix}-price-error`} className="text-sm font-medium">
                 {errors.priceEur}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`${prefix}-installments`}>Cuotas</Label>
+            <Input
+              id={`${prefix}-installments`}
+              name="installments"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={PLAN_LIMITS.maxInstallments}
+              defaultValue={pkg?.installments ?? 1}
+              className="max-w-24 tabular-nums"
+              aria-invalid={Boolean(errors.installments) || undefined}
+              aria-describedby={`${prefix}-installments-help${errors.installments ? ` ${prefix}-installments-error` : ""}`}
+            />
+            <p id={`${prefix}-installments-help`} className="text-xs text-muted-foreground">
+              1 = pago único. Con más, la persona elige cuántas cuotas paga cada vez (abonos) y recibe un
+              enlace para pagar el resto sin volver a llenar el formulario.
+            </p>
+            {errors.installments ? (
+              <p id={`${prefix}-installments-error`} className="text-sm font-medium">
+                {errors.installments}
               </p>
             ) : null}
           </div>

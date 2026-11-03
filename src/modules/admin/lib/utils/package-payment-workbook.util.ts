@@ -5,6 +5,7 @@ import { toCaracasWallClock } from "@/common/lib/utils/date.util";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
 
 import { ADMIN_PATHS } from "../constants/admin.constants";
+import { PACKAGE_PAYMENT_STATUS_LABELS } from "../constants/sale.constants";
 import type { PackagePaymentExportRow, PackagePaymentSummary } from "../types/package-payment.types";
 import { submissionHref } from "./form-links.util";
 import { answerText, fileAnswers } from "./package-payment.util";
@@ -37,8 +38,9 @@ function styleHeader(sheet: ExcelJS.Worksheet) {
 /**
  * Every answer on one sheet (links point at app routes, which ask for an
  * admin session, so the file can be kept and shared without exposing any
- * proof). Payment forms add the package, price, reference and proof
- * columns and a per-package summary sheet; general forms do not. Empty
+ * proof). Payment forms add the package, price, payment (amount, parts,
+ * rate, bolívares, review status), reference and proof columns and a
+ * per-package summary sheet; general forms do not. Empty
  * system values (optional fields left blank) stay blank.
  */
 export async function buildPackagePaymentsWorkbook(
@@ -64,6 +66,11 @@ export async function buildPackagePaymentsWorkbook(
       ? [
           { header: "Paquete", key: "package", width: 22 },
           { header: "Precio", key: "price", width: 12, style: { numFmt: EUR_FORMAT } },
+          { header: "Monto del pago", key: "amount", width: 14, style: { numFmt: EUR_FORMAT } },
+          { header: "Cuotas", key: "installments", width: 10 },
+          { header: "Tasa", key: "rate", width: 12, style: { numFmt: "#,##0.00" } },
+          { header: "Monto en Bs", key: "amountVes", width: 16, style: { numFmt: '#,##0.00 "Bs"' } },
+          { header: "Estado", key: "status", width: 14 },
         ]
       : []),
     { header: "Correo", key: "email", width: 30 },
@@ -88,6 +95,14 @@ export async function buildPackagePaymentsWorkbook(
     if (isPayment) {
       values.package = row.packageName;
       values.price = row.packagePriceCents !== null ? row.packagePriceCents / 100 : null;
+      // Answers from before abonos have no amount: they reported the package price.
+      const amountCents = row.amountCents ?? row.packagePriceCents;
+      values.amount = amountCents !== null ? amountCents / 100 : null;
+      values.installments =
+        row.installmentsCovered && row.planInstallments ? `${row.installmentsCovered} de ${row.planInstallments}` : null;
+      values.rate = row.eurToVes;
+      values.amountVes = amountCents !== null && row.eurToVes ? Math.round(amountCents * row.eurToVes) / 100 : null;
+      values.status = row.paymentStatus ? PACKAGE_PAYMENT_STATUS_LABELS[row.paymentStatus] : null;
       // Text, so Excel keeps leading zeros of bank references.
       values.reference = row.reference;
       values.proof = row.hasProof
@@ -135,8 +150,9 @@ export async function buildPackagePaymentsWorkbook(
   totals.columns = [
     { header: "Paquete", key: "package", width: 26 },
     { header: "Precio", key: "price", width: 12, style: { numFmt: EUR_FORMAT } },
-    { header: "Respuestas", key: "count", width: 12 },
-    { header: "Total reportado", key: "total", width: 16, style: { numFmt: EUR_FORMAT } },
+    { header: "Pagos", key: "count", width: 12 },
+    { header: "Reportado", key: "total", width: 16, style: { numFmt: EUR_FORMAT } },
+    { header: "Confirmado", key: "confirmed", width: 16, style: { numFmt: EUR_FORMAT } },
   ];
   for (const line of summary) {
     totals.addRow({
@@ -144,12 +160,14 @@ export async function buildPackagePaymentsWorkbook(
       price: line.priceCents !== null ? line.priceCents / 100 : null,
       count: line.count,
       total: line.totalCents / 100,
+      confirmed: line.confirmedCents / 100,
     });
   }
   const totalRow = totals.addRow({
     package: "Total",
     count: summary.reduce((acc, line) => acc + line.count, 0),
     total: summary.reduce((acc, line) => acc + line.totalCents, 0) / 100,
+    confirmed: summary.reduce((acc, line) => acc + line.confirmedCents, 0) / 100,
   });
   totalRow.font = { bold: true };
   styleHeader(totals);

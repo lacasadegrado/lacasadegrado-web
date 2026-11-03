@@ -1,4 +1,4 @@
-import type { FormKind } from "@/common/lib/db/schema";
+import type { FormKind, PackagePaymentStatus } from "@/common/lib/db/schema";
 import type { FormField, FormFieldType } from "@/modules/forms/lib/types/form.types";
 
 export type PackagePaymentFilters = {
@@ -9,6 +9,8 @@ export type PackagePaymentFilters = {
   kind?: FormKind;
   /** Matches email or reference, case-insensitive. */
   query?: string;
+  /** Review status of package payments. */
+  paymentStatus?: PackagePaymentStatus;
 };
 
 /**
@@ -30,14 +32,28 @@ export type PackagePaymentRow = {
   formId: string;
   formTitle: string;
   eventName: string;
+  /** Payment fields: null on general forms. */
+  paymentStatus: PackagePaymentStatus | null;
+  /** EUR cents of this payment; null on answers sent before abonos existed. */
+  amountCents: number | null;
+  installmentsCovered: number | null;
+  /** The plan's parts, for "1 of 3". */
+  planInstallments: number | null;
+  planId: string | null;
+  eurToVes: number | null;
+  rejectionReason: string | null;
+  reviewedAt: Date | null;
 };
 
 /** Per-package totals; null name and price group the answers with no package chosen. */
 export type PackagePaymentSummary = {
   packageName: string | null;
   priceCents: number | null;
+  /** Payments reported (a plan paid in three abonos counts three). */
   count: number;
+  /** Reported, confirmed or not; rejected payments excluded. */
   totalCents: number;
+  confirmedCents: number;
 };
 
 /** A file of an answer, addressed by field and position. Never the R2 key. */
@@ -55,6 +71,7 @@ export type PackagePaymentAnswer = {
 export type PackagePaymentDetail = PackagePaymentRow & {
   eventId: string;
   formVersion: number;
+  reviewedByEmail: string | null;
   answers: PackagePaymentAnswer[];
 };
 

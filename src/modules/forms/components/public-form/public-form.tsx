@@ -9,11 +9,14 @@ import { Button } from "@/common/components/ui/button";
 import { formatEur } from "@/common/lib/utils/money.util";
 import { LEGAL_PATHS } from "@/modules/legal/lib/constants/legal.constants";
 
-import { submitFormAction } from "../../lib/actions/public-form.action";
+import { prepareFormUploadAction, submitFormAction } from "../../lib/actions/public-form.action";
 import { FORM_HONEYPOT_FIELD } from "../../lib/constants/forms.constants";
 import { buildAnswersSchema } from "../../lib/schemas/form-answers.schema";
-import type { FormFileAnswer } from "../../lib/types/form.types";
+import type { FormFileAnswer, PrepareUpload } from "../../lib/types/form.types";
 import type { PublicForm as PublicFormData, SubmitReceipt } from "../../lib/types/public-form.types";
+import { visibleFieldIds } from "../../lib/utils/form-conditions.util";
+import { InstallmentPicker } from "../installment-picker/installment-picker";
+import { PlanReceipt } from "../plan-receipt/plan-receipt";
 import { FormFieldInput } from "./form-field-input";
 
 
@@ -45,16 +48,25 @@ function focusFirstError(fieldIds: string[], errors: Record<string, string>) {
 export function PublicForm({ form }: { form: PublicFormData }) {
   const [draftId, setDraftId] = useState(() => crypto.randomUUID());
   const [values, setValues] = useState<Record<string, unknown>>({});
+  // Parts of the package paid now; back to one whenever the package changes.
+  const [installments, setInstallments] = useState(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState<Set<string>>(() => new Set());
   const [honeypot, setHoneypot] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<SubmitReceipt | null>(null);
   const [submitting, startSubmitting] = useTransition();
-  const fieldIds = form.fields.map((field) => field.id);
+  // Conditional questions appear as soon as their trigger option is picked.
+  const visible = visibleFieldIds(form.fields, values);
+  const fieldIds = form.fields
+    .filter((field) => visible.has(field.id))
+    .flatMap((field) => (field.system === "package" ? [field.id, "installments"] : [field.id]));
+  // A hidden file field that was mid-upload must not block sending.
+  const busy = [...uploading].some((fieldId) => visible.has(fieldId));
 
   const setValue = useCallback((fieldId: string, value: unknown) => {
     setValues((current) => ({ ...current, [fieldId]: value }));
+    if (fieldId === "package") setInstallments(1);
     setErrors((current) => {
       if (!current[fieldId]) return current;
       const next = { ...current };
@@ -79,6 +91,12 @@ export function PublicForm({ form }: { form: PublicFormData }) {
     }
   }, []);
 
+  const prepareUpload = useCallback<PrepareUpload>(
+    (input) => prepareFormUploadAction({ slug: form.slug, ...input }),
+    [form.slug],
+  );
+  const chosenPackage = form.packages.find((option) => option.id === values.package);
+
   const setFieldUploading = useCallback((fieldId: string, busy: boolean) => {
     setUploading((current) => {
       if (current.has(fieldId) === busy) return current;
@@ -92,7 +110,7 @@ export function PublicForm({ form }: { form: PublicFormData }) {
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage(null);
-    if (uploading.size > 0) {
+    if (busy) {
       setMessage("Espera a que terminen de subir los archivos.");
       return;
     }
@@ -107,7 +125,13 @@ export function PublicForm({ form }: { form: PublicFormData }) {
     }
 
     startSubmitting(async () => {
-      const result = await submitFormAction({ slug: form.slug, draftId, answers: values, honeypot });
+      const result = await submitFormAction({
+        slug: form.slug,
+        draftId,
+        answers: values,
+        installments: chosenPackage ? installments : undefined,
+        honeypot,
+      });
       if (result.ok) {
         setReceipt(result.receipt);
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -124,6 +148,7 @@ export function PublicForm({ form }: { form: PublicFormData }) {
   function startOver() {
     setDraftId(crypto.randomUUID());
     setValues({});
+    setInstallments(1);
     setErrors({});
     setUploading(new Set());
     setMessage(null);
@@ -149,7 +174,8 @@ export function PublicForm({ form }: { form: PublicFormData }) {
             .
           </p>
         </div>
-        {receipt.packageName || receipt.reference ? (
+        {receipt.plan ? <PlanReceipt plan={receipt.plan} showLink /> : null}
+        {!receipt.plan && (receipt.packageName || receipt.reference) ? (
           <dl className="grid gap-x-6 gap-y-1 rounded-md bg-muted p-4 text-sm sm:grid-cols-[auto_1fr]">
             {receipt.packageName ? (
               <>
@@ -191,20 +217,54 @@ export function PublicForm({ form }: { form: PublicFormData }) {
         />
       </div>
 
-      {form.fields.map((field) => (
-        <FormFieldInput
-          key={`${draftId}-${field.id}`}
-          field={field}
-          value={values[field.id]}
-          error={errors[field.id]}
-          slug={form.slug}
-          draftId={draftId}
-          packages={form.packages}
-          onValue={setValue}
-          onFiles={setFiles}
-          onUploadingChange={setFieldUploading}
-        />
-      ))}
+      {form.fields.map((field) => {
+        if (!visible.has(field.id)) return null;
+        const input = (
+          <FormFieldInput
+            key={`${draftId}-${field.id}`}
+            field={field}
+            value={values[field.id]}
+            error={errors[field.id]}
+            prepareUpload={prepareUpload}
+            draftId={draftId}
+            packages={form.packages}
+            onValue={setValue}
+            onFiles={setFiles}
+            onUploadingChange={setFieldUploading}
+          />
+        );
+        const picker =
+          field.system === "package" && chosenPackage && chosenPackage.installments > 1 ? (
+            <InstallmentPicker
+              key={`${draftId}-installments`}
+              id="field-installments"
+              priceCents={chosenPackage.priceCents}
+              installments={chosenPackage.installments}
+              reserved={0}
+              value={installments}
+              onChange={(next) => {
+                setInstallments(next);
+                setErrors((current) => {
+                  if (!current.installments) return current;
+                  const rest = { ...current };
+                  delete rest.installments;
+                  return rest;
+                });
+              }}
+              eurToVes={form.eurToVes}
+              error={errors.installments}
+            />
+          ) : null;
+        // Indented under the question that revealed it.
+        const block = field.showIf ? (
+          <div key={`${draftId}-${field.id}`} className="border-l-2 border-primary/40 pl-4">
+            {input}
+          </div>
+        ) : (
+          input
+        );
+        return picker ? [block, picker] : block;
+      })}
 
       {message ? (
         <Alert role="alert">
@@ -213,10 +273,10 @@ export function PublicForm({ form }: { form: PublicFormData }) {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3 border-t pt-6">
-        <Button type="submit" size="lg" disabled={submitting || uploading.size > 0}>
+        <Button type="submit" size="lg" disabled={submitting || busy}>
           {submitting
             ? "Enviando…"
-            : uploading.size > 0
+            : busy
               ? "Subiendo archivos…"
               : form.kind === "package_payment"
                 ? "Enviar comprobante"

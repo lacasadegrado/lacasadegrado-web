@@ -4,6 +4,7 @@ import { emailSchema } from "@/modules/auth/lib/schemas/auth.schema";
 
 import { FORM_LIMITS, FORM_MESSAGES } from "../constants/forms.constants";
 import type { FormField, FormPackageOption } from "../types/form.types";
+import { visibleFieldIds } from "../utils/form-conditions.util";
 
 /**
  * Builds the Zod schema for one form's answers from its field
@@ -161,13 +162,28 @@ function valueSchema(field: FormField, packages: FormPackageOption[]): z.ZodType
 
 /**
  * `packages` are the options the page offered: the event's active
- * packages. A package id outside that list is rejected.
+ * packages. A package id outside that list is rejected. Questions hidden
+ * by a condition are dropped before validating, so they are neither
+ * required nor stored.
  */
 export function buildAnswersSchema(fields: FormField[], packages: FormPackageOption[]) {
-  const shape: Record<string, z.ZodType> = {};
-  for (const field of fields) {
-    shape[field.id] = withPresence(valueSchema(field, packages), field.required);
-  }
-  // Strict: an answer for a field the form does not have is an error.
-  return z.strictObject(shape);
+  const schemas = new Map(
+    fields.map((field) => [field.id, withPresence(valueSchema(field, packages), field.required)] as const),
+  );
+  return z.record(z.string(), z.unknown()).transform((raw, ctx) => {
+    const visible = visibleFieldIds(fields, raw);
+    const shape: Record<string, z.ZodType> = {};
+    for (const id of visible) shape[id] = schemas.get(id) as z.ZodType;
+    const input: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(raw)) {
+      // Unknown keys stay in so the strict object rejects them; hidden ones go.
+      if (visible.has(key) || !schemas.has(key)) input[key] = value;
+    }
+    const result = z.strictObject(shape).safeParse(input);
+    if (result.success) return result.data;
+    for (const issue of result.error.issues) {
+      ctx.addIssue({ code: "custom", message: issue.message, path: issue.path });
+    }
+    return z.NEVER;
+  });
 }
