@@ -7,7 +7,7 @@ import { entitlements, events, photoTags, photos } from "@/common/lib/db/schema"
 import type { SessionUser } from "@/modules/auth/lib/types/auth.types";
 import { releasedForEmail } from "@/modules/purchases/lib/utils/photo-release.util";
 
-import type { GalleryEvent } from "../types/gallery.types";
+import type { GalleryEvent, HiddenGalleryEvent } from "../types/gallery.types";
 
 /**
  * Every photo tagged with the viewer's email, in active events, grouped
@@ -70,4 +70,20 @@ export async function listGalleryForUser(viewer: SessionUser): Promise<GalleryEv
     });
   }
   return [...byEvent.values()];
+}
+
+/**
+ * Events the admin has not published yet where the viewer is tagged, with
+ * how many photos: enough to say "almost ready" instead of "no photos".
+ * Never the photos themselves.
+ */
+export async function listHiddenEventsForUser(viewer: SessionUser): Promise<HiddenGalleryEvent[]> {
+  return db
+    .select({ name: events.name, photoCount: sql<number>`count(distinct ${photos.id})::int` })
+    .from(photoTags)
+    .innerJoin(photos, eq(photos.id, photoTags.photoId))
+    .innerJoin(events, and(eq(events.id, photos.eventId), eq(events.isActive, false)))
+    .where(eq(photoTags.email, viewer.email))
+    .groupBy(events.id, events.name)
+    .orderBy(asc(events.name));
 }

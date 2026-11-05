@@ -3,10 +3,10 @@ import { getViewerAccess } from "@/modules/auth/lib/services/access.service";
 import { requireSessionUser } from "@/modules/auth/lib/services/session.service";
 import { PURCHASES_PATHS } from "@/modules/purchases/lib/constants/purchases.constants";
 
-import { GalleryEmptyState } from "../components/gallery-empty-state";
+import { GalleryEmptyState, GalleryHiddenNote } from "../components/gallery-empty-state";
 import { GalleryEventSection } from "../components/gallery-event-section";
 import { GALLERY_PATHS } from "../lib/constants/gallery.constants";
-import { listGalleryForUser } from "../lib/services/gallery.service";
+import { listGalleryForUser, listHiddenEventsForUser } from "../lib/services/gallery.service";
 import type { GalleryMode } from "../lib/types/gallery.types";
 
 const SUBTITLES: Record<GalleryMode, string> = {
@@ -18,7 +18,11 @@ const SUBTITLES: Record<GalleryMode, string> = {
 
 export async function GalleryScreen() {
   const user = await requireSessionUser(GALLERY_PATHS.dashboard);
-  const [events, access] = await Promise.all([listGalleryForUser(user), getViewerAccess(user)]);
+  const [events, access, hiddenEvents] = await Promise.all([
+    listGalleryForUser(user),
+    getViewerAccess(user),
+    listHiddenEventsForUser(user),
+  ]);
   const total = events.reduce((sum, event) => sum + event.photos.length, 0);
   const mode: GalleryMode = access.freeDownload
     ? "free-download"
@@ -53,9 +57,14 @@ export async function GalleryScreen() {
       </div>
 
       {events.length === 0 ? (
-        <GalleryEmptyState email={user.email} />
+        <GalleryEmptyState email={user.email} hiddenEvents={hiddenEvents} />
       ) : (
-        events.map((event) => <GalleryEventSection key={event.id} event={event} mode={mode} />)
+        <>
+          {events.map((event) => (
+            <GalleryEventSection key={event.id} event={event} mode={mode} />
+          ))}
+          {hiddenEvents.length > 0 ? <GalleryHiddenNote hiddenEvents={hiddenEvents} /> : null}
+        </>
       )}
     </div>
   );

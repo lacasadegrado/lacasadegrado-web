@@ -30,3 +30,6 @@ export type GalleryEvent = {
  * the other two are granted by an admin in Personas.
  */
 export type GalleryMode = "buy" | "free-view" | "free-download";
+
+/** An unpublished event with photos of the viewer: name and count only. */
+export type HiddenGalleryEvent = { name: string; photoCount: number };
