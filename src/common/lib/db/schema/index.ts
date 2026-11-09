@@ -16,3 +16,4 @@ export * from "./form-attempts.table";
 export * from "./payment-accounts.table";
 export * from "./package-plans.table";
 export * from "./notifications.table";
+export * from "./rosters.table";

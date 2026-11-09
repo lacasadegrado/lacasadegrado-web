@@ -16,6 +16,7 @@ import { Badge } from "@/common/components/ui/badge";
 import { formatEur } from "@/common/lib/utils/money.util";
 
 import { PackagePaymentsFilters } from "../components/package-payments/package-payments-filters";
+import { RosterSummary } from "../components/package-payments/roster-summary";
 import { ADMIN_PATHS } from "../lib/constants/admin.constants";
 import { PACKAGE_PAYMENT_STATUS_BADGE, PACKAGE_PAYMENT_STATUS_LABELS } from "../lib/constants/sale.constants";
 import {
@@ -171,6 +172,7 @@ export async function AdminPackagePaymentsScreen({ params }: { params: PackagePa
                     <TableCell>
                       {row.email ?? <span className="text-muted-foreground">Sin correo</span>}
                       {row.personName ? <span className="block text-xs text-muted-foreground">{row.personName}</span> : null}
+                      {row.roster ? <RosterSummary roster={row.roster} compact /> : null}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {row.packageName ? (

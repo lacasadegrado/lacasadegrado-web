@@ -16,14 +16,20 @@ import { buildAnswersSchema } from "../schemas/form-answers.schema";
 import { formFieldsSchema } from "../schemas/form-field.schema";
 import type { PrepareFormUploadInput } from "../schemas/public-form.schema";
 import type { FormAnswers, FormFileAnswer } from "../types/form.types";
-import type { PublicForm, SubmitReceipt } from "../types/public-form.types";
+import type { PublicForm, RosterPrefill, SubmitReceipt } from "../types/public-form.types";
 import { buildFormSubmittedEmail } from "../utils/form-email.util";
 import { personNameFrom } from "../utils/person-name.util";
 import { presignFormFile, verifyFileAnswers } from "./form-files.service";
+import { buildRosterPrefill, getRosterEntry, listRosterPeople, rosterSnapshot } from "./form-roster.service";
 import { isSubmitAllowed, isUploadAllowed, recordFormAttempt } from "./form-rate-limit.service";
 import { planReceipt, preparePlanForPayment } from "./package-plan.service";
 
-type LoadedForm = Omit<PublicForm, "eurToVes"> & { id: string; version: number; eventId: string };
+type LoadedForm = Omit<PublicForm, "eurToVes" | "roster"> & {
+  id: string;
+  version: number;
+  eventId: string;
+  rosterId: string | null;
+};
 
 async function loadForm(slug: string): Promise<LoadedForm | null> {
   const [row] = await db
@@ -40,6 +46,7 @@ async function loadForm(slug: string): Promise<LoadedForm | null> {
       eventName: events.name,
       institution: events.institution,
       eventDate: events.eventDate,
+      rosterId: forms.rosterId,
     })
     .from(forms)
     .innerJoin(events, eq(events.id, forms.eventId))
@@ -63,6 +70,7 @@ async function loadForm(slug: string): Promise<LoadedForm | null> {
     id: row.id,
     version: row.version,
     eventId: row.eventId,
+    rosterId: row.rosterId,
     slug: row.slug,
     title: row.title,
     description: row.description,
@@ -84,7 +92,10 @@ async function loadForm(slug: string): Promise<LoadedForm | null> {
 export const getPublicForm = cache(async (slug: string): Promise<PublicForm | null> => {
   const form = await loadForm(slug);
   if (!form) return null;
-  const rate = form.kind === "package_payment" ? await getLatestRate() : null;
+  const [rate, people] = await Promise.all([
+    form.kind === "package_payment" ? getLatestRate() : null,
+    form.rosterId ? listRosterPeople(form.rosterId) : null,
+  ]);
   return {
     slug: form.slug,
     title: form.title,
@@ -97,8 +108,20 @@ export const getPublicForm = cache(async (slug: string): Promise<PublicForm | nu
     fields: form.fields,
     packages: form.packages,
     eurToVes: rate?.eurToVes ?? null,
+    roster: people ? { people } : null,
   };
 });
+
+/**
+ * The starting answers for the person picked on a form with a list. Only
+ * for open forms and people of that form's list.
+ */
+export async function getRosterPrefill(slug: string, entryId: string): Promise<RosterPrefill | null> {
+  const form = await loadForm(slug);
+  if (!form || form.status !== "open" || !form.rosterId) return null;
+  const entry = await getRosterEntry(form.rosterId, entryId);
+  return entry ? buildRosterPrefill(form.fields, entry) : null;
+}
 
 export type PrepareFormUploadOutcome =
   | { ok: true; key: string; uploadUrl: string }
@@ -138,7 +161,14 @@ export type SubmitFormOutcome =
  * never fails the submission.
  */
 export async function submitPublicForm(
-  input: { slug: string; draftId: string; answers: Record<string, unknown>; installments?: number },
+  input: {
+    slug: string;
+    draftId: string;
+    answers: Record<string, unknown>;
+    installments?: number;
+    /** The list person they picked; null or absent: not in the list. */
+    rosterEntryId?: string | null;
+  },
   ip: string | null,
 ): Promise<SubmitFormOutcome> {
   const form = await loadForm(input.slug);
@@ -170,6 +200,13 @@ export async function submitPublicForm(
   const chosen = packageId ? form.packages.find((option) => option.id === packageId) : undefined;
   if (packageId && !chosen) {
     return { ok: false, reason: "invalid", fieldErrors: { package: "Elige un paquete de la lista." } };
+  }
+
+  // The person they picked must be in this form's list; the snapshot shows their changes later.
+  const rosterEntry =
+    form.rosterId && input.rosterEntryId ? await getRosterEntry(form.rosterId, input.rosterEntryId) : null;
+  if (input.rosterEntryId && !rosterEntry) {
+    return { ok: false, reason: "invalid", fieldErrors: { roster: "Vuelve a buscar tu nombre en la lista." } };
   }
 
   const isPayment = form.kind === "package_payment";
@@ -204,6 +241,9 @@ export async function submitPublicForm(
         formVersion: form.version,
         // Every payment form answer waits for review, with or without a package.
         paymentStatus: isPayment ? "pending" : null,
+        rosterEntryId: rosterEntry?.id ?? null,
+        // {} = the form has a list and they said they are not on it.
+        rosterValues: rosterEntry ? rosterSnapshot(form.fields, rosterEntry) : form.rosterId ? {} : null,
         ...(draft?.ok
           ? {
               planId: draft.planId,

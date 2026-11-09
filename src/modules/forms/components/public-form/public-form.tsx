@@ -9,7 +9,7 @@ import { Button } from "@/common/components/ui/button";
 import { formatEur } from "@/common/lib/utils/money.util";
 import { LEGAL_PATHS } from "@/modules/legal/lib/constants/legal.constants";
 
-import { prepareFormUploadAction, submitFormAction } from "../../lib/actions/public-form.action";
+import { getRosterPrefillAction, prepareFormUploadAction, submitFormAction } from "../../lib/actions/public-form.action";
 import { FORM_HONEYPOT_FIELD } from "../../lib/constants/forms.constants";
 import { buildAnswersSchema } from "../../lib/schemas/form-answers.schema";
 import type { FormFileAnswer, PrepareUpload } from "../../lib/types/form.types";
@@ -17,6 +17,7 @@ import type { PublicForm as PublicFormData, SubmitReceipt } from "../../lib/type
 import { visibleFieldIds } from "../../lib/utils/form-conditions.util";
 import { InstallmentPicker } from "../installment-picker/installment-picker";
 import { PlanReceipt } from "../plan-receipt/plan-receipt";
+import { RosterPicker, type RosterIdentity } from "../roster-picker/roster-picker";
 import { FormFieldInput } from "./form-field-input";
 
 
@@ -56,6 +57,13 @@ export function PublicForm({ form }: { form: PublicFormData }) {
   const [message, setMessage] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<SubmitReceipt | null>(null);
   const [submitting, startSubmitting] = useTransition();
+  // Forms with a people list start with "Busca tu nombre"; the questions wait for it.
+  const [identity, setIdentity] = useState<RosterIdentity | null>(null);
+  const [prefilled, setPrefilled] = useState<Record<string, unknown>>({});
+  const [missing, setMissing] = useState<Set<string>>(() => new Set());
+  const [rosterError, setRosterError] = useState<string | null>(null);
+  const [loadingRoster, startLoadingRoster] = useTransition();
+  const waitingForName = Boolean(form.roster) && (!identity || loadingRoster);
   // Conditional questions appear as soon as their trigger option is picked.
   const visible = visibleFieldIds(form.fields, values);
   const fieldIds = form.fields
@@ -107,6 +115,45 @@ export function PublicForm({ form }: { form: PublicFormData }) {
     });
   }, []);
 
+  /** A new person (or none) starts a fresh answer, prefilled with what the list has. */
+  function pickIdentity(next: RosterIdentity | null) {
+    setIdentity(next);
+    setRosterError(null);
+    setDraftId(crypto.randomUUID());
+    setValues({});
+    setPrefilled({});
+    setMissing(new Set());
+    setInstallments(1);
+    setErrors({});
+    setMessage(null);
+    if (next?.kind !== "listed") return;
+    startLoadingRoster(async () => {
+      const result = await getRosterPrefillAction({ slug: form.slug, entryId: next.entryId });
+      if (!result.ok) {
+        setIdentity(null);
+        setRosterError(result.message);
+        return;
+      }
+      setValues(result.prefill.values);
+      setPrefilled(result.prefill.values);
+      setMissing(new Set(result.prefill.missing));
+    });
+  }
+
+  /** Under each linked question: from the list, corrected, or for them to fill. */
+  function prefillNote(fieldId: string): { text: string; tone: "muted" | "amber" } | null {
+    if (identity?.kind !== "listed") return null;
+    const value = values[fieldId];
+    const empty = value === undefined || value === "" || (Array.isArray(value) && value.length === 0);
+    if (fieldId in prefilled) {
+      return JSON.stringify(prefilled[fieldId]) === JSON.stringify(value)
+        ? { text: "Dato que tenemos de ti: revísalo y corrígelo si está mal.", tone: "muted" }
+        : { text: "Lo corregiste. Gracias.", tone: "muted" };
+    }
+    if (missing.has(fieldId) && empty) return { text: "No tenemos este dato: complétalo, por favor.", tone: "amber" };
+    return null;
+  }
+
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage(null);
@@ -130,6 +177,7 @@ export function PublicForm({ form }: { form: PublicFormData }) {
         draftId,
         answers: values,
         installments: chosenPackage ? installments : undefined,
+        rosterEntryId: identity?.kind === "listed" ? identity.entryId : null,
         honeypot,
       });
       if (result.ok) {
@@ -138,6 +186,10 @@ export function PublicForm({ form }: { form: PublicFormData }) {
         return;
       }
       setMessage(result.message);
+      if (result.fieldErrors?.roster) {
+        setIdentity(null);
+        setRosterError(result.fieldErrors.roster);
+      }
       if (result.fieldErrors) {
         setErrors(result.fieldErrors);
         focusFirstError(fieldIds, result.fieldErrors);
@@ -146,6 +198,9 @@ export function PublicForm({ form }: { form: PublicFormData }) {
   }
 
   function startOver() {
+    setIdentity(null);
+    setPrefilled({});
+    setMissing(new Set());
     setDraftId(crypto.randomUUID());
     setValues({});
     setInstallments(1);
@@ -217,21 +272,44 @@ export function PublicForm({ form }: { form: PublicFormData }) {
         />
       </div>
 
+      {form.roster ? (
+        <RosterPicker
+          people={form.roster.people}
+          identity={identity}
+          loading={loadingRoster}
+          error={rosterError}
+          onPick={pickIdentity}
+        />
+      ) : null}
+
       {form.fields.map((field) => {
-        if (!visible.has(field.id)) return null;
+        if (waitingForName || !visible.has(field.id)) return null;
+        const note = field.rosterColumn ? prefillNote(field.id) : null;
         const input = (
-          <FormFieldInput
-            key={`${draftId}-${field.id}`}
-            field={field}
-            value={values[field.id]}
-            error={errors[field.id]}
-            prepareUpload={prepareUpload}
-            draftId={draftId}
-            packages={form.packages}
-            onValue={setValue}
-            onFiles={setFiles}
-            onUploadingChange={setFieldUploading}
-          />
+          <div key={`${draftId}-${field.id}`} className="space-y-1.5">
+            <FormFieldInput
+              field={field}
+              value={values[field.id]}
+              error={errors[field.id]}
+              prepareUpload={prepareUpload}
+              draftId={draftId}
+              packages={form.packages}
+              onValue={setValue}
+              onFiles={setFiles}
+              onUploadingChange={setFieldUploading}
+            />
+            {note ? (
+              <p
+                className={
+                  note.tone === "amber"
+                    ? "text-sm font-medium text-amber-700 dark:text-amber"
+                    : "text-xs text-muted-foreground"
+                }
+              >
+                {note.text}
+              </p>
+            ) : null}
+          </div>
         );
         const picker =
           field.system === "package" && chosenPackage && chosenPackage.installments > 1 ? (
@@ -272,26 +350,28 @@ export function PublicForm({ form }: { form: PublicFormData }) {
         </Alert>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3 border-t pt-6">
-        <Button type="submit" size="lg" disabled={submitting || busy}>
-          {submitting
-            ? "Enviando…"
-            : busy
-              ? "Subiendo archivos…"
-              : form.kind === "package_payment"
-                ? "Enviar comprobante"
-                : "Enviar respuesta"}
-        </Button>
-        <p className="text-sm text-muted-foreground">
-          Los campos con <span aria-hidden="true">*</span>
-          <span className="sr-only">asterisco</span> son obligatorios. Usamos tus datos solo para
-          {form.kind === "package_payment" ? " verificar tu pago" : " gestionar tu solicitud"}, como explica la{" "}
-          <Link href={LEGAL_PATHS.privacy} className="underline underline-offset-4" target="_blank">
-            política de privacidad
-          </Link>
-          .
-        </p>
-      </div>
+      {waitingForName ? null : (
+        <div className="flex flex-wrap items-center gap-3 border-t pt-6">
+          <Button type="submit" size="lg" disabled={submitting || busy}>
+            {submitting
+              ? "Enviando…"
+              : busy
+                ? "Subiendo archivos…"
+                : form.kind === "package_payment"
+                  ? "Enviar comprobante"
+                  : "Enviar respuesta"}
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            Los campos con <span aria-hidden="true">*</span>
+            <span className="sr-only">asterisco</span> son obligatorios. Usamos tus datos solo para
+            {form.kind === "package_payment" ? " verificar tu pago" : " gestionar tu solicitud"}, como explica la{" "}
+            <Link href={LEGAL_PATHS.privacy} className="underline underline-offset-4" target="_blank">
+              política de privacidad
+            </Link>
+            .
+          </p>
+        </div>
+      )}
     </form>
   );
 }

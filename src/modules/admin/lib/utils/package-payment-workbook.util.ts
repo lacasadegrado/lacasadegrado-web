@@ -81,6 +81,12 @@ export async function buildPackagePaymentsWorkbook(
         ]
       : []),
     { header: "Detalle", key: "detail", width: 14 },
+    ...(rows.some((row) => row.roster)
+      ? [
+          { header: "Del listado", key: "listed", width: 12 },
+          { header: "Cambios respecto al listado", key: "listChanges", width: 40 },
+        ]
+      : []),
     ...extra.map((field) => ({ header: field.label, key: `f:${field.id}`, width: 24 })),
   ];
 
@@ -92,6 +98,13 @@ export async function buildPackagePaymentsWorkbook(
       email: row.email,
       detail: { text: "Ver respuesta", hyperlink: absolute(submissionHref(row)) },
     };
+    if (row.roster) {
+      values.listed = row.roster.listed ? "Sí" : "No";
+      values.listChanges =
+        row.rosterChanges
+          .map((change) => `${change.label}: ${change.before || "(vacío)"} → ${change.after ?? "(vacío)"}`)
+          .join("; ") || null;
+    }
     if (isPayment) {
       values.package = row.packageName;
       values.price = row.packagePriceCents !== null ? row.packagePriceCents / 100 : null;

@@ -1,6 +1,8 @@
 import type { FormKind, FormStatus } from "@/common/lib/db/schema";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
 
+import type { RosterOption } from "./roster.types";
+
 export type AdminPackage = {
   id: string;
   eventId: string;
@@ -34,6 +36,9 @@ export type AdminFormDetail = AdminFormSummary & {
   version: number;
   /** Active packages of the event: publishing needs at least one. */
   activePackageCount: number;
+  /** People list the form prefills from, and the event's lists to choose from. */
+  rosterId: string | null;
+  rosters: RosterOption[];
 };
 
 /** Result of saving the builder; issues point at a field index. */

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ChevronDown, GitBranch, Lock, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, GitBranch, Lock, Table2, Trash2 } from "lucide-react";
 
 import { Badge } from "@/common/components/ui/badge";
 import { Button } from "@/common/components/ui/button";
@@ -15,6 +15,8 @@ type FieldCardProps = {
   field: FormField;
   /** Earlier questions, for the "show only if" setting and its badge. */
   previousFields: FormField[];
+  /** Columns of the linked people list, or null without one. */
+  rosterColumns: { key: string; label: string }[] | null;
   index: number;
   total: number;
   expanded: boolean;
@@ -28,6 +30,7 @@ type FieldCardProps = {
 export function FieldCard({
   field,
   previousFields,
+  rosterColumns,
   index,
   total,
   expanded,
@@ -69,6 +72,14 @@ export function FieldCard({
                   {field.system ? (
                     <Badge variant="outline" className="gap-1 text-[0.65rem]">
                       <Lock aria-hidden="true" className="size-3" /> Del sistema
+                    </Badge>
+                  ) : null}
+                  {field.rosterColumn ? (
+                    <Badge variant="outline" className="max-w-full gap-1 text-[0.65rem]">
+                      <Table2 aria-hidden="true" className="size-3" />
+                      <span className="truncate">
+                        Del listado: {rosterColumns?.find((column) => column.key === field.rosterColumn)?.label ?? "…"}
+                      </span>
                     </Badge>
                   ) : null}
                   {field.showIf ? (
@@ -134,7 +145,7 @@ export function FieldCard({
         ) : null}
 
         <CollapsibleContent className="border-t p-4 pl-11">
-          <FieldSettings field={field} previousFields={previousFields} onChange={onChange} />
+          <FieldSettings field={field} previousFields={previousFields} rosterColumns={rosterColumns} onChange={onChange} />
         </CollapsibleContent>
       </li>
     </Collapsible>

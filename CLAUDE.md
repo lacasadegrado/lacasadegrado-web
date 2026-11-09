@@ -274,6 +274,23 @@ November 2026 (built 2026-11-03, migration 0015):
   pipelines them on one connection, and Supabase's transaction pooler then
   hangs it until the statement timeout. Never fire a large `Promise.all` of
   queries. Raw `sql` params take ISO strings cast `::timestamptz`, not Dates.
+Listados (2026-11-09, migration 0016): per-event people lists (`rosters`,
+`roster_entries`; columns `{ key, label }[]` and values `Record<key,
+string>` in jsonb, parsed with `roster.schema.ts` in the forms module).
+Imported in the browser (`RosterImportDialog`: .xlsx via a lazy
+`import("exceljs")`, CSV or pasted cells; header row and name column
+detected, repeats merged) and sent in batches of 300; people match by
+`name_key` (no accents/case/spaces), non-empty cells overwrite, empty ones
+never erase. Admin at `/admin/events/forms/rosters/[rosterId]` (who
+answered). A form links one list (`forms.roster_id`) and questions link a
+column (`rosterColumn`, `name` = the name). Public forms start with
+"Busca tu nombre" (the owner chose pick-by-name, no verification);
+`getRosterPrefillAction` returns the starting answers via
+`rosterPrefillValue` (choices match options ignoring accents/case). Answers
+store `roster_entry_id` and `roster_values` (snapshot; `{}` = said "No
+estoy en la lista"); `rosterChanges` drives "Corregido/Completado" in the
+detail, the list rows and the Excel. The list itself never changes from
+answers.
 Previews have NO blur since 2026-10-21 (`blurSigma: 0`; it was 12, then 5
 from 2026-09-30, and did not help sell). The only protection is the dense,
 fairly opaque tiled watermark in `buildWatermarkSvg` (`WATERMARK_DENSITY`

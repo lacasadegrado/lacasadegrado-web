@@ -55,6 +55,8 @@ export const saveFormSchema = z.object({
   title: createFormSchema.shape.title,
   description: optionalText(FORM_LIMITS.descriptionMax),
   fields: formFieldsSchema,
+  /** People list that prefills the form; null unlinks it. */
+  rosterId: z.uuid().nullable(),
 });
 
 export const setFormStatusSchema = z.object({

@@ -10,6 +10,7 @@ import { Textarea } from "@/common/components/ui/textarea";
 import {
   CONDITION_SOURCE_TYPES,
   FORM_FILE_ACCEPT_LABELS,
+  ROSTER_PREFILL_FIELD_TYPES,
   FORM_LIMITS,
   PERSON_NAME_FIELD_TYPES,
   SEARCHABLE_SELECT_THRESHOLD,
@@ -20,6 +21,8 @@ type FieldSettingsProps = {
   field: FormField;
   /** Earlier questions; choice ones can show or hide this one. */
   previousFields: FormField[];
+  /** Columns of the linked people list, or null without one. */
+  rosterColumns: { key: string; label: string }[] | null;
   onChange: (field: FormField) => void;
 };
 
@@ -210,7 +213,7 @@ function OptionsSetting({ options, onChange }: { options: string[]; onChange: (o
   );
 }
 
-export function FieldSettings({ field, previousFields, onChange }: FieldSettingsProps) {
+export function FieldSettings({ field, previousFields, rosterColumns, onChange }: FieldSettingsProps) {
   const id = useId();
   const update = (patch: Partial<FormField>) => onChange({ ...field, ...patch } as FormField);
   const system = Boolean(field.system);
@@ -270,6 +273,31 @@ export function FieldSettings({ field, previousFields, onChange }: FieldSettings
               Al etiquetar fotos, el correo de quien responda aparece sugerido con este nombre.
             </span>
           </Label>
+        </div>
+      ) : null}
+
+      {rosterColumns && (ROSTER_PREFILL_FIELD_TYPES as readonly string[]).includes(field.type) ? (
+        <div className="space-y-1.5">
+          <Label htmlFor={`${id}-roster-column`}>Rellenar con</Label>
+          <NativeSelect
+            id={`${id}-roster-column`}
+            value={field.rosterColumn ?? ""}
+            onChange={(event) => update({ rosterColumn: event.target.value || undefined })}
+          >
+            <NativeSelectOption value="">No rellenar</NativeSelectOption>
+            {rosterColumns.map((column) => (
+              <NativeSelectOption key={column.key} value={column.key}>
+                {column.label}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+          <p className="text-xs text-muted-foreground">
+            Al elegir su nombre, la persona ve aquí el dato del listado y puede corregirlo; si el listado lo
+            tiene vacío, lo llena ella.
+            {field.type === "select" || field.type === "radio" || field.type === "checkboxes"
+              ? " En una lista u opción, el dato debe coincidir con una opción (sin importar tildes ni mayúsculas)."
+              : ""}
+          </p>
         </div>
       ) : null}
 

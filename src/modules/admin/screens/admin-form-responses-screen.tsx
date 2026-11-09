@@ -15,6 +15,7 @@ import {
 } from "@/common/components/ui/table";
 import { formatDateTime } from "@/common/lib/utils/date.util";
 
+import { RosterSummary } from "../components/package-payments/roster-summary";
 import { ADMIN_PATHS } from "../lib/constants/admin.constants";
 import type { PackagePaymentSearchParams } from "../lib/schemas/package-payment.schema";
 import { getFormForBuilder } from "../lib/services/form.service";
@@ -121,7 +122,10 @@ export async function AdminFormResponsesScreen({ formId, params }: AdminFormResp
                 {rows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="whitespace-nowrap tabular-nums">{formatDateTime(row.submittedAt)}</TableCell>
-                    <TableCell>{row.personName ?? <span className="text-muted-foreground">—</span>}</TableCell>
+                    <TableCell>
+                      {row.personName ?? <span className="text-muted-foreground">—</span>}
+                      {row.roster ? <RosterSummary roster={row.roster} compact /> : null}
+                    </TableCell>
                     <TableCell>{row.email ?? <span className="text-muted-foreground">Sin correo</span>}</TableCell>
                     <TableCell className="text-right">
                       <Button asChild size="sm">

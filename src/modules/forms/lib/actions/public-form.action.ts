@@ -5,9 +5,9 @@ import { headers } from "next/headers";
 import { getClientIp } from "@/modules/auth/lib/utils/auth.util";
 
 import { FORM_LIMITS } from "../constants/forms.constants";
-import { prepareFormUploadSchema, submitFormSchema } from "../schemas/public-form.schema";
-import { prepareFormUpload, submitPublicForm } from "../services/public-form.service";
-import type { PrepareFormUploadResult, SubmitFormResult } from "../types/public-form.types";
+import { prepareFormUploadSchema, rosterPrefillSchema, submitFormSchema } from "../schemas/public-form.schema";
+import { getRosterPrefill, prepareFormUpload, submitPublicForm } from "../services/public-form.service";
+import type { PrepareFormUploadResult, RosterPrefillResult, SubmitFormResult } from "../types/public-form.types";
 
 /**
  * Public on purpose: these forms are filled without an account. Abuse is
@@ -49,6 +49,7 @@ export async function submitFormAction(input: {
   draftId: string;
   answers: Record<string, unknown>;
   installments?: number;
+  rosterEntryId?: string | null;
   honeypot?: string;
 }): Promise<SubmitFormResult> {
   const parsed = submitFormSchema.safeParse(input);
@@ -78,4 +79,16 @@ export async function submitFormAction(input: {
     case "not_found":
       return { ok: false, message: "Este formulario ya no existe." };
   }
+}
+
+/**
+ * The data the list has for the person picked, as starting answers.
+ * Public like the form: the admin chose to let people pick by name.
+ */
+export async function getRosterPrefillAction(input: { slug: string; entryId: string }): Promise<RosterPrefillResult> {
+  const parsed = rosterPrefillSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "No encontramos ese nombre. Búscalo de nuevo." };
+  const prefill = await getRosterPrefill(parsed.data.slug, parsed.data.entryId);
+  if (!prefill) return { ok: false, message: "No encontramos ese nombre. Recarga la página y búscalo de nuevo." };
+  return { ok: true, prefill };
 }

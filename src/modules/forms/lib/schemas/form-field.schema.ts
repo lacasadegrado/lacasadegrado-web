@@ -9,6 +9,7 @@ import {
   FORM_LIMITS,
   FORM_SYSTEM_FIELDS,
   PERSON_NAME_FIELD_TYPES,
+  ROSTER_PREFILL_FIELD_TYPES,
 } from "../constants/forms.constants";
 
 /**
@@ -53,6 +54,12 @@ const baseField = {
         .max(FORM_LIMITS.maxOptions),
     })
     .optional(),
+  /**
+   * Column of the form's people list that prefills this question when the
+   * person picks their name (`name` = the name itself). They check it,
+   * correct it or fill it when the list has it empty.
+   */
+  rosterColumn: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/).optional(),
 };
 
 const lengthBounds = (max: number) => ({
@@ -186,6 +193,13 @@ export const formFieldsSchema = z
       if (field.showIf) {
         const conditionIssue = showIfError(fields, index);
         if (conditionIssue) ctx.addIssue({ code: "custom", path: [index, "showIf"], message: conditionIssue });
+      }
+      if (field.rosterColumn && !(ROSTER_PREFILL_FIELD_TYPES as readonly string[]).includes(field.type)) {
+        ctx.addIssue({
+          code: "custom",
+          path: [index, "rosterColumn"],
+          message: "Los archivos y el paquete no se pueden rellenar desde el listado.",
+        });
       }
       if (field.personName && !(PERSON_NAME_FIELD_TYPES as readonly string[]).includes(field.type)) {
         ctx.addIssue({

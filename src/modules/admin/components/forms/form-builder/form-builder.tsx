@@ -7,8 +7,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/common/components/ui/aler
 import { Button } from "@/common/components/ui/button";
 import { Input } from "@/common/components/ui/input";
 import { Label } from "@/common/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/common/components/ui/native-select";
 import { Textarea } from "@/common/components/ui/textarea";
-import { FORM_LIMITS } from "@/modules/forms/lib/constants/forms.constants";
+import { FORM_LIMITS, ROSTER_NAME_COLUMN } from "@/modules/forms/lib/constants/forms.constants";
 import { formFieldsSchema, validateFieldsForKind } from "@/modules/forms/lib/schemas/form-field.schema";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
 import { createField, type AddableFieldType } from "@/modules/forms/lib/utils/form-fields.util";
@@ -19,11 +20,11 @@ import { AddFieldMenu } from "./add-field-menu";
 import { FieldCard } from "./field-card";
 import { FormStatusControls } from "./form-status-controls";
 
-type Draft = { title: string; description: string; fields: FormField[] };
+type Draft = { title: string; description: string; fields: FormField[]; rosterId: string | null };
 type Issue = { path: (string | number)[]; message: string };
 
 function toDraft(form: AdminFormDetail): Draft {
-  return { title: form.title, description: form.description ?? "", fields: form.fields };
+  return { title: form.title, description: form.description ?? "", fields: form.fields, rosterId: form.rosterId };
 }
 
 /**
@@ -79,6 +80,49 @@ export function FormBuilder({ form }: { form: AdminFormDetail }) {
   function setFields(update: (fields: FormField[]) => FormField[]) {
     setDraft((current) => ({ ...current, fields: update(current.fields) }));
     setMessage(null);
+  }
+
+  const roster = form.rosters.find((item) => item.id === draft.rosterId) ?? null;
+  // The name first, then the list's own columns: what "Rellenar con" offers.
+  const rosterColumns = roster
+    ? [{ key: ROSTER_NAME_COLUMN, label: "Nombre (del listado)" }, ...roster.columns]
+    : null;
+
+  /** Links a list (or none); questions keep only the columns the new list has. */
+  function setRoster(rosterId: string | null) {
+    const next = form.rosters.find((item) => item.id === rosterId);
+    const keys = new Set([ROSTER_NAME_COLUMN, ...(next?.columns.map((column) => column.key) ?? [])]);
+    setDraft((current) => ({
+      ...current,
+      rosterId,
+      fields: current.fields.map((field) =>
+        field.rosterColumn && (!next || !keys.has(field.rosterColumn))
+          ? ({ ...field, rosterColumn: undefined } as FormField)
+          : field,
+      ),
+    }));
+    setMessage(null);
+  }
+
+  /** One short-text question per list column nobody uses yet, the name first. */
+  function addRosterQuestions() {
+    if (!rosterColumns) return;
+    const used = new Set(draft.fields.map((field) => field.rosterColumn).filter(Boolean));
+    const room = FORM_LIMITS.maxFields - draft.fields.length;
+    const missing = rosterColumns.filter((column) => !used.has(column.key)).slice(0, Math.max(0, room));
+    if (missing.length === 0) return;
+    const hasName = draft.fields.some((field) => field.personName);
+    const added = missing.map((column) => {
+      const field = createField("short_text");
+      const isName = column.key === ROSTER_NAME_COLUMN;
+      return {
+        ...field,
+        label: isName ? "Nombre y apellido" : column.label,
+        rosterColumn: column.key,
+        ...(isName ? { required: true, ...(hasName ? {} : { personName: true }) } : {}),
+      } as FormField;
+    });
+    setFields((fields) => [...fields, ...added]);
   }
 
   function toggleExpanded(fieldId: string, open: boolean) {
@@ -141,6 +185,7 @@ export function FormBuilder({ form }: { form: AdminFormDetail }) {
         title,
         description: draft.description,
         fields: draft.fields,
+        rosterId: draft.rosterId,
       });
       if (result.ok) {
         setSaved(draft);
@@ -215,6 +260,41 @@ export function FormBuilder({ form }: { form: AdminFormDetail }) {
             onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
           />
         </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${id}-roster`}>Rellenar con un listado (opcional)</Label>
+          {form.rosters.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Este evento no tiene listados de personas. Impórtalos en la página de formularios del
+              evento para que cada persona vea sus datos ya llenos.
+            </p>
+          ) : (
+            <>
+              <NativeSelect
+                id={`${id}-roster`}
+                value={draft.rosterId ?? ""}
+                onChange={(event) => setRoster(event.target.value || null)}
+              >
+                <NativeSelectOption value="">Sin listado</NativeSelectOption>
+                {form.rosters.map((option) => (
+                  <NativeSelectOption key={option.id} value={option.id}>
+                    {option.name}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+              {roster ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted p-3 text-sm">
+                  <p className="max-w-prose">
+                    Arriba del formulario cada persona busca su nombre en «{roster.name}» y las preguntas
+                    enlazadas a una columna aparecen llenas para confirmarlas, corregirlas o completarlas.
+                  </p>
+                  <Button type="button" size="sm" variant="outline" onClick={addRosterQuestions}>
+                    Crear preguntas desde el listado
+                  </Button>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
       </section>
 
       <section aria-labelledby={`${id}-fields`} className="space-y-3">
@@ -252,6 +332,7 @@ export function FormBuilder({ form }: { form: AdminFormDetail }) {
               key={field.id}
               field={field}
               previousFields={draft.fields.slice(0, index)}
+              rosterColumns={rosterColumns}
               index={index}
               total={draft.fields.length}
               expanded={expanded.has(field.id)}

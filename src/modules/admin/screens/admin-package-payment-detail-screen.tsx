@@ -9,6 +9,7 @@ import { formatEur, formatVes } from "@/common/lib/utils/money.util";
 import { FORM_SYSTEM_FIELDS } from "@/modules/forms/lib/constants/forms.constants";
 
 import { PackageReviewActions } from "../components/package-payments/package-review-actions";
+import { RosterSummary } from "../components/package-payments/roster-summary";
 import { ADMIN_PATHS } from "../lib/constants/admin.constants";
 import { PACKAGE_PAYMENT_STATUS_BADGE, PACKAGE_PAYMENT_STATUS_LABELS } from "../lib/constants/sale.constants";
 import { getPackagePayment } from "../lib/services/package-payment.service";
@@ -58,6 +59,7 @@ export async function AdminPackagePaymentDetailScreen({ submissionId, formId }: 
           {payment.personName && payment.email ? `${payment.email} · ` : ""}
           {payment.eventName} · enviado el {formatDateTime(payment.submittedAt)}
         </p>
+        {payment.roster ? <RosterSummary roster={payment.roster} /> : null}
       </div>
 
       {isPayment ? (
@@ -196,6 +198,22 @@ export async function AdminPackagePaymentDetailScreen({ submissionId, formId }: 
                 ) : (
                   <span className="text-muted-foreground">Sin respuesta</span>
                 )}
+                {answer.rosterChange ? (
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    {answer.rosterChange.kind === "filled" ? (
+                      <Badge variant="outline" className="mr-1.5 text-[0.65rem]">
+                        Completado
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="mr-1.5 text-[0.65rem]">
+                        Corregido
+                      </Badge>
+                    )}
+                    {answer.rosterChange.kind === "filled"
+                      ? "El listado no lo tenía."
+                      : `En el listado: ${answer.rosterChange.before}`}
+                  </span>
+                ) : null}
               </dd>
             </div>
           ))}

@@ -5,14 +5,15 @@ import { randomBytes } from "node:crypto";
 import { and, count, desc, eq } from "drizzle-orm";
 
 import { db } from "@/common/lib/db";
-import { events, formSubmissions, forms, photoPackages, type FormKind, type FormStatus } from "@/common/lib/db/schema";
+import { events, formSubmissions, forms, photoPackages, rosters, type FormKind, type FormStatus } from "@/common/lib/db/schema";
 import { deleteObjects, listObjects } from "@/common/lib/storage/storage.service";
-import { FORM_UPLOAD_PREFIX } from "@/modules/forms/lib/constants/forms.constants";
+import { FORM_UPLOAD_PREFIX, ROSTER_NAME_COLUMN } from "@/modules/forms/lib/constants/forms.constants";
 import { formFieldsSchema, validateFieldsForKind } from "@/modules/forms/lib/schemas/form-field.schema";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
 import { createDefaultFormFields } from "@/modules/forms/lib/utils/form-fields.util";
 
 import type { AdminFormDetail, AdminFormSummary } from "../types/form-admin.types";
+import { listRosterOptions, parseRosterColumns } from "./roster.service";
 
 const SLUG_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
 const SLUG_LENGTH = 10;
@@ -79,6 +80,7 @@ export async function getFormForBuilder(formId: string): Promise<AdminFormDetail
       fields: forms.fields,
       version: forms.version,
       updatedAt: forms.updatedAt,
+      rosterId: forms.rosterId,
     })
     .from(forms)
     .innerJoin(events, eq(events.id, forms.eventId))
@@ -86,12 +88,13 @@ export async function getFormForBuilder(formId: string): Promise<AdminFormDetail
     .limit(1);
   if (!row) return null;
 
-  const [[submissions], [packages]] = await Promise.all([
+  const [[submissions], [packages], rosterOptions] = await Promise.all([
     db.select({ total: count() }).from(formSubmissions).where(eq(formSubmissions.formId, formId)),
     db
       .select({ total: count() })
       .from(photoPackages)
       .where(and(eq(photoPackages.eventId, row.eventId), eq(photoPackages.isActive, true))),
+    listRosterOptions(row.eventId),
   ]);
 
   return {
@@ -100,6 +103,7 @@ export async function getFormForBuilder(formId: string): Promise<AdminFormDetail
     fields: formFieldsSchema.parse(row.fields),
     submissionCount: submissions?.total ?? 0,
     activePackageCount: packages?.total ?? 0,
+    rosters: rosterOptions,
   };
 }
 
@@ -109,7 +113,7 @@ export async function getFormForBuilder(formId: string): Promise<AdminFormDetail
  */
 export async function saveForm(
   formId: string,
-  input: { title: string; description: string | null; fields: FormField[] },
+  input: { title: string; description: string | null; fields: FormField[]; rosterId: string | null },
 ): Promise<
   | { ok: true; version: number; eventId: string }
   | { ok: false; reason: "not_found" }
@@ -126,6 +130,28 @@ export async function saveForm(
 
     // The kind is fixed at creation; the fields must match it.
     const issues = validateFieldsForKind(input.fields, current.kind);
+
+    // A linked list must be of the same event, and each linked column must exist in it.
+    let rosterKeys: Set<string> | null = null;
+    if (input.rosterId) {
+      const [roster] = await tx
+        .select({ eventId: rosters.eventId, columns: rosters.columns })
+        .from(rosters)
+        .where(eq(rosters.id, input.rosterId))
+        .limit(1);
+      if (!roster || roster.eventId !== current.eventId) {
+        issues.push({ path: [], message: "El listado elegido no es de este evento." });
+      } else {
+        rosterKeys = new Set([ROSTER_NAME_COLUMN, ...parseRosterColumns(roster.columns).map((column) => column.key)]);
+      }
+    }
+    for (const [index, field] of input.fields.entries()) {
+      if (!field.rosterColumn) continue;
+      if (!input.rosterId) issues.push({ path: [index], message: "Enlaza un listado para rellenar esta pregunta." });
+      else if (rosterKeys && !rosterKeys.has(field.rosterColumn)) {
+        issues.push({ path: [index], message: "La columna del listado ya no existe." });
+      }
+    }
     if (issues.length > 0) return { ok: false, reason: "invalid" as const, issues };
 
     // jsonb reorders keys; parsing both through the schema gives the same order.
@@ -135,7 +161,7 @@ export async function saveForm(
     const version = fieldsChanged ? current.version + 1 : current.version;
     await tx
       .update(forms)
-      .set({ title: input.title, description: input.description, fields: input.fields, version })
+      .set({ title: input.title, description: input.description, fields: input.fields, version, rosterId: input.rosterId })
       .where(eq(forms.id, formId));
     return { ok: true as const, version, eventId: current.eventId };
   });

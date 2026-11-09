@@ -7,10 +7,12 @@ import { CreateFormDialog } from "../components/forms/create-form-dialog";
 import { FormsList } from "../components/forms/forms-list";
 import { PackageDialog } from "../components/forms/package-dialog";
 import { PackagesTable } from "../components/forms/packages-table";
+import { RostersSection } from "../components/rosters/rosters-section";
 import { ADMIN_PATHS } from "../lib/constants/admin.constants";
 import { listEvents } from "../lib/services/event.service";
 import { listFormsForEvent } from "../lib/services/form.service";
 import { listPackagesForEvent } from "../lib/services/package.service";
+import { listRostersForEvent } from "../lib/services/roster.service";
 
 type AdminEventFormsScreenProps = {
   eventId?: string;
@@ -19,9 +21,9 @@ type AdminEventFormsScreenProps = {
 export async function AdminEventFormsScreen({ eventId }: AdminEventFormsScreenProps) {
   const events = await listEvents();
   const event = eventId ? events.find((item) => item.id === eventId) : undefined;
-  const [packages, forms] = event
-    ? await Promise.all([listPackagesForEvent(event.id), listFormsForEvent(event.id)])
-    : [[], []];
+  const [packages, forms, rosters] = event
+    ? await Promise.all([listPackagesForEvent(event.id), listFormsForEvent(event.id), listRostersForEvent(event.id)])
+    : [[], [], []];
 
   return (
     <div className="space-y-8">
@@ -86,6 +88,8 @@ export async function AdminEventFormsScreen({ eventId }: AdminEventFormsScreenPr
             </div>
             <FormsList eventId={event.id} forms={forms} />
           </section>
+
+          <RostersSection eventId={event.id} rosters={rosters} />
         </>
       ) : events.length > 0 ? (
         <p className="text-sm text-muted-foreground">Elige un evento para ver sus paquetes y formularios.</p>

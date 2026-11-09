@@ -20,7 +20,17 @@ export type PublicForm = {
   packages: (FormPackageOption & { description: string | null })[];
   /** Latest EUR to VES rate, to show amounts in bolívares; null when none is stored. */
   eurToVes: number | null;
+  /** People list to pick a name from, when the form prefills from one. */
+  roster: { people: RosterPerson[] } | null;
 };
+
+/** A name to pick; `hint` tells two people with the same name apart. */
+export type RosterPerson = { id: string; name: string; hint: string | null };
+
+/** Starting answers for the person picked, by field id, and the linked questions the list leaves empty. */
+export type RosterPrefill = { values: Record<string, unknown>; missing: string[] };
+
+export type RosterPrefillResult = { ok: true; prefill: RosterPrefill } | { ok: false; message: string };
 
 export type PrepareFormUploadResult =
   | { ok: true; key: string; uploadUrl: string }

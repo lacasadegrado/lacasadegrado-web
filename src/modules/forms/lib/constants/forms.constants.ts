@@ -164,3 +164,35 @@ export const CONDITION_SOURCE_TYPES = ["select", "radio", "checkboxes"] as const
 
 /** Above this many options the public page shows a searchable list. */
 export const SEARCHABLE_SELECT_THRESHOLD = 12;
+
+/**
+ * Key a question uses to prefill with the person's name from the list;
+ * the other columns use their own keys, which can never be this one.
+ */
+export const ROSTER_NAME_COLUMN = "name";
+
+/** Field types a list column can prefill; files and the package cannot. */
+export const ROSTER_PREFILL_FIELD_TYPES = [
+  "short_text",
+  "long_text",
+  "email",
+  "phone",
+  "id_number",
+  "number",
+  "date",
+  "select",
+  "radio",
+  "checkboxes",
+] as const;
+
+export const ROSTER_LIMITS = {
+  /** People per list. */
+  maxEntries: 3000,
+  /** Rows per import call, so each one stays under the 1 MB action body. */
+  batchSize: 300,
+  maxColumns: 40,
+  labelMax: 120,
+  nameMax: 200,
+  cellMax: 500,
+  rosterNameMax: 120,
+} as const;

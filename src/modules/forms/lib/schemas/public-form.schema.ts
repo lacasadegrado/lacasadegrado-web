@@ -37,6 +37,7 @@ export const submitFormSchema = z.object({
   answers: z.record(z.string(), z.unknown()),
   /** Parts of the package price paid now; checked against the plan. */
   installments: installmentsSchema.optional(),
+  rosterEntryId: z.uuid().nullable().optional(),
   honeypot: z.string().max(500).optional(),
 });
 
@@ -50,6 +51,11 @@ export const submitPlanPaymentSchema = z.object({
   draftId: draftIdSchema,
   installments: installmentsSchema,
   answers: z.record(z.string(), z.unknown()),
+});
+
+export const rosterPrefillSchema = z.object({
+  slug: slugSchema,
+  entryId: z.uuid(),
 });
 
 export const resendPlanLinkSchema = z.object({

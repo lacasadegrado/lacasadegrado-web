@@ -1,6 +1,8 @@
 import type { FormKind, PackagePaymentStatus } from "@/common/lib/db/schema";
 import type { FormField, FormFieldType } from "@/modules/forms/lib/types/form.types";
 
+import type { RosterChange } from "../utils/package-payment.util";
+
 export type PackagePaymentFilters = {
   eventId?: string;
   formId?: string;
@@ -43,6 +45,11 @@ export type PackagePaymentRow = {
   eurToVes: number | null;
   rejectionReason: string | null;
   reviewedAt: Date | null;
+  /**
+   * Forms with a people list: whether they picked their name, and how many
+   * prefilled answers they corrected or filled. Null without a list.
+   */
+  roster: { listed: boolean; changed: number; filled: number } | null;
 };
 
 /** Per-package totals; null name and price group the answers with no package chosen. */
@@ -66,6 +73,8 @@ export type PackagePaymentAnswer = {
   /** Human-readable value; null when the person left it empty. */
   text: string | null;
   files: PackagePaymentFile[];
+  /** The list's value when they corrected it or filled it in; null when unchanged or not linked. */
+  rosterChange: Pick<RosterChange, "before" | "kind"> | null;
 };
 
 export type PackagePaymentDetail = PackagePaymentRow & {
@@ -79,4 +88,5 @@ export type PackagePaymentDetail = PackagePaymentRow & {
 export type PackagePaymentExportRow = PackagePaymentRow & {
   answers: Record<string, unknown>;
   fields: FormField[];
+  rosterChanges: RosterChange[];
 };

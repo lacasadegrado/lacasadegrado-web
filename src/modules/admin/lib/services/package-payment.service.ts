@@ -17,7 +17,15 @@ import type {
   PackagePaymentRow,
   PackagePaymentSummary,
 } from "../types/package-payment.types";
-import { answerText, fileAnswers, isImageName, likePattern } from "../utils/package-payment.util";
+import {
+  answerText,
+  fileAnswers,
+  isImageName,
+  likePattern,
+  rosterChanges,
+  rosterSnapshotRecord,
+  type RosterChange,
+} from "../utils/package-payment.util";
 
 export const PACKAGE_PAYMENTS_PAGE_SIZE = 50;
 
@@ -68,6 +76,8 @@ const rowColumns = {
   eurToVes: formSubmissions.eurToVes,
   rejectionReason: formSubmissions.rejectionReason,
   reviewedAt: formSubmissions.reviewedAt,
+  rosterEntryId: formSubmissions.rosterEntryId,
+  rosterValues: formSubmissions.rosterValues,
 };
 
 type RawRow = {
@@ -93,12 +103,21 @@ type RawRow = {
   eurToVes: string | null;
   rejectionReason: string | null;
   reviewedAt: Date | null;
+  rosterEntryId: string | null;
+  rosterValues: unknown;
 };
 
 /** The list row plus the parsed answers and fields, kept apart so lists never carry them. */
-function toRow(raw: RawRow): { row: PackagePaymentRow; answers: Record<string, unknown>; fields: FormField[] } {
+function toRow(raw: RawRow): {
+  row: PackagePaymentRow;
+  answers: Record<string, unknown>;
+  fields: FormField[];
+  changes: RosterChange[];
+} {
   const answers = answersRecord(raw.answers);
   const fields = parseSnapshot(raw.fieldsSnapshot);
+  const snapshot = rosterSnapshotRecord(raw.rosterValues);
+  const changes = snapshot ? rosterChanges(fields, answers, snapshot) : [];
   const row: PackagePaymentRow = {
     id: raw.id,
     submittedAt: raw.submittedAt,
@@ -121,8 +140,15 @@ function toRow(raw: RawRow): { row: PackagePaymentRow; answers: Record<string, u
     eurToVes: raw.eurToVes ? Number(raw.eurToVes) : null,
     rejectionReason: raw.rejectionReason,
     reviewedAt: raw.reviewedAt,
+    roster: snapshot
+      ? {
+          listed: raw.rosterEntryId !== null || Object.keys(snapshot).length > 0,
+          changed: changes.filter((change) => change.kind === "changed").length,
+          filled: changes.filter((change) => change.kind === "filled").length,
+        }
+      : null,
   };
-  return { row, answers, fields };
+  return { row, answers, fields, changes };
 }
 
 /** Newest first, one page at a time. */
@@ -203,12 +229,17 @@ function answersRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 }
 
+function changeFor(changes: RosterChange[], fieldId: string): Pick<RosterChange, "before" | "kind"> | null {
+  const change = changes.find((item) => item.fieldId === fieldId);
+  return change ? { before: change.before, kind: change.kind } : null;
+}
+
 /** Every answer in the order the person saw the questions. */
 export async function getPackagePayment(id: string): Promise<PackagePaymentDetail | null> {
   const row = await loadSubmission(id);
   if (!row) return null;
 
-  const { row: base, answers, fields } = toRow(row);
+  const { row: base, answers, fields, changes } = toRow(row);
   // Questions a condition hid from this person are left out, not shown as empty.
   const visible = visibleFieldIds(fields, answers);
   return {
@@ -229,6 +260,7 @@ export async function getPackagePayment(id: string): Promise<PackagePaymentDetai
               isImage: isImageName(file.key),
             }))
           : [],
+      rosterChange: changeFor(changes, field.id),
     })),
   };
 }
@@ -258,7 +290,7 @@ export async function listPackagePaymentsForExport(filters: PackagePaymentFilter
     .orderBy(asc(formSubmissions.submittedAt));
 
   return rows.map((raw) => {
-    const { row, answers, fields } = toRow(raw);
-    return { ...row, answers, fields };
+    const { row, answers, fields, changes } = toRow(raw);
+    return { ...row, answers, fields, rosterChanges: changes };
   });
 }

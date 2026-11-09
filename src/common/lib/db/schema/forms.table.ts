@@ -6,6 +6,7 @@ import { events } from "./events.table";
 import { packagePlans } from "./package-plans.table";
 import { photoPackages } from "./photo-packages.table";
 import { profiles } from "./profiles.table";
+import { rosterEntries, rosters } from "./rosters.table";
 
 /**
  * An admin-built form with a public link (`/f/<slug>`, no login) where
@@ -31,6 +32,12 @@ export const forms = pgTable(
     fields: jsonb("fields").$type<unknown>().notNull(),
     /** Bumped whenever `fields` changes; submissions record the one they saw. */
     version: integer("version").notNull().default(1),
+    /**
+     * People list the form prefills from: the person picks their name and
+     * the questions linked to its columns start filled in. Set null if the
+     * list is deleted; answers keep their snapshot.
+     */
+    rosterId: uuid("roster_id").references(() => rosters.id, { onDelete: "set null" }),
     createdBy: uuid("created_by").references(() => profiles.id, {
       onDelete: "set null",
     }),
@@ -93,6 +100,13 @@ export const formSubmissions = pgTable(
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     reviewedBy: uuid("reviewed_by").references(() => profiles.id, { onDelete: "set null" }),
     rejectionReason: text("rejection_reason"),
+    /**
+     * The list person they picked (null: not in the list, or no list) and
+     * the values the form was prefilled with (`Record<fieldId, string>`),
+     * so the admin sees what they changed even if the list is updated.
+     */
+    rosterEntryId: uuid("roster_entry_id").references(() => rosterEntries.id, { onDelete: "set null" }),
+    rosterValues: jsonb("roster_values").$type<unknown>(),
   },
   (t) => [
     index("form_submissions_form_id_submitted_at_idx").on(t.formId, t.submittedAt),
