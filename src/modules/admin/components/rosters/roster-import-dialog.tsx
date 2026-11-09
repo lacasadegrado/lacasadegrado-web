@@ -282,7 +282,7 @@ export function RosterImportDialog({ eventId, roster }: RosterImportDialogProps)
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[90vh] grid-cols-[minmax(0,1fr)] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{roster ? `Actualizar ${roster.name}` : "Importar listado de personas"}</DialogTitle>
           <DialogDescription>
@@ -292,8 +292,8 @@ export function RosterImportDialog({ eventId, roster }: RosterImportDialogProps)
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <div className="min-w-0 space-y-5">
+          <div className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor={`${id}-file`}>Archivo Excel o CSV</Label>
               <Input
@@ -355,7 +355,7 @@ export function RosterImportDialog({ eventId, roster }: RosterImportDialogProps)
 
           {preview ? (
             <>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-4">
                 <div className="space-y-1.5">
                   <Label htmlFor={`${id}-name-column`}>Columna con el nombre</Label>
                   <NativeSelect
@@ -429,7 +429,7 @@ export function RosterImportDialog({ eventId, roster }: RosterImportDialogProps)
                     ? ` · ${preview.skipped} fila${preview.skipped === 1 ? "" : "s"} sin nombre se omiten`
                     : ""}
                 </p>
-                <div className="overflow-x-auto rounded-md border">
+                <div className="max-w-full overflow-x-auto rounded-md border">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-muted">
                       <tr>
