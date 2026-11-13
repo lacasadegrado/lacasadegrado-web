@@ -28,15 +28,23 @@ export async function countAttemptsSince(
   return countSince(kind, windowSeconds, "ip" in by ? eq(formAttempts.ip, by.ip) : eq(formAttempts.email, by.email));
 }
 
+/**
+ * Who is sending: their IP and whether they are a signed-in admin. Admins
+ * fill forms for other people (a whole class from one tablet), so no
+ * limit applies to them.
+ */
+export type FormClient = { ip: string | null; trusted: boolean };
+
 /** Without an IP (local dev, odd proxies) the IP limits cannot apply. */
-export async function isUploadAllowed(ip: string | null): Promise<boolean> {
-  if (!ip) return true;
+export async function isUploadAllowed({ ip, trusted }: FormClient): Promise<boolean> {
+  if (trusted || !ip) return true;
   const { max, windowSeconds } = FORM_RATE_LIMITS.uploadsPerIp;
   return (await countSince("upload", windowSeconds, eq(formAttempts.ip, ip))) < max;
 }
 
 /** Without an email (optional or absent field) only the IP limit applies. */
-export async function isSubmitAllowed(formId: string, email: string | null, ip: string | null): Promise<boolean> {
+export async function isSubmitAllowed(formId: string, email: string | null, { ip, trusted }: FormClient): Promise<boolean> {
+  if (trusted) return true;
   if (email) {
     const perEmail = FORM_RATE_LIMITS.submitsPerEmailPerForm;
     const byEmail = await countSince(

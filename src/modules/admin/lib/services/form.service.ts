@@ -9,6 +9,7 @@ import { events, formSubmissions, forms, photoPackages, rosters, type FormKind, 
 import { deleteObjects, listObjects } from "@/common/lib/storage/storage.service";
 import { FORM_UPLOAD_PREFIX, ROSTER_NAME_COLUMN } from "@/modules/forms/lib/constants/forms.constants";
 import { formFieldsSchema, validateFieldsForKind } from "@/modules/forms/lib/schemas/form-field.schema";
+import { parseFormTexts, type FormTexts } from "@/modules/forms/lib/schemas/form-texts.schema";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
 import { createDefaultFormFields } from "@/modules/forms/lib/utils/form-fields.util";
 
@@ -81,6 +82,7 @@ export async function getFormForBuilder(formId: string): Promise<AdminFormDetail
       version: forms.version,
       updatedAt: forms.updatedAt,
       rosterId: forms.rosterId,
+      texts: forms.texts,
     })
     .from(forms)
     .innerJoin(events, eq(events.id, forms.eventId))
@@ -101,6 +103,7 @@ export async function getFormForBuilder(formId: string): Promise<AdminFormDetail
     ...row,
     // Stored definitions always passed this schema on save; parse anyway.
     fields: formFieldsSchema.parse(row.fields),
+    texts: parseFormTexts(row.texts),
     submissionCount: submissions?.total ?? 0,
     activePackageCount: packages?.total ?? 0,
     rosters: rosterOptions,
@@ -113,7 +116,13 @@ export async function getFormForBuilder(formId: string): Promise<AdminFormDetail
  */
 export async function saveForm(
   formId: string,
-  input: { title: string; description: string | null; fields: FormField[]; rosterId: string | null },
+  input: {
+    title: string;
+    description: string | null;
+    fields: FormField[];
+    rosterId: string | null;
+    texts: FormTexts;
+  },
 ): Promise<
   | { ok: true; version: number; eventId: string }
   | { ok: false; reason: "not_found" }
@@ -161,7 +170,7 @@ export async function saveForm(
     const version = fieldsChanged ? current.version + 1 : current.version;
     await tx
       .update(forms)
-      .set({ title: input.title, description: input.description, fields: input.fields, version, rosterId: input.rosterId })
+      .set({ title: input.title, description: input.description, fields: input.fields, version, rosterId: input.rosterId, texts: Object.keys(input.texts).length > 0 ? input.texts : null })
       .where(eq(forms.id, formId));
     return { ok: true as const, version, eventId: current.eventId };
   });

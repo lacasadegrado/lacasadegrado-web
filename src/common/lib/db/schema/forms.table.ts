@@ -38,6 +38,12 @@ export const forms = pgTable(
      * list is deleted; answers keep their snapshot.
      */
     rosterId: uuid("roster_id").references(() => rosters.id, { onDelete: "set null" }),
+    /**
+     * The admin's own wording for the public page (`Partial<Record<key,
+     * string>>`, parsed with `formTextsSchema`); null or a missing key
+     * means the default text.
+     */
+    texts: jsonb("texts").$type<unknown>(),
     createdBy: uuid("created_by").references(() => profiles.id, {
       onDelete: "set null",
     }),

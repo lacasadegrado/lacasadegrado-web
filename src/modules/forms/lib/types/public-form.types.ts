@@ -1,5 +1,6 @@
 import type { FormKind, FormStatus, PackagePaymentStatus, PackagePlanStatus } from "@/common/lib/db/schema";
 
+import type { FormTexts } from "../schemas/form-texts.schema";
 import type { FormField, FormPackageOption } from "./form.types";
 
 /**
@@ -22,6 +23,8 @@ export type PublicForm = {
   eurToVes: number | null;
   /** People list to pick a name from, when the form prefills from one. */
   roster: { people: RosterPerson[] } | null;
+  /** The admin's reworded texts; `formText` fills in the defaults. */
+  texts: FormTexts;
 };
 
 /** A name to pick; `hint` tells two people with the same name apart. */

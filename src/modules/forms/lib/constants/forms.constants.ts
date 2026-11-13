@@ -121,13 +121,15 @@ export const FORM_FILE_EXTENSIONS: Record<string, string> = {
 };
 
 /**
- * Limits for anonymous visitors. Generous for a real person fixing a
- * mistake, tight enough that nobody fills the bucket or someone else's
- * inbox (every submission emails the address it was sent with).
+ * Limits for anonymous visitors (signed-in admins have none). Per IP they
+ * are generous on purpose: a whole class answers from the venue's Wi-Fi,
+ * and Venezuelan mobile carriers share one IP among many phones (10 per
+ * hour blocked a real event on 2026-11-10). The per-email limit is what
+ * keeps anyone from filling someone else's inbox.
  */
 export const FORM_RATE_LIMITS = {
-  uploadsPerIp: { max: 40, windowSeconds: 60 * 60 },
-  submitsPerIp: { max: 10, windowSeconds: 60 * 60 },
+  uploadsPerIp: { max: 200, windowSeconds: 60 * 60 },
+  submitsPerIp: { max: 60, windowSeconds: 60 * 60 },
   submitsPerEmailPerForm: { max: 5, windowSeconds: 60 * 60 },
   /** "Send me my link again" requests. */
   planLinksPerIp: { max: 5, windowSeconds: 60 * 60 },
@@ -164,6 +166,92 @@ export const CONDITION_SOURCE_TYPES = ["select", "radio", "checkboxes"] as const
 
 /** Above this many options the public page shows a searchable list. */
 export const SEARCHABLE_SELECT_THRESHOLD = 12;
+
+/**
+ * Texts of the public form the admin can reword (each audience wants its
+ * own tone: "Busca tu nombre" vs "Busque su nombre"). Empty = the default.
+ * `kindDefaults` overrides `default` for a form kind; a null default means
+ * the page builds the text itself (the success message names the email).
+ */
+export const FORM_TEXTS = {
+  rosterTitle: { group: "roster", label: "Título de la búsqueda", max: 120, default: "Busca tu nombre" },
+  rosterDescription: {
+    group: "roster",
+    label: "Texto bajo el título",
+    max: 400,
+    multiline: true,
+    default: "Te mostramos los datos que ya tenemos tuyos para que los confirmes, corrijas lo que esté mal y completes lo que falte.",
+  },
+  rosterPlaceholder: { group: "roster", label: "Texto dentro del buscador", max: 120, default: "Escribe tu nombre y apellido…" },
+  rosterNotListed: { group: "roster", label: "Botón para quien no está en la lista", max: 120, default: "No estoy en la lista" },
+  rosterNoMatch: {
+    group: "roster",
+    label: "Cuando la búsqueda no encuentra el nombre",
+    max: 200,
+    default: "No aparece. Revisa cómo lo escribiste o usa «No estoy en la lista».",
+  },
+  rosterSelected: { group: "roster", label: "Antes del nombre elegido", max: 120, default: "Respondes como" },
+  rosterNotListedSelected: {
+    group: "roster",
+    label: "Aviso al elegir que no está en la lista",
+    max: 200,
+    default: "No estás en la lista: llena tus datos abajo.",
+  },
+  noteFromList: {
+    group: "notes",
+    label: "Bajo un dato que vino del listado",
+    max: 200,
+    default: "Dato que tenemos de ti: revísalo y corrígelo si está mal.",
+  },
+  noteCorrected: { group: "notes", label: "Cuando la persona lo corrige", max: 200, default: "Lo corregiste. Gracias." },
+  noteMissing: {
+    group: "notes",
+    label: "Cuando el listado no tiene el dato",
+    max: 200,
+    default: "No tenemos este dato: complétalo, por favor.",
+  },
+  submitLabel: {
+    group: "submit",
+    label: "Botón de envío",
+    max: 60,
+    default: "Enviar respuesta",
+    kindDefaults: { package_payment: "Enviar comprobante" },
+  },
+  successTitle: {
+    group: "submit",
+    label: "Título después de enviar",
+    max: 120,
+    default: "Recibimos tu respuesta",
+    kindDefaults: { package_payment: "Recibimos tu comprobante" },
+  },
+  successMessage: {
+    group: "submit",
+    label: "Mensaje después de enviar",
+    max: 400,
+    multiline: true,
+    default: null,
+    placeholder: "Si falta algún dato te escribimos al correo que dejaste.",
+  },
+} as const satisfies Record<
+  string,
+  {
+    group: "roster" | "notes" | "submit";
+    label: string;
+    max: number;
+    multiline?: boolean;
+    default: string | null;
+    kindDefaults?: Partial<Record<FormKind, string>>;
+    placeholder?: string;
+  }
+>;
+
+export type FormTextKey = keyof typeof FORM_TEXTS;
+
+export const FORM_TEXT_GROUPS = {
+  roster: { title: "Búsqueda del nombre", hint: "Solo se ven si el formulario usa un listado de personas." },
+  notes: { title: "Avisos bajo cada dato del listado", hint: "Aparecen debajo de las preguntas que se llenan desde el listado." },
+  submit: { title: "Envío", hint: "El botón y la pantalla que ve la persona al enviar." },
+} as const;
 
 /**
  * Key a question uses to prefill with the person's name from the list;

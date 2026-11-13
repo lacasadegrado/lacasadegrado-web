@@ -2,10 +2,12 @@
 
 import { headers } from "next/headers";
 
+import { getAdminUser } from "@/modules/admin/lib/services/admin-access.service";
 import { getClientIp } from "@/modules/auth/lib/utils/auth.util";
 
 import { FORM_LIMITS } from "../constants/forms.constants";
 import { prepareFormUploadSchema, rosterPrefillSchema, submitFormSchema } from "../schemas/public-form.schema";
+import type { FormClient } from "../services/form-rate-limit.service";
 import { getRosterPrefill, prepareFormUpload, submitPublicForm } from "../services/public-form.service";
 import type { PrepareFormUploadResult, RosterPrefillResult, SubmitFormResult } from "../types/public-form.types";
 
@@ -13,6 +15,12 @@ import type { PrepareFormUploadResult, RosterPrefillResult, SubmitFormResult } f
  * Public on purpose: these forms are filled without an account. Abuse is
  * bounded by the per-IP and per-email limits in the service.
  */
+
+/** The caller's IP, and whether a signed-in admin is filling it in (no limits then). */
+async function formClient(): Promise<FormClient> {
+  const [requestHeaders, admin] = await Promise.all([headers(), getAdminUser()]);
+  return { ip: getClientIp(requestHeaders), trusted: Boolean(admin) };
+}
 
 const UPLOAD_MESSAGES = {
   not_found: "Este formulario ya no existe.",
@@ -39,7 +47,7 @@ export async function prepareFormUploadAction(input: {
     };
   }
 
-  const result = await prepareFormUpload(parsed.data, getClientIp(await headers()));
+  const result = await prepareFormUpload(parsed.data, await formClient());
   if (!result.ok) return { ok: false, message: UPLOAD_MESSAGES[result.reason] };
   return { ok: true, key: result.key, uploadUrl: result.uploadUrl };
 }
@@ -63,7 +71,7 @@ export async function submitFormAction(input: {
     };
   }
 
-  const result = await submitPublicForm(parsed.data, getClientIp(await headers()));
+  const result = await submitPublicForm(parsed.data, await formClient());
   if (result.ok) return result;
 
   switch (result.reason) {
@@ -72,7 +80,7 @@ export async function submitFormAction(input: {
     case "rate_limited":
       return {
         ok: false,
-        message: "Recibimos varias respuestas seguidas desde aquí. Espera un rato e intenta de nuevo.",
+        message: "Llegaron muchas respuestas seguidas desde esta conexión. Espera unos minutos e intenta de nuevo.",
       };
     case "not_open":
       return { ok: false, message: "Este formulario ya no recibe respuestas." };

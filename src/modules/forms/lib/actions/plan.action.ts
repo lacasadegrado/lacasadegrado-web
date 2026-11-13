@@ -2,10 +2,12 @@
 
 import { headers } from "next/headers";
 
+import { getAdminUser } from "@/modules/admin/lib/services/admin-access.service";
 import { getClientIp } from "@/modules/auth/lib/utils/auth.util";
 
 import { FORM_LIMITS } from "../constants/forms.constants";
 import { preparePlanUploadSchema, resendPlanLinkSchema, submitPlanPaymentSchema } from "../schemas/public-form.schema";
+import type { FormClient } from "../services/form-rate-limit.service";
 import { preparePlanUpload, resendPlanLinks, submitPlanPayment } from "../services/package-plan.service";
 import type { PrepareFormUploadResult, ResendPlanLinkResult, SubmitPlanPaymentResult } from "../types/public-form.types";
 
@@ -13,6 +15,12 @@ import type { PrepareFormUploadResult, ResendPlanLinkResult, SubmitPlanPaymentRe
  * Public on purpose, like the forms: the plan link is the credential.
  * Abuse is bounded by the same per-IP and per-email limits.
  */
+
+/** The caller's IP, and whether a signed-in admin is filling it in (no limits then). */
+async function formClient(): Promise<FormClient> {
+  const [requestHeaders, admin] = await Promise.all([headers(), getAdminUser()]);
+  return { ip: getClientIp(requestHeaders), trusted: Boolean(admin) };
+}
 
 const GONE = "Este enlace ya no funciona. Pide uno nuevo en el formulario.";
 const PAID = "Este paquete ya está pagado.";
@@ -41,7 +49,7 @@ export async function preparePlanUploadAction(input: {
       message: parsed.error.issues[0]?.message ?? `Archivo no válido (máximo ${FORM_LIMITS.maxFileMb} MB).`,
     };
   }
-  const result = await preparePlanUpload(parsed.data, getClientIp(await headers()));
+  const result = await preparePlanUpload(parsed.data, await formClient());
   if (!result.ok) return { ok: false, message: UPLOAD_MESSAGES[result.reason] };
   return { ok: true, key: result.key, uploadUrl: result.uploadUrl };
 }
@@ -55,7 +63,7 @@ export async function submitPlanPaymentAction(input: {
   const parsed = submitPlanPaymentSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: "No pudimos leer el pago. Recarga la página." };
 
-  const result = await submitPlanPayment(parsed.data, getClientIp(await headers()));
+  const result = await submitPlanPayment(parsed.data, await formClient());
   if (result.ok) return result;
   switch (result.reason) {
     case "invalid":

@@ -18,6 +18,7 @@ import { visibleFieldIds } from "../../lib/utils/form-conditions.util";
 import { InstallmentPicker } from "../installment-picker/installment-picker";
 import { PlanReceipt } from "../plan-receipt/plan-receipt";
 import { RosterPicker, type RosterIdentity } from "../roster-picker/roster-picker";
+import { formText } from "../../lib/schemas/form-texts.schema";
 import { FormFieldInput } from "./form-field-input";
 
 
@@ -64,6 +65,8 @@ export function PublicForm({ form }: { form: PublicFormData }) {
   const [rosterError, setRosterError] = useState<string | null>(null);
   const [loadingRoster, startLoadingRoster] = useTransition();
   const waitingForName = Boolean(form.roster) && (!identity || loadingRoster);
+  // The admin's wording, or the default for this kind of form.
+  const text = (key: Parameters<typeof formText>[1]) => formText(form.texts, key, form.kind) ?? "";
   // Conditional questions appear as soon as their trigger option is picked.
   const visible = visibleFieldIds(form.fields, values);
   const fieldIds = form.fields
@@ -147,10 +150,10 @@ export function PublicForm({ form }: { form: PublicFormData }) {
     const empty = value === undefined || value === "" || (Array.isArray(value) && value.length === 0);
     if (fieldId in prefilled) {
       return JSON.stringify(prefilled[fieldId]) === JSON.stringify(value)
-        ? { text: "Dato que tenemos de ti: revísalo y corrígelo si está mal.", tone: "muted" }
-        : { text: "Lo corregiste. Gracias.", tone: "muted" };
+        ? { text: text("noteFromList"), tone: "muted" }
+        : { text: text("noteCorrected"), tone: "muted" };
     }
-    if (missing.has(fieldId) && empty) return { text: "No tenemos este dato: complétalo, por favor.", tone: "amber" };
+    if (missing.has(fieldId) && empty) return { text: text("noteMissing"), tone: "amber" };
     return null;
   }
 
@@ -216,18 +219,22 @@ export function PublicForm({ form }: { form: PublicFormData }) {
       <section aria-live="polite" className="space-y-5 rounded-lg border bg-card p-6">
         <CircleCheck aria-hidden="true" className="size-10 text-primary" />
         <div className="space-y-2">
-          <h2 className="text-2xl">{isPayment ? "Recibimos tu comprobante" : "Recibimos tu respuesta"}</h2>
-          <p className="text-muted-foreground">
-            {isPayment ? "Vamos a verificar tu pago. " : ""}Si falta algún dato te escribimos
-            {receipt.email ? (
-              <>
-                {" "}a <strong className="text-foreground">{receipt.email}</strong>
-              </>
-            ) : (
-              " por los datos de contacto que dejaste"
-            )}
-            .
-          </p>
+          <h2 className="text-2xl">{text("successTitle")}</h2>
+          {form.texts.successMessage ? (
+            <p className="whitespace-pre-line text-muted-foreground">{form.texts.successMessage}</p>
+          ) : (
+            <p className="text-muted-foreground">
+              {isPayment ? "Vamos a verificar tu pago. " : ""}Si falta algún dato te escribimos
+              {receipt.email ? (
+                <>
+                  {" "}a <strong className="text-foreground">{receipt.email}</strong>
+                </>
+              ) : (
+                " por los datos de contacto que dejaste"
+              )}
+              .
+            </p>
+          )}
         </div>
         {receipt.plan ? <PlanReceipt plan={receipt.plan} showLink /> : null}
         {!receipt.plan && (receipt.packageName || receipt.reference) ? (
@@ -279,6 +286,15 @@ export function PublicForm({ form }: { form: PublicFormData }) {
           loading={loadingRoster}
           error={rosterError}
           onPick={pickIdentity}
+          texts={{
+            title: text("rosterTitle"),
+            description: text("rosterDescription"),
+            placeholder: text("rosterPlaceholder"),
+            noMatch: text("rosterNoMatch"),
+            notListed: text("rosterNotListed"),
+            selected: text("rosterSelected"),
+            notListedSelected: text("rosterNotListedSelected"),
+          }}
         />
       ) : null}
 
@@ -357,9 +373,7 @@ export function PublicForm({ form }: { form: PublicFormData }) {
               ? "Enviando…"
               : busy
                 ? "Subiendo archivos…"
-                : form.kind === "package_payment"
-                  ? "Enviar comprobante"
-                  : "Enviar respuesta"}
+                : text("submitLabel")}
           </Button>
           <p className="text-sm text-muted-foreground">
             Los campos con <span aria-hidden="true">*</span>

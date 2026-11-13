@@ -19,6 +19,18 @@ type RosterPickerProps = {
   loading: boolean;
   error: string | null;
   onPick: (identity: RosterIdentity | null) => void;
+  /** The form's wording (the admin's or the defaults). */
+  texts: RosterPickerTexts;
+};
+
+export type RosterPickerTexts = {
+  title: string;
+  description: string;
+  placeholder: string;
+  noMatch: string;
+  notListed: string;
+  selected: string;
+  notListedSelected: string;
 };
 
 /** Every word typed must appear in the name or its hint: "melo christian" finds "Christian Mauricio Melo García". */
@@ -37,7 +49,7 @@ function matches(keywords: string[] | undefined, search: string): number {
  * (accents and order don't matter) and the form fills in what the list
  * knows. "No estoy en la lista" opens the form empty.
  */
-export function RosterPicker({ people, identity, loading, error, onPick }: RosterPickerProps) {
+export function RosterPicker({ people, identity, loading, error, onPick, texts }: RosterPickerProps) {
   const [open, setOpen] = useState(false);
 
   if (identity) {
@@ -48,11 +60,11 @@ export function RosterPicker({ people, identity, loading, error, onPick }: Roste
           <p role="status">
             {identity.kind === "listed" ? (
               <>
-                Respondes como <strong>{identity.name}</strong>
+                {texts.selected} <strong>{identity.name}</strong>
                 {loading ? <span className="text-muted-foreground"> · cargando tus datos…</span> : null}
               </>
             ) : (
-              "No estás en la lista: llena tus datos abajo."
+              texts.notListedSelected
             )}
           </p>
         </div>
@@ -67,12 +79,9 @@ export function RosterPicker({ people, identity, loading, error, onPick }: Roste
     <section aria-labelledby="roster-picker-title" className="space-y-3 rounded-lg border bg-card p-5">
       <div>
         <h2 id="roster-picker-title" className="text-xl">
-          Busca tu nombre
+          {texts.title}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Te mostramos los datos que ya tenemos tuyos para que los confirmes, corrijas lo que esté mal y
-          completes lo que falte.
-        </p>
+        {texts.description ? <p className="mt-1 text-sm text-muted-foreground">{texts.description}</p> : null}
       </div>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -85,7 +94,7 @@ export function RosterPicker({ people, identity, loading, error, onPick }: Roste
             aria-invalid={Boolean(error) || undefined}
             className="h-auto min-h-11 w-full justify-between py-2 text-left font-normal text-muted-foreground"
           >
-            Escribe tu nombre y apellido…
+            {texts.placeholder}
             <ChevronsUpDown aria-hidden="true" className="ml-2 size-4 shrink-0 opacity-60" />
           </Button>
         </PopoverTrigger>
@@ -93,7 +102,7 @@ export function RosterPicker({ people, identity, loading, error, onPick }: Roste
           <Command filter={(_value, search, keywords) => matches(keywords, search)}>
             <CommandInput placeholder="Escribe para buscar…" />
             <CommandList>
-              <CommandEmpty>No aparece. Revisa cómo lo escribiste o usa «No estoy en la lista».</CommandEmpty>
+              <CommandEmpty>{texts.noMatch}</CommandEmpty>
               {people.map((person) => (
                 <CommandItem
                   key={person.id}
@@ -121,7 +130,7 @@ export function RosterPicker({ people, identity, loading, error, onPick }: Roste
         </p>
       ) : null}
       <Button type="button" variant="link" className="h-auto p-0" onClick={() => onPick({ kind: "not_listed" })}>
-        No estoy en la lista
+        {texts.notListed}
       </Button>
     </section>
   );

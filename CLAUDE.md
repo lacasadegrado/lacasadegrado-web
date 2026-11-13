@@ -291,6 +291,15 @@ store `roster_entry_id` and `roster_values` (snapshot; `{}` = said "No
 estoy en la lista"); `rosterChanges` drives "Corregido/Completado" in the
 detail, the list rows and the Excel. The list itself never changes from
 answers.
+Form texts (2026-11-12, migration 0017): `forms.texts` jsonb holds only
+the public-page texts the admin reworded (search box, notes under
+prefilled answers, submit button, success screen); `FORM_TEXTS` in the
+forms constants lists them with defaults (some per kind), `formText()`
+resolves them, and the builder's "Textos del formulario" edits them.
+Public form rate limits (2026-11-12): signed-in admins have none
+(`FormClient.trusted`, set in the actions via `getAdminUser`); per IP 60
+submits and 200 uploads per hour (venue Wi-Fi and carrier CGNAT share
+IPs; 10/hour blocked a real event); per email 5 per hour per form.
 Previews have NO blur since 2026-10-21 (`blurSigma: 0`; it was 12, then 5
 from 2026-09-30, and did not help sell). The only protection is the dense,
 fairly opaque tiled watermark in `buildWatermarkSvg` (`WATERMARK_DENSITY`

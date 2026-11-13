@@ -3,6 +3,7 @@ import { z } from "zod";
 import { formKindEnum, formStatusEnum } from "@/common/lib/db/schema/enums.table";
 import { FORM_LIMITS, PLAN_LIMITS } from "@/modules/forms/lib/constants/forms.constants";
 import { formFieldsSchema } from "@/modules/forms/lib/schemas/form-field.schema";
+import { formTextsSchema } from "@/modules/forms/lib/schemas/form-texts.schema";
 
 const priceEurSchema = z.coerce
   .number({ error: "Escribe un precio válido." })
@@ -57,6 +58,8 @@ export const saveFormSchema = z.object({
   fields: formFieldsSchema,
   /** People list that prefills the form; null unlinks it. */
   rosterId: z.uuid().nullable(),
+  /** Reworded texts of the public page; empty ones use the defaults. */
+  texts: formTextsSchema,
 });
 
 export const setFormStatusSchema = z.object({

@@ -21,7 +21,13 @@ import type { PlanReceipt, PublicPlan } from "../types/public-form.types";
 import { buildFormSubmittedEmail, buildPlanLinksEmail } from "../utils/form-email.util";
 import { amountForInstallments } from "../utils/installments.util";
 import { presignFormFile, verifyFileAnswers, type PresignFileOutcome } from "./form-files.service";
-import { countAttemptsSince, isSubmitAllowed, isUploadAllowed, recordFormAttempt } from "./form-rate-limit.service";
+import {
+  countAttemptsSince,
+  isSubmitAllowed,
+  isUploadAllowed,
+  recordFormAttempt,
+  type FormClient,
+} from "./form-rate-limit.service";
 
 type Executor = Db | DbTransaction;
 
@@ -275,12 +281,13 @@ export type PreparePlanUploadOutcome = PresignFileOutcome | { ok: false; reason:
 /** Presigned PUT for the proof of an abono, under the plan form's prefix. */
 export async function preparePlanUpload(
   input: { token: string; draftId: string; fieldId: string; type: string; size: number },
-  ip: string | null,
+  client: FormClient,
 ): Promise<PreparePlanUploadOutcome> {
+  const { ip } = client;
   const plan = await loadPlan(input.token);
   if (!plan) return { ok: false, reason: "not_found" };
   if (plan.status !== "open") return { ok: false, reason: "paid" };
-  if (!(await isUploadAllowed(ip))) return { ok: false, reason: "rate_limited" };
+  if (!(await isUploadAllowed(client))) return { ok: false, reason: "rate_limited" };
 
   const fields = planPaymentFields(formFieldsSchema.parse(plan.formFields));
   const outcome = await presignFormFile({
@@ -306,8 +313,9 @@ export type SubmitPlanPaymentOutcome =
  */
 export async function submitPlanPayment(
   input: { token: string; draftId: string; installments: number; answers: Record<string, unknown> },
-  ip: string | null,
+  client: FormClient,
 ): Promise<SubmitPlanPaymentOutcome> {
+  const { ip } = client;
   const plan = await loadPlan(input.token);
   if (!plan) return { ok: false, reason: "not_found" };
   if (plan.status !== "open") return { ok: false, reason: "paid" };
@@ -320,7 +328,7 @@ export async function submitPlanPayment(
     return { ok: false, reason: "invalid", fieldErrors };
   }
   const answers = parsed.data as FormAnswers;
-  if (!(await isSubmitAllowed(plan.formId, plan.email, ip))) return { ok: false, reason: "rate_limited" };
+  if (!(await isSubmitAllowed(plan.formId, plan.email, client))) return { ok: false, reason: "rate_limited" };
 
   const fileErrors = await verifyFileAnswers(plan.formId, input.draftId, fields, answers);
   if (Object.keys(fileErrors).length > 0) return { ok: false, reason: "invalid", fieldErrors: fileErrors };

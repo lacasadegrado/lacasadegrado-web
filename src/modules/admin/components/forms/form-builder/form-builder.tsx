@@ -11,6 +11,7 @@ import { NativeSelect, NativeSelectOption } from "@/common/components/ui/native-
 import { Textarea } from "@/common/components/ui/textarea";
 import { FORM_LIMITS, ROSTER_NAME_COLUMN } from "@/modules/forms/lib/constants/forms.constants";
 import { formFieldsSchema, validateFieldsForKind } from "@/modules/forms/lib/schemas/form-field.schema";
+import type { FormTexts } from "@/modules/forms/lib/schemas/form-texts.schema";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
 import { createField, type AddableFieldType } from "@/modules/forms/lib/utils/form-fields.util";
 
@@ -19,12 +20,19 @@ import type { AdminFormDetail } from "../../../lib/types/form-admin.types";
 import { AddFieldMenu } from "./add-field-menu";
 import { FieldCard } from "./field-card";
 import { FormStatusControls } from "./form-status-controls";
+import { FormTextsSettings } from "./form-texts-settings";
 
-type Draft = { title: string; description: string; fields: FormField[]; rosterId: string | null };
+type Draft = { title: string; description: string; fields: FormField[]; rosterId: string | null; texts: FormTexts };
 type Issue = { path: (string | number)[]; message: string };
 
 function toDraft(form: AdminFormDetail): Draft {
-  return { title: form.title, description: form.description ?? "", fields: form.fields, rosterId: form.rosterId };
+  return {
+    title: form.title,
+    description: form.description ?? "",
+    fields: form.fields,
+    rosterId: form.rosterId,
+    texts: form.texts,
+  };
 }
 
 /**
@@ -186,6 +194,7 @@ export function FormBuilder({ form }: { form: AdminFormDetail }) {
         description: draft.description,
         fields: draft.fields,
         rosterId: draft.rosterId,
+        texts: draft.texts,
       });
       if (result.ok) {
         setSaved(draft);
@@ -296,6 +305,13 @@ export function FormBuilder({ form }: { form: AdminFormDetail }) {
           )}
         </div>
       </section>
+
+      <FormTextsSettings
+        kind={form.kind}
+        texts={draft.texts}
+        hasRoster={Boolean(draft.rosterId)}
+        onChange={(texts) => setDraft((current) => ({ ...current, texts }))}
+      />
 
       <section aria-labelledby={`${id}-fields`} className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-2">

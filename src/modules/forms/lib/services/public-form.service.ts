@@ -14,6 +14,7 @@ import { getCurrentRate, getLatestRate } from "@/modules/checkout/lib/services/e
 
 import { buildAnswersSchema } from "../schemas/form-answers.schema";
 import { formFieldsSchema } from "../schemas/form-field.schema";
+import { parseFormTexts } from "../schemas/form-texts.schema";
 import type { PrepareFormUploadInput } from "../schemas/public-form.schema";
 import type { FormAnswers, FormFileAnswer } from "../types/form.types";
 import type { PublicForm, RosterPrefill, SubmitReceipt } from "../types/public-form.types";
@@ -21,14 +22,15 @@ import { buildFormSubmittedEmail } from "../utils/form-email.util";
 import { personNameFrom } from "../utils/person-name.util";
 import { presignFormFile, verifyFileAnswers } from "./form-files.service";
 import { buildRosterPrefill, getRosterEntry, listRosterPeople, rosterSnapshot } from "./form-roster.service";
-import { isSubmitAllowed, isUploadAllowed, recordFormAttempt } from "./form-rate-limit.service";
+import { isSubmitAllowed, isUploadAllowed, recordFormAttempt, type FormClient } from "./form-rate-limit.service";
 import { planReceipt, preparePlanForPayment } from "./package-plan.service";
 
-type LoadedForm = Omit<PublicForm, "eurToVes" | "roster"> & {
+type LoadedForm = Omit<PublicForm, "eurToVes" | "roster" | "texts"> & {
   id: string;
   version: number;
   eventId: string;
   rosterId: string | null;
+  texts: unknown;
 };
 
 async function loadForm(slug: string): Promise<LoadedForm | null> {
@@ -47,6 +49,7 @@ async function loadForm(slug: string): Promise<LoadedForm | null> {
       institution: events.institution,
       eventDate: events.eventDate,
       rosterId: forms.rosterId,
+      texts: forms.texts,
     })
     .from(forms)
     .innerJoin(events, eq(events.id, forms.eventId))
@@ -71,6 +74,7 @@ async function loadForm(slug: string): Promise<LoadedForm | null> {
     version: row.version,
     eventId: row.eventId,
     rosterId: row.rosterId,
+    texts: row.texts,
     slug: row.slug,
     title: row.title,
     description: row.description,
@@ -109,6 +113,7 @@ export const getPublicForm = cache(async (slug: string): Promise<PublicForm | nu
     packages: form.packages,
     eurToVes: rate?.eurToVes ?? null,
     roster: people ? { people } : null,
+    texts: parseFormTexts(form.texts),
   };
 });
 
@@ -130,15 +135,16 @@ export type PrepareFormUploadOutcome =
 /** Presigned PUT for one file of one file field of an open form. */
 export async function prepareFormUpload(
   input: PrepareFormUploadInput,
-  ip: string | null,
+  client: FormClient,
 ): Promise<PrepareFormUploadOutcome> {
+  const { ip } = client;
   const form = await loadForm(input.slug);
   if (!form) return { ok: false, reason: "not_found" };
   if (form.status !== "open") return { ok: false, reason: "not_open" };
 
   const field = form.fields.find((item) => item.id === input.fieldId);
   if (!field || field.type !== "file") return { ok: false, reason: "bad_field" };
-  if (!(await isUploadAllowed(ip))) return { ok: false, reason: "rate_limited" };
+  if (!(await isUploadAllowed(client))) return { ok: false, reason: "rate_limited" };
 
   const outcome = await presignFormFile({ formId: form.id, draftId: input.draftId, field, type: input.type, size: input.size });
   if (outcome.ok) await recordFormAttempt({ kind: "upload", formId: form.id, ip });
@@ -169,8 +175,9 @@ export async function submitPublicForm(
     /** The list person they picked; null or absent: not in the list. */
     rosterEntryId?: string | null;
   },
-  ip: string | null,
+  client: FormClient,
 ): Promise<SubmitFormOutcome> {
+  const { ip } = client;
   const form = await loadForm(input.slug);
   if (!form) return { ok: false, reason: "not_found" };
   if (form.status !== "open") return { ok: false, reason: "not_open" };
@@ -192,7 +199,7 @@ export async function submitPublicForm(
   const reference = typeof answers.reference === "string" ? answers.reference : null;
   const proof = Array.isArray(answers.proof) ? (answers.proof as FormFileAnswer[]) : [];
 
-  if (!(await isSubmitAllowed(form.id, email, ip))) return { ok: false, reason: "rate_limited" };
+  if (!(await isSubmitAllowed(form.id, email, client))) return { ok: false, reason: "rate_limited" };
 
   const fileErrors = await verifyFileAnswers(form.id, input.draftId, form.fields, answers);
   if (Object.keys(fileErrors).length > 0) return { ok: false, reason: "invalid", fieldErrors: fileErrors };
