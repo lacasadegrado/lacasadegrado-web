@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Plus } from "lucide-react";
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState } from "react";
 
 import { Alert, AlertDescription } from "@/common/components/ui/alert";
 import { Button } from "@/common/components/ui/button";
@@ -20,6 +20,7 @@ import { Textarea } from "@/common/components/ui/textarea";
 import { PLAN_LIMITS } from "@/modules/forms/lib/constants/forms.constants";
 
 import { createPackageAction, updatePackageAction } from "../../lib/actions/package.action";
+import { PACKAGE_DESCRIPTION_MAX } from "../../lib/schemas/form-admin.schema";
 import type { ActionState } from "../../lib/types/admin.types";
 import type { AdminPackage } from "../../lib/types/form-admin.types";
 
@@ -45,6 +46,7 @@ export function PackageDialog(props: PackageDialogProps) {
     IDLE,
   );
   const errors = state.status === "error" ? (state.fieldErrors ?? {}) : {};
+  const [descriptionLength, setDescriptionLength] = useState(props.pkg?.description?.length ?? 0);
   const prefix = props.mode === "edit" ? `package-${props.pkg.id}` : "package-new";
   const pkg = props.pkg;
 
@@ -53,7 +55,10 @@ export function PackageDialog(props: PackageDialogProps) {
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (next) setFormKey((key) => key + 1);
+        if (next) {
+          setFormKey((key) => key + 1);
+          setDescriptionLength(props.pkg?.description?.length ?? 0);
+        }
       }}
     >
       <DialogTrigger asChild>
@@ -67,7 +72,7 @@ export function PackageDialog(props: PackageDialogProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{props.mode === "create" ? "Nuevo paquete" : "Editar paquete"}</DialogTitle>
           <DialogDescription>
@@ -76,7 +81,17 @@ export function PackageDialog(props: PackageDialogProps) {
               : "Las respuestas ya enviadas conservan el nombre y el precio que tenían."}
           </DialogDescription>
         </DialogHeader>
-        <form key={formKey} action={action} className="space-y-4" noValidate>
+        <form
+          key={formKey}
+          className="space-y-4"
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            // Not the form's action prop: React would empty the fields even when the server says no.
+            const formData = new FormData(event.currentTarget);
+            startTransition(() => action(formData));
+          }}
+        >
           {props.mode === "create" ? (
             <input type="hidden" name="eventId" value={props.eventId} />
           ) : (
@@ -106,10 +121,23 @@ export function PackageDialog(props: PackageDialogProps) {
             <Textarea
               id={`${prefix}-description`}
               name="description"
-              rows={3}
+              rows={5}
+              maxLength={PACKAGE_DESCRIPTION_MAX}
               defaultValue={pkg?.description ?? ""}
               placeholder="10 fotos digitales y 2 impresas de 20×30"
+              className="max-h-72"
+              onChange={(event) => setDescriptionLength(event.target.value.length)}
+              aria-invalid={Boolean(errors.description) || undefined}
+              aria-describedby={`${prefix}-description-help${errors.description ? ` ${prefix}-description-error` : ""}`}
             />
+            <p id={`${prefix}-description-help`} className="text-xs text-muted-foreground tabular-nums">
+              {descriptionLength} de {PACKAGE_DESCRIPTION_MAX} caracteres. Los saltos de línea se respetan.
+            </p>
+            {errors.description ? (
+              <p id={`${prefix}-description-error`} className="text-sm font-medium">
+                {errors.description}
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -157,7 +185,7 @@ export function PackageDialog(props: PackageDialogProps) {
             ) : null}
           </div>
 
-          {state.status === "error" && !state.fieldErrors ? (
+          {state.status === "error" ? (
             <Alert role="alert">
               <AlertDescription>{state.message}</AlertDescription>
             </Alert>

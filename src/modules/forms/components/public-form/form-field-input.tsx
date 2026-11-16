@@ -124,7 +124,7 @@ export function FormFieldInput({
               ))}
             </NativeSelect>
             {chosen?.description ? (
-              <p className="rounded-md bg-muted px-3 py-2 text-sm">{chosen.description}</p>
+              <p className="rounded-md bg-muted px-3 py-2 text-sm whitespace-pre-line">{chosen.description}</p>
             ) : null}
           </div>
         );

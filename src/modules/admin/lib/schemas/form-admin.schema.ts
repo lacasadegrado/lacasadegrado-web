@@ -10,18 +10,21 @@ const priceEurSchema = z.coerce
   .min(0, { error: "El precio no puede ser negativo." })
   .max(10_000, { error: "El precio es demasiado alto." });
 
+/** Room for a full "what's included" list pasted from a brochure. */
+export const PACKAGE_DESCRIPTION_MAX = 3000;
+
 const optionalText = (max: number) =>
   z
     .string()
     .trim()
-    .max(max)
+    .max(max, { error: `Máximo ${max} caracteres.` })
     .optional()
     .transform((value) => (value ? value : null));
 
 export const createPackageSchema = z.object({
   eventId: z.uuid(),
   name: z.string().trim().min(2, { error: "Escribe el nombre del paquete." }).max(120),
-  description: optionalText(500),
+  description: optionalText(PACKAGE_DESCRIPTION_MAX),
   priceEur: priceEurSchema,
   installments: z.coerce
     .number({ error: "Elige en cuántas cuotas se puede pagar." })

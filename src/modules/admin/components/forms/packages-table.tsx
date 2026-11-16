@@ -71,7 +71,7 @@ export function PackagesTable({ packages }: { packages: AdminPackage[] }) {
                 <TableCell className="max-w-sm whitespace-normal">
                   <p className="font-medium">{pkg.name}</p>
                   {pkg.description ? (
-                    <p className="text-sm text-muted-foreground">{pkg.description}</p>
+                    <p className="line-clamp-3 text-sm whitespace-pre-line text-muted-foreground">{pkg.description}</p>
                   ) : null}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
