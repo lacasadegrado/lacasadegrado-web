@@ -253,14 +253,13 @@ November 2026 (built 2026-11-03, migration 0015):
   photos bought (clean derivative), payments, downloads. `sale.service.ts`.
 - Abonos: `photo_packages.installments` (1-6). Every package payment joins
   a `package_plans` row (one per person + package; an open plan with the
-  same email is reused and gets a new link). Payments stay in
+  same email is reused). Payments stay in
   `form_submissions` with `plan_id`, `installments_covered`, `amount_cents`,
   `eur_to_ves` (day's rate) and `payment_status` pending/confirmed/rejected;
   only confirmed money counts and the plan turns `paid` when it covers the
-  price (`reviewPackagePayment`, row locks). Later abonos go through
-  `/abono/<token>` (public, noindex; only the SHA-256 is stored, so lost
-  links are replaced via "Enviarme mi enlace" on the form or on
-  rejection). Admin: Pagos › Paquetes (status filter, confirm/reject on the
+  price (`reviewPackagePayment`, row locks). Since 2026-11-16 people pay
+  from "Pagos" (see below); the old `/abono/<token>` links only redirect to
+  login. Admin: Pagos › Paquetes (status filter, confirm/reject on the
   detail) and Pagos › Abonos (`/admin/payments/plans`).
 - Admin notifications: `notifications` table, one row per admin, written by
   `notifyAdmins` (never throws) on photo payment reported, package payment
@@ -300,6 +299,39 @@ Public form rate limits (2026-11-12): signed-in admins have none
 (`FormClient.trusted`, set in the actions via `getAdminUser`); per IP 60
 submits and 200 uploads per hour (venue Wi-Fi and carrier CGNAT share
 IPs; 10/hour blocked a real event); per email 5 per hour per form.
+Pagos (2026-11-16, migration 0018):
+- Package forms are sign-ups: name, email and package (email and package
+  always required and never conditional, `validateFieldsForKind`; the
+  migration stripped reference/proof from existing package forms).
+  `submitPublicForm` calls `enrollInPlan` and stores the answer with
+  `payment_status` NULL; `submitFormAction` then returns a
+  `SignupContinuation`: same email signed in -> push to Pagos, else it
+  sends the login code (`requestOtp`) and the page shows `SignupCodeStep`
+  (auth's `CodeStep`, next = Pagos). Admins filling it get no code.
+  OTP per-IP limit raised to 60/hour for the same CGNAT reason.
+- Customer "Pagos" at `/dashboard/payments` (+ `[planId]`), module
+  `src/modules/plans`: `customer-plan.service.ts` scopes everything to
+  `package_plans.email = session email`. Each payment asks the fixed
+  `PLAN_PAYMENT_FIELDS` (reference + proof, forms utils), files under the
+  plan form's prefix. The nav shows "Pagos" only when `hasPlans`.
+  "Cómo pagar" (`PlanPayMethods`) lets the person pick an enabled manual
+  method and shows only its details (checkout's `PaymentDetails`, no
+  amount row since the installment count is chosen below).
+  Emails (receipt, confirmed, rejected) link to Pagos; no token rotation.
+- A payment is `kind = package_payment AND payment_status IS NOT NULL`
+  (`isPaymentSubmission`); sign-ups show under the form's Respuestas
+  ("Inscripciones", `entries=signups` in the filters/export), payments in
+  Pagos › Paquetes (`entries=payments`, the default).
+- "Registrar pago" on `/admin/payments/plans/[planId]`: next N
+  installments received outside the app, stored confirmed with
+  `recorded_by` (`recordPackagePayment`), marks the plan paid if covered,
+  emails like a confirmation.
+- Package photos: `photos.is_package` ("Del paquete"/"Adicional" in
+  `BulkActionsBar`, checkbox in the uploader). `releasedForEmail` also
+  frees them when that email has a `paid` plan in the photo's event;
+  `packagePendingForEmail` (open plan) shows "Disponible al completar tu
+  paquete" in the gallery and the cart refuses them. Without any plan they
+  are ordinary photos for sale.
 Previews have NO blur since 2026-10-21 (`blurSigma: 0`; it was 12, then 5
 from 2026-09-30, and did not help sell). The only protection is the dense,
 fairly opaque tiled watermark in `buildWatermarkSvg` (`WATERMARK_DENSITY`

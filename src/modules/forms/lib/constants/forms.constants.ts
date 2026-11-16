@@ -87,8 +87,6 @@ export const FORM_MESSAGES = {
 export const FORMS_PATHS = {
   /** Public page, no login. */
   public: (slug: string) => `/f/${slug}`,
-  /** A payment plan's private page for the next abonos, no login. */
-  plan: (token: string) => `/abono/${token}`,
 } as const;
 
 export const PLAN_LIMITS = {
@@ -131,9 +129,6 @@ export const FORM_RATE_LIMITS = {
   uploadsPerIp: { max: 200, windowSeconds: 60 * 60 },
   submitsPerIp: { max: 60, windowSeconds: 60 * 60 },
   submitsPerEmailPerForm: { max: 5, windowSeconds: 60 * 60 },
-  /** "Send me my link again" requests. */
-  planLinksPerIp: { max: 5, windowSeconds: 60 * 60 },
-  planLinksPerEmail: { max: 3, windowSeconds: 60 * 60 },
   retentionSeconds: 24 * 60 * 60,
 } as const;
 
@@ -142,18 +137,18 @@ export const FORM_HONEYPOT_FIELD = "website";
 
 /** System fields each kind of form has, every one exactly once. */
 export const FORM_KIND_SYSTEM_ROLES = {
-  package_payment: ["email", "package", "reference", "proof"],
+  package_payment: ["email", "package"],
   general: ["email"],
 } as const satisfies Record<FormKind, readonly (keyof typeof FORM_SYSTEM_FIELDS)[]>;
 
 export const FORM_KIND_LABELS = {
-  package_payment: "Pago de paquete",
+  package_payment: "Paquete",
   general: "General",
 } as const satisfies Record<FormKind, string>;
 
 export const FORM_KIND_DESCRIPTIONS = {
   package_payment:
-    "Para reportar el pago de un paquete: correo, paquete, referencia y comprobante. Las respuestas van a Pagos › Paquetes.",
+    "Para inscribirse en un paquete: nombre, correo y paquete. Al enviarlo, la persona recibe un código, entra a su cuenta y paga sus cuotas desde Pagos.",
   general:
     "Para todo lo demás (tallas, asistencia, datos de contacto). Solo trae el correo; las respuestas se ven en el mismo formulario.",
 } as const satisfies Record<FormKind, string>;
@@ -215,14 +210,14 @@ export const FORM_TEXTS = {
     label: "Botón de envío",
     max: 60,
     default: "Enviar respuesta",
-    kindDefaults: { package_payment: "Enviar comprobante" },
+    kindDefaults: { package_payment: "Inscribirme" },
   },
   successTitle: {
     group: "submit",
     label: "Título después de enviar",
     max: 120,
     default: "Recibimos tu respuesta",
-    kindDefaults: { package_payment: "Recibimos tu comprobante" },
+    kindDefaults: { package_payment: "¡Listo, te inscribiste!" },
   },
   successMessage: {
     group: "submit",

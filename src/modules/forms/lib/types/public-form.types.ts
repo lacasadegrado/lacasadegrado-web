@@ -1,4 +1,4 @@
-import type { FormKind, FormStatus, PackagePaymentStatus, PackagePlanStatus } from "@/common/lib/db/schema";
+import type { FormKind, FormStatus } from "@/common/lib/db/schema";
 
 import type { FormTexts } from "../schemas/form-texts.schema";
 import type { FormField, FormPackageOption } from "./form.types";
@@ -39,8 +39,19 @@ export type PrepareFormUploadResult =
   | { ok: true; key: string; uploadUrl: string }
   | { ok: false; message: string };
 
+/**
+ * After a package sign-up, how the page continues: already signed in with
+ * that email (go to Pagos), a login code sent (show the code step), or the
+ * code could not be sent (link to the login page).
+ */
+export type SignupContinuation =
+  | { status: "signed_in" }
+  | { status: "code_sent"; email: string; sentAt: number }
+  | { status: "code_failed"; email: string; message: string }
+  | { status: "none" };
+
 export type SubmitFormResult =
-  | { ok: true; receipt: SubmitReceipt }
+  | { ok: true; receipt: SubmitReceipt; continuation: SignupContinuation }
   | { ok: false; message: string; fieldErrors?: Record<string, string> };
 
 /** What the success screen shows; each part is null when that field was left empty. */
@@ -50,12 +61,14 @@ export type SubmitReceipt = {
   priceCents: number | null;
   reference: string | null;
   email: string | null;
-  /** Set when the payment belongs to a payment plan (any package payment). */
+  /** An installment paid from "Pagos". */
   plan: PlanReceipt | null;
+  /** A package form: they signed up and pay from "Pagos". */
+  signup: { installments: number; url: string } | null;
 };
 
 export type PlanReceipt = {
-  /** Absolute link to the plan page, for the next abonos. */
+  /** Absolute link to "Pagos". */
   url: string;
   amountCents: number;
   eurToVes: number | null;
@@ -67,39 +80,3 @@ export type PlanReceipt = {
   /** Under review, including this payment. */
   pendingCents: number;
 };
-
-/** A payment of a plan, as its private page lists it. */
-export type PublicPlanPayment = {
-  submittedAt: Date;
-  amountCents: number;
-  installmentsCovered: number;
-  status: PackagePaymentStatus;
-  rejectionReason: string | null;
-};
-
-/** Everything the plan page (`/abono/<token>`) shows. Nothing beyond this plan. */
-export type PublicPlan = {
-  formTitle: string;
-  formSlug: string;
-  eventName: string;
-  packageName: string;
-  personName: string | null;
-  email: string | null;
-  priceCents: number;
-  installments: number;
-  status: PackagePlanStatus;
-  confirmedCents: number;
-  pendingCents: number;
-  /** Parts confirmed or under review; the next payment starts after them. */
-  reservedInstallments: number;
-  payments: PublicPlanPayment[];
-  /** The form's reference and proof questions, asked again on each abono. */
-  fields: FormField[];
-  eurToVes: number | null;
-};
-
-export type SubmitPlanPaymentResult =
-  | { ok: true; receipt: PlanReceipt }
-  | { ok: false; message: string; fieldErrors?: Record<string, string> };
-
-export type ResendPlanLinkResult = { ok: true } | { ok: false; message: string };

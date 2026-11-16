@@ -321,7 +321,7 @@ export function FormBuilder({ form }: { form: AdminFormDetail }) {
             </h2>
             <p className="text-sm text-muted-foreground">
               {form.kind === "package_payment"
-                ? "Los campos del sistema (correo, paquete, referencia y comprobante) siempre están; puedes cambiarles el texto, el orden y si son obligatorios."
+                ? "El correo y el paquete siempre están y son obligatorios: con ese correo la persona entra a Pagos y paga sus cuotas (la referencia y el comprobante se piden ahí). Puedes cambiarles el texto y el orden."
                 : "El correo es el campo del sistema: siempre está, pero puedes cambiarle el texto, el orden y si es obligatorio."}
             </p>
           </div>

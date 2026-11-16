@@ -106,6 +106,8 @@ export const formSubmissions = pgTable(
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     reviewedBy: uuid("reviewed_by").references(() => profiles.id, { onDelete: "set null" }),
     rejectionReason: text("rejection_reason"),
+    /** Admin who registered the payment by hand (cash, WhatsApp); null when the person reported it. */
+    recordedBy: uuid("recorded_by").references(() => profiles.id, { onDelete: "set null" }),
     /**
      * The list person they picked (null: not in the list, or no list) and
      * the values the form was prefilled with (`Record<fieldId, string>`),

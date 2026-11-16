@@ -38,6 +38,8 @@ export type PackagePlanPayment = {
   rejectionReason: string | null;
   reviewedAt: Date | null;
   hasProof: boolean;
+  /** Registered by an admin ("Registrar pago"), not reported by the person. */
+  recorded: boolean;
 };
 
 export type PackagePlanDetail = PackagePlanRow & {

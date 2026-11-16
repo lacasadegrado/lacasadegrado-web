@@ -1,21 +1,22 @@
 "use client";
 
 import { CircleCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
 
 import { Alert, AlertDescription } from "@/common/components/ui/alert";
 import { Button } from "@/common/components/ui/button";
+import { InstallmentPicker } from "@/modules/forms/components/installment-picker/installment-picker";
+import { PlanReceipt } from "@/modules/forms/components/plan-receipt/plan-receipt";
+import { FormFieldInput } from "@/modules/forms/components/public-form/form-field-input";
+import { buildAnswersSchema } from "@/modules/forms/lib/schemas/form-answers.schema";
+import type { FormField, FormFileAnswer, PrepareUpload } from "@/modules/forms/lib/types/form.types";
+import type { PlanReceipt as PlanReceiptData } from "@/modules/forms/lib/types/public-form.types";
 
-import { preparePlanUploadAction, submitPlanPaymentAction } from "../../lib/actions/plan.action";
-import { buildAnswersSchema } from "../../lib/schemas/form-answers.schema";
-import type { FormField, FormFileAnswer, PrepareUpload } from "../../lib/types/form.types";
-import type { PlanReceipt as PlanReceiptData } from "../../lib/types/public-form.types";
-import { InstallmentPicker } from "../installment-picker/installment-picker";
-import { PlanReceipt } from "../plan-receipt/plan-receipt";
-import { FormFieldInput } from "../public-form/form-field-input";
+import { preparePlanUploadAction, submitPlanPaymentAction } from "../../lib/actions/plans.action";
 
 type PlanPaymentFormProps = {
-  token: string;
+  planId: string;
   fields: FormField[];
   priceCents: number;
   installments: number;
@@ -29,8 +30,9 @@ function firstErrors(issues: { path: PropertyKey[]; message: string }[]): Record
   return errors;
 }
 
-/** The next abono: how many parts, the reference and the proof. Nothing else is asked again. */
-export function PlanPaymentForm({ token, fields, priceCents, installments, reserved, eurToVes }: PlanPaymentFormProps) {
+/** The next payment: how many installments, the reference and the proof. */
+export function PlanPaymentForm({ planId, fields, priceCents, installments, reserved, eurToVes }: PlanPaymentFormProps) {
+  const router = useRouter();
   const [draftId] = useState(() => crypto.randomUUID());
   const [count, setCount] = useState(1);
   const [values, setValues] = useState<Record<string, unknown>>({});
@@ -64,7 +66,7 @@ export function PlanPaymentForm({ token, fields, priceCents, installments, reser
       return next;
     });
   }, []);
-  const prepareUpload = useCallback<PrepareUpload>((input) => preparePlanUploadAction({ token, ...input }), [token]);
+  const prepareUpload = useCallback<PrepareUpload>((input) => preparePlanUploadAction({ planId, ...input }), [planId]);
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -80,7 +82,7 @@ export function PlanPaymentForm({ token, fields, priceCents, installments, reser
       return;
     }
     startSubmitting(async () => {
-      const result = await submitPlanPaymentAction({ token, draftId, installments: count, answers: values });
+      const result = await submitPlanPaymentAction({ planId, draftId, installments: count, answers: values });
       if (result.ok) {
         setReceipt(result.receipt);
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -96,14 +98,14 @@ export function PlanPaymentForm({ token, fields, priceCents, installments, reser
       <section aria-live="polite" className="space-y-5 rounded-lg border bg-card p-6">
         <CircleCheck aria-hidden="true" className="size-10 text-primary" />
         <div className="space-y-2">
-          <h2 className="text-2xl">Recibimos tu abono</h2>
+          <h2 className="text-2xl">Recibimos tu pago</h2>
           <p className="text-muted-foreground">
-            Vamos a verificarlo. Cuando lo confirmemos, aparece como confirmado en esta página.
+            Vamos a verificarlo. Cuando lo confirmemos te avisamos por correo y aparece como confirmado aquí.
           </p>
         </div>
-        <PlanReceipt plan={receipt} showLink={false} />
-        <Button type="button" variant="outline" onClick={() => window.location.reload()}>
-          Ver mi plan actualizado
+        <PlanReceipt plan={receipt} />
+        <Button type="button" variant="outline" onClick={() => router.refresh()}>
+          Ver mi paquete actualizado
         </Button>
       </section>
     );
@@ -111,16 +113,18 @@ export function PlanPaymentForm({ token, fields, priceCents, installments, reser
 
   return (
     <form onSubmit={submit} noValidate className="space-y-8">
-      <InstallmentPicker
-        id="field-installments"
-        priceCents={priceCents}
-        installments={installments}
-        reserved={reserved}
-        value={count}
-        onChange={setCount}
-        eurToVes={eurToVes}
-        error={errors.installments}
-      />
+      {installments - reserved > 1 ? (
+        <InstallmentPicker
+          id="field-installments"
+          priceCents={priceCents}
+          installments={installments}
+          reserved={reserved}
+          value={count}
+          onChange={setCount}
+          eurToVes={eurToVes}
+          error={errors.installments}
+        />
+      ) : null}
       {fields.map((field) => (
         <FormFieldInput
           key={field.id}
@@ -141,7 +145,7 @@ export function PlanPaymentForm({ token, fields, priceCents, installments, reser
         </Alert>
       ) : null}
       <Button type="submit" size="lg" disabled={submitting || uploading.size > 0}>
-        {submitting ? "Enviando…" : uploading.size > 0 ? "Subiendo archivos…" : "Enviar abono"}
+        {submitting ? "Enviando…" : uploading.size > 0 ? "Subiendo archivos…" : "Enviar pago"}
       </Button>
     </form>
   );

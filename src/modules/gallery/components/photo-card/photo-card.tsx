@@ -1,5 +1,8 @@
+import Link from "next/link";
+
 import { PhotoLightbox } from "@/common/components/photo-lightbox/photo-lightbox";
 import { Button } from "@/common/components/ui/button";
+import { PLANS_PATHS } from "@/modules/plans/lib/constants/plans.constants";
 import { PURCHASES_PATHS } from "@/modules/purchases/lib/constants/purchases.constants";
 
 import { GALLERY_PATHS } from "../../lib/constants/gallery.constants";
@@ -49,6 +52,13 @@ export function PhotoCard({ photo, mode }: PhotoCardProps) {
               <a href={PURCHASES_PATHS.downloadApi(photo.id)} download>
                 Descargar
               </a>
+            </Button>
+          </div>
+        ) : photo.packagePending && mode === "buy" ? (
+          <div className="space-y-1.5">
+            <span className="block text-sm font-medium">Disponible al completar tu paquete</span>
+            <Button asChild size="sm" variant="outline" className="h-9 w-full">
+              <Link href={PLANS_PATHS.list}>Ver mis pagos</Link>
             </Button>
           </div>
         ) : mode === "buy" ? (

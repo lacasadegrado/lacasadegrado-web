@@ -7,23 +7,20 @@ import { getServerEnv } from "@/common/lib/config/env.config";
 import { db } from "@/common/lib/db";
 import { events, formSubmissions, forms, photoPackages } from "@/common/lib/db/schema";
 import { sendEmail } from "@/common/lib/email/email.service";
-import { formatEur } from "@/common/lib/utils/money.util";
-import { ADMIN_PATHS } from "@/modules/admin/lib/constants/admin.constants";
-import { notifyAdmins } from "@/modules/admin/lib/services/notification.service";
-import { getCurrentRate, getLatestRate } from "@/modules/checkout/lib/services/exchange-rate.service";
+import { getLatestRate } from "@/modules/checkout/lib/services/exchange-rate.service";
 
 import { buildAnswersSchema } from "../schemas/form-answers.schema";
 import { formFieldsSchema } from "../schemas/form-field.schema";
 import { parseFormTexts } from "../schemas/form-texts.schema";
 import type { PrepareFormUploadInput } from "../schemas/public-form.schema";
-import type { FormAnswers, FormFileAnswer } from "../types/form.types";
+import type { FormAnswers } from "../types/form.types";
 import type { PublicForm, RosterPrefill, SubmitReceipt } from "../types/public-form.types";
 import { buildFormSubmittedEmail } from "../utils/form-email.util";
 import { personNameFrom } from "../utils/person-name.util";
 import { presignFormFile, verifyFileAnswers } from "./form-files.service";
 import { buildRosterPrefill, getRosterEntry, listRosterPeople, rosterSnapshot } from "./form-roster.service";
 import { isSubmitAllowed, isUploadAllowed, recordFormAttempt, type FormClient } from "./form-rate-limit.service";
-import { planReceipt, preparePlanForPayment } from "./package-plan.service";
+import { enrollInPlan, plansUrl } from "./package-plan.service";
 
 type LoadedForm = Omit<PublicForm, "eurToVes" | "roster" | "texts"> & {
   id: string;
@@ -159,19 +156,17 @@ export type SubmitFormOutcome =
 /**
  * Validates the answers against the form's current fields and active
  * packages, checks the files and stores the submission with snapshots of
- * the fields and the package. A package payment joins the person's
- * payment plan (new, or their open one for that package and email) for
- * the parts they chose, pending review. Emails a receipt when there is
- * an email and tells the admins. Any system field may be absent (general
- * forms) or left empty (the admin made it optional). The receipt failing
- * never fails the submission.
+ * the fields and the package. A package form signs the person up: their
+ * plan (new, or their open one for that package and email) with nothing
+ * paid; they pay from "Pagos". Its answer has no payment status. Emails a
+ * receipt when there is an email. The receipt failing never fails the
+ * submission.
  */
 export async function submitPublicForm(
   input: {
     slug: string;
     draftId: string;
     answers: Record<string, unknown>;
-    installments?: number;
     /** The list person they picked; null or absent: not in the list. */
     rosterEntryId?: string | null;
   },
@@ -193,11 +188,15 @@ export async function submitPublicForm(
   }
   const answers = parsed.data as FormAnswers;
 
-  // System fields may be missing or empty: the schema already checked types.
+  // System fields may be missing or empty on general forms: the schema already checked types.
   const email = typeof answers.email === "string" ? answers.email : null;
   const packageId = typeof answers.package === "string" ? answers.package : null;
-  const reference = typeof answers.reference === "string" ? answers.reference : null;
-  const proof = Array.isArray(answers.proof) ? (answers.proof as FormFileAnswer[]) : [];
+  const isSignup = form.kind === "package_payment";
+
+  // A sign-up is how they reach "Pagos": without both there is nothing to pay
+  // (older forms may still have them optional).
+  if (isSignup && !email) return { ok: false, reason: "invalid", fieldErrors: { email: "Escribe tu correo." } };
+  if (isSignup && !packageId) return { ok: false, reason: "invalid", fieldErrors: { package: "Elige un paquete." } };
 
   if (!(await isSubmitAllowed(form.id, email, client))) return { ok: false, reason: "rate_limited" };
 
@@ -216,75 +215,45 @@ export async function submitPublicForm(
     return { ok: false, reason: "invalid", fieldErrors: { roster: "Vuelve a buscar tu nombre en la lista." } };
   }
 
-  const isPayment = form.kind === "package_payment";
   const personName = personNameFrom(form.fields, answers);
-  const rate = isPayment && chosen ? await getCurrentRate() : null;
 
-  const stored = await db.transaction(async (tx) => {
-    const draft = chosen
-      ? await preparePlanForPayment(tx, {
-          eventId: form.eventId,
-          formId: form.id,
-          pkg: chosen,
-          email,
-          personName,
-          requestedInstallments: input.installments ?? 1,
-        })
-      : null;
-    if (draft && !draft.ok) return { ok: false as const, message: draft.message };
+  await db.transaction(async (tx) => {
+    const plan =
+      isSignup && chosen && email
+        ? await enrollInPlan(tx, { eventId: form.eventId, formId: form.id, pkg: chosen, email, personName })
+        : null;
 
-    const [row] = await tx
-      .insert(formSubmissions)
-      .values({
-        formId: form.id,
-        packageId: chosen?.id ?? null,
-        packageName: chosen?.name ?? null,
-        packagePriceCents: chosen?.priceCents ?? null,
-        email,
-        reference,
-        proofKey: proof[0]?.key ?? null,
-        answers,
-        fieldsSnapshot: form.fields,
-        formVersion: form.version,
-        // Every payment form answer waits for review, with or without a package.
-        paymentStatus: isPayment ? "pending" : null,
-        rosterEntryId: rosterEntry?.id ?? null,
-        // {} = the form has a list and they said they are not on it.
-        rosterValues: rosterEntry ? rosterSnapshot(form.fields, rosterEntry) : form.rosterId ? {} : null,
-        ...(draft?.ok
-          ? {
-              planId: draft.planId,
-              installmentsCovered: draft.installmentsCovered,
-              amountCents: draft.amountCents,
-              eurToVes: rate ? rate.eurToVes.toFixed(4) : null,
-            }
-          : {}),
-      })
-      .returning({ id: formSubmissions.id });
-    return { ok: true as const, submissionId: row.id, draft };
+    await tx.insert(formSubmissions).values({
+      formId: form.id,
+      packageId: chosen?.id ?? null,
+      packageName: chosen?.name ?? null,
+      packagePriceCents: chosen?.priceCents ?? null,
+      email,
+      reference: typeof answers.reference === "string" ? answers.reference : null,
+      proofKey: null,
+      answers,
+      fieldsSnapshot: form.fields,
+      formVersion: form.version,
+      // Sign-ups carry no payment: they pay from "Pagos".
+      paymentStatus: null,
+      planId: plan?.planId ?? null,
+      rosterEntryId: rosterEntry?.id ?? null,
+      // {} = the form has a list and they said they are not on it.
+      rosterValues: rosterEntry ? rosterSnapshot(form.fields, rosterEntry) : form.rosterId ? {} : null,
+    });
   });
-  if (!stored.ok) return { ok: false, reason: "invalid", fieldErrors: { installments: stored.message } };
   await recordFormAttempt({ kind: "submit", formId: form.id, ip, email: email ?? undefined });
 
   const receipt: SubmitReceipt = {
     kind: form.kind,
     packageName: chosen?.name ?? null,
     priceCents: chosen?.priceCents ?? null,
-    reference,
+    reference: null,
     email,
-    plan: stored.draft?.ok ? planReceipt(stored.draft, rate?.eurToVes ?? null) : null,
+    plan: null,
+    signup: isSignup && chosen ? { installments: Math.max(1, chosen.installments), url: plansUrl() } : null,
   };
 
-  if (isPayment) {
-    await notifyAdmins({
-      kind: "package_payment",
-      title: "Pago de paquete por revisar",
-      body: [personName ?? email ?? "Sin correo", chosen?.name, receipt.plan ? formatEur(receipt.plan.amountCents) : null]
-        .filter(Boolean)
-        .join(" · "),
-      href: ADMIN_PATHS.packagePayment(stored.submissionId),
-    });
-  }
   if (email) {
     const message = buildFormSubmittedEmail({
       formTitle: form.title,

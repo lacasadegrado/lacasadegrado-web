@@ -23,9 +23,12 @@ export async function packagePaymentExportHandler(request: Request): Promise<Res
     listPackagePaymentsForExport(filters),
     summarizePackagePayments(filters),
   ]);
-  const buffer = await buildPackagePaymentsWorkbook(rows, summary, getServerEnv().NEXT_PUBLIC_APP_URL, params.kind);
+  // Sign-ups carry no payment: they export like a general form's answers.
+  const signups = params.kind === "package_payment" && params.entries === "signups";
+  const layout = signups ? "general" : params.kind;
+  const buffer = await buildPackagePaymentsWorkbook(rows, summary, getServerEnv().NEXT_PUBLIC_APP_URL, layout);
   const today = toCaracasWallClock(new Date()).toISOString().slice(0, 10);
-  const prefix = params.kind === "general" ? "respuestas-formulario" : "pagos-paquetes";
+  const prefix = signups ? "inscripciones" : params.kind === "general" ? "respuestas-formulario" : "pagos-paquetes";
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {

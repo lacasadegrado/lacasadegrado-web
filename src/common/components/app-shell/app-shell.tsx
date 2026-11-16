@@ -14,15 +14,17 @@ type AppShellProps = {
   support?: ReactNode;
   /** False for people with free access: no cart, no purchases. */
   showCommerce?: boolean;
+  /** True for people with a photo package: the "Pagos" tab. */
+  showPayments?: boolean;
   children: ReactNode;
 };
 
 /** Layout for every signed-in page: header, primary nav, content, footer. */
-export function AppShell({ actions, cartBadge, support, showCommerce = true, children }: AppShellProps) {
+export function AppShell({ actions, cartBadge, support, showCommerce = true, showPayments = false, children }: AppShellProps) {
   return (
     <>
       <SiteHeader>{actions}</SiteHeader>
-      <AppNav cartBadge={showCommerce ? cartBadge : null} showCommerce={showCommerce} />
+      <AppNav cartBadge={showCommerce ? cartBadge : null} showCommerce={showCommerce} showPayments={showPayments} />
       <main
         id="contenido"
         className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-24 sm:px-6"

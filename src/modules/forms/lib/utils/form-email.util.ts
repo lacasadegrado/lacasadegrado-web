@@ -36,42 +36,54 @@ function planRows(plan: PlanReceipt): Row[] {
 }
 
 /**
- * Receipt for the person who filled a form. A package payment lists the
- * package, the amount of this payment and the plan's balance, plus the
- * private link for the next abonos. Verification is by hand, so no
- * timing is promised. A general form only confirms receipt.
+ * Receipt for the person who filled a form or paid an installment.
+ * - Package sign-up (`receipt.signup`): the package and how to pay it
+ *   from "Pagos". The login code arrives in its own email.
+ * - Installment (`receipt.plan`): the amount, the plan's balance and a
+ *   link to "Pagos". Verification is by hand, so no timing is promised.
+ * - General form: only confirms receipt.
  */
 export function buildFormSubmittedEmail(input: FormSubmittedEmailInput) {
   const { receipt } = input;
-  const isPayment = receipt.kind === "package_payment";
-  const title = isPayment ? "Recibimos tu comprobante" : "Recibimos tu respuesta";
-  const subject = isPayment && receipt.packageName
-    ? `Recibimos tu comprobante: ${receipt.packageName}`
-    : `${title}: ${input.formTitle}`;
+  const isPayment = receipt.kind === "package_payment" && receipt.plan !== null;
+  const isSignup = receipt.signup !== null;
+  const title = isSignup ? "Te inscribiste en tu paquete" : isPayment ? "Recibimos tu pago" : "Recibimos tu respuesta";
+  const subject =
+    (isSignup || isPayment) && receipt.packageName ? `${title}: ${receipt.packageName}` : `${title}: ${input.formTitle}`;
 
   const rows: Row[] = [];
   if (receipt.packageName) {
     const price = receipt.priceCents !== null ? formatEur(receipt.priceCents) : null;
+    const parts = receipt.signup && receipt.signup.installments > 1 ? ` en ${receipt.signup.installments} cuotas` : "";
     rows.push({
       label: "Paquete",
-      value: `${escapeHtml(receipt.packageName)}${price ? ` <span style="font-weight:400;">(${price})</span>` : ""}`,
-      text: `${receipt.packageName}${price ? ` (${price})` : ""}`,
+      value: `${escapeHtml(receipt.packageName)}${price ? ` <span style="font-weight:400;">(${price}${parts})</span>` : ""}`,
+      text: `${receipt.packageName}${price ? ` (${price}${parts})` : ""}`,
     });
   }
   if (receipt.plan) rows.push(...planRows(receipt.plan));
   if (receipt.reference) rows.push(plainRow("Referencia", receipt.reference));
-  const closing = isPayment
-    ? "Vamos a verificar tu pago. Si falta algún dato te escribimos a este correo."
-    : "Si falta algún dato te escribimos a este correo.";
-  const planNote = receipt.plan
-    ? "Guarda este enlace: con él haces tus próximos abonos sin volver a llenar tus datos y ves cuánto llevas pagado."
-    : null;
+
+  const lead = isSignup
+    ? `Quedaste inscrito en el paquete de ${input.eventName}. Ahora puedes pagarlo desde Pagos, entrando con este correo.`
+    : isPayment
+      ? `Registramos tu pago del paquete de ${input.eventName}.`
+      : `Gracias. Registramos tu respuesta al formulario "${input.formTitle}" de ${input.eventName}.`;
+  const leadHtml = isSignup || isPayment
+    ? escapeHtml(lead)
+    : `Gracias. Registramos tu respuesta al formulario <strong>${escapeHtml(input.formTitle)}</strong> de ${escapeHtml(input.eventName)}.`;
+  const link = receipt.signup?.url ?? receipt.plan?.url ?? null;
+  const closing = isSignup
+    ? "Para entrar te pedimos un código que llega a este correo. Las fotos del paquete se liberan cuando esté pagado completo."
+    : isPayment
+      ? "Vamos a verificar tu pago y te avisamos por correo. Si falta algún dato te escribimos aquí."
+      : "Si falta algún dato te escribimos a este correo.";
 
   const text = [
-    `Recibimos tu respuesta al formulario "${input.formTitle}" de ${input.eventName}.`,
+    lead,
     ...(rows.length > 0 ? ["", ...rows.map((row) => `${row.label}: ${row.text}`)] : []),
-    ...(receipt.plan && planNote ? ["", planNote, receipt.plan.url] : []),
-    ``,
+    ...(link ? ["", `Pagos: ${link}`] : []),
+    "",
     closing,
   ].join("\n");
 
@@ -80,42 +92,12 @@ export function buildFormSubmittedEmail(input: FormSubmittedEmailInput) {
     title,
     appUrl: input.appUrl,
     bodyHtml:
-      emailParagraph(
-        `Gracias. Registramos tu respuesta al formulario <strong>${escapeHtml(input.formTitle)}</strong> de ${escapeHtml(input.eventName)}.`,
-      ) +
+      emailParagraph(leadHtml) +
       (rows.length > 0 ? emailDetails(rows.map(({ label, value }) => ({ label, value }))) : "") +
-      (receipt.plan && planNote
-        ? emailParagraph(planNote) + emailButton(receipt.plan.url, "Ver mi plan de pagos")
-        : "") +
+      (link ? emailButton(link, isSignup ? "Ir a pagar mi paquete" : "Ver mis pagos") : "") +
       emailParagraph(closing, { muted: true }),
   });
 
-  return { subject, html, text };
-}
-
-/** "Send me my link again": one email with every open plan of that address in the event. */
-export function buildPlanLinksEmail(input: {
-  eventName: string;
-  plans: { packageName: string; url: string }[];
-  appUrl: string;
-}) {
-  const subject = `Tu enlace para abonar: ${input.eventName}`;
-  const intro = `Este es tu enlace para seguir pagando tu paquete de ${input.eventName}. Los enlaces anteriores dejan de funcionar.`;
-  const text = [intro, "", ...input.plans.map((plan) => `${plan.packageName}: ${plan.url}`)].join("\n");
-  const html = renderEmailLayout({
-    preheader: intro,
-    title: "Tu enlace para abonar",
-    appUrl: input.appUrl,
-    bodyHtml:
-      emailParagraph(escapeHtml(intro)) +
-      input.plans
-        .map(
-          (plan) =>
-            emailParagraph(`<strong>${escapeHtml(plan.packageName)}</strong>`) + emailButton(plan.url, "Abrir mi plan de pagos"),
-        )
-        .join("") +
-      emailParagraph("Si no lo pediste tú, puedes ignorar este correo.", { muted: true }),
-  });
   return { subject, html, text };
 }
 
@@ -128,9 +110,8 @@ export function buildPackagePaymentReviewedEmail(input: {
   confirmedCents: number;
   priceCents: number;
   reason: string | null;
-  /** Fresh plan link, only on rejection (the person has to report again). */
-  planUrl: string | null;
-  formUrl: string;
+  /** "Pagos", where they see the plan and report again. */
+  plansUrl: string;
   appUrl: string;
 }) {
   const remaining = Math.max(0, input.priceCents - input.confirmedCents);
@@ -154,10 +135,11 @@ export function buildPackagePaymentReviewedEmail(input: {
         : `Revisamos el pago que reportaste para tu paquete de ${input.eventName} y no pudimos confirmarlo.`;
   const next =
     input.outcome === "rejected"
-      ? "Revisa los datos y vuelve a reportarlo con el enlace de abajo. El enlace anterior ya no funciona."
+      ? "Revisa los datos y vuelve a reportarlo desde Pagos, entrando con este correo."
       : input.outcome === "confirmed"
-        ? `Para tu próximo abono usa el enlace de tu primer correo. Si lo perdiste, pide uno nuevo en ${input.formUrl}.`
+        ? "Tus próximas cuotas las pagas desde Pagos, entrando con este correo."
         : null;
+  const button = input.outcome === "rejected" ? "Reportar el pago de nuevo" : "Ver mis pagos";
 
   const text = [
     lead,
@@ -165,7 +147,8 @@ export function buildPackagePaymentReviewedEmail(input: {
     "",
     ...rows.map((row) => `${row.label}: ${row.text}`),
     ...(next ? ["", next] : []),
-    ...(input.planUrl ? [input.planUrl] : []),
+    "",
+    input.plansUrl,
   ].join("\n");
   const html = renderEmailLayout({
     preheader: lead,
@@ -176,7 +159,7 @@ export function buildPackagePaymentReviewedEmail(input: {
       (input.reason ? emailParagraph(`<strong>Motivo:</strong> ${escapeHtml(input.reason)}`) : "") +
       emailDetails(rows.map(({ label, value }) => ({ label, value }))) +
       (next ? emailParagraph(escapeHtml(next)) : "") +
-      (input.planUrl ? emailButton(input.planUrl, "Reportar el pago de nuevo") : ""),
+      emailButton(input.plansUrl, button),
   });
   return { subject: `${title}: ${input.packageName}`, html, text };
 }

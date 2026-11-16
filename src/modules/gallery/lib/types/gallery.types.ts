@@ -14,6 +14,8 @@ export type GalleryPhoto = {
   owned: boolean;
   /** Released to the viewer (package photo): theirs without buying it. */
   released: boolean;
+  /** A package photo of a plan still being paid: theirs when it is paid, not for sale meanwhile. */
+  packagePending: boolean;
 };
 
 export type GalleryEvent = {

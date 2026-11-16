@@ -85,8 +85,10 @@ export const prepareUploadSchema = uploadPhotoFieldsSchema.merge(uploadFileSchem
 /** Step 2: the file is in R2; derive previews and insert the row. */
 export const completeUploadSchema = uploadPhotoFieldsSchema.merge(uploadFileSchema).extend({
   photoId: z.uuid(),
-  /** Package photo: released for everyone tagged on it, now or later. */
+  /** Released for everyone tagged on it, now or later. */
   released: z.boolean().optional().default(false),
+  /** "Del paquete": frees itself for each tagged person once their plan is paid. */
+  isPackage: z.boolean().optional().default(false),
 });
 
 export const tagPhotoSchema = z.object({
@@ -139,6 +141,11 @@ export const bulkReleaseSchema = z.discriminatedUnion("mode", [
       .transform((emails) => [...new Set(emails)]),
   }),
 ]);
+
+export const bulkSetPackageSchema = z.object({
+  photoIds: photoIdsSchema,
+  isPackage: z.boolean(),
+});
 
 export const bulkUnreleaseSchema = z.object({
   photoIds: photoIdsSchema,

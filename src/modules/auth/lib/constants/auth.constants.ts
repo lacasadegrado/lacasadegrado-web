@@ -31,7 +31,8 @@ export const OTP_RESEND_COOLDOWN_SECONDS = 60;
 /** Our own limits (security rule 8), enforced before Supabase is called. */
 export const OTP_RATE_LIMITS = {
   requestsPerEmail: { max: 5, windowSeconds: 15 * 60 },
-  requestsPerIp: { max: 20, windowSeconds: 60 * 60 },
+  // A whole class signs up for packages from the venue Wi-Fi or one carrier IP (CGNAT).
+  requestsPerIp: { max: 60, windowSeconds: 60 * 60 },
   verifyFailuresPerCode: { max: 5 },
 } as const;
 

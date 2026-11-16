@@ -28,7 +28,8 @@ type CodeStepProps = {
   requestState: RequestOtpState;
   requestAction: (formData: FormData) => void;
   requesting: boolean;
-  onChangeEmail: () => void;
+  /** Absent when the email cannot change (it was just used to sign up). */
+  onChangeEmail?: () => void;
 };
 
 export function CodeStep({
@@ -75,13 +76,15 @@ export function CodeStep({
       <p className="text-sm text-muted-foreground">
         Enviamos un código a <span className="font-semibold text-foreground">{email}</span>.
         Revisa también la carpeta de spam.{" "}
-        <button
-          type="button"
-          onClick={onChangeEmail}
-          className="rounded-sm font-medium text-foreground underline underline-offset-4"
-        >
-          Cambiar correo
-        </button>
+        {onChangeEmail ? (
+          <button
+            type="button"
+            onClick={onChangeEmail}
+            className="rounded-sm font-medium text-foreground underline underline-offset-4"
+          >
+            Cambiar correo
+          </button>
+        ) : null}
       </p>
 
       <form ref={formRef} action={verifyAction} className="space-y-6">

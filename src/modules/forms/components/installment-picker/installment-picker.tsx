@@ -44,7 +44,7 @@ export function InstallmentPicker({
       </p>
       <p className="text-sm text-muted-foreground">
         {reserved === 0
-          ? `Puedes pagar en ${installments} cuotas. Paga una, varias o todo de una vez; con el enlace que te enviamos haces los siguientes abonos sin volver a llenar tus datos.`
+          ? `Puedes pagar en ${installments} cuotas. Paga una, varias o todo de una vez; las siguientes las pagas desde aquí mismo.`
           : `Te ${remaining === 1 ? "queda 1 cuota" : `quedan ${remaining} cuotas`} de ${installments}.`}
       </p>
       <RadioGroup

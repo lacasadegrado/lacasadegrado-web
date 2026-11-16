@@ -9,6 +9,7 @@ import { formatEur, formatVes } from "@/common/lib/utils/money.util";
 
 import { PackageReviewActions } from "../components/package-payments/package-review-actions";
 import { PlanProgress } from "../components/package-payments/plan-progress";
+import { RecordPlanPayment } from "../components/package-payments/record-plan-payment";
 import { ADMIN_PATHS } from "../lib/constants/admin.constants";
 import { PACKAGE_PAYMENT_STATUS_BADGE, PACKAGE_PAYMENT_STATUS_LABELS } from "../lib/constants/sale.constants";
 import { getPackagePlan } from "../lib/services/package-review.service";
@@ -19,6 +20,9 @@ export async function AdminPackagePlanDetailScreen({ planId }: { planId: string 
   if (!plan) notFound();
   const who = plan.personName ?? plan.email ?? "Sin correo";
   const remainingCents = Math.max(0, plan.priceCents - plan.confirmedCents);
+  const reserved = plan.payments
+    .filter((payment) => payment.status !== "rejected")
+    .reduce((sum, payment) => sum + payment.installmentsCovered, 0);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -64,12 +68,26 @@ export async function AdminPackagePlanDetailScreen({ planId }: { planId: string 
         </dl>
         <PlanProgress confirmedCents={plan.confirmedCents} pendingCents={plan.pendingCents} priceCents={plan.priceCents} />
         {plan.paidAt ? <p className="text-sm text-muted-foreground">Pagado completo el {formatDateTime(plan.paidAt)}.</p> : null}
+        {plan.status === "open" && reserved < plan.installments ? (
+          <RecordPlanPayment
+            planId={plan.id}
+            who={who}
+            priceCents={plan.priceCents}
+            installments={plan.installments}
+            reserved={reserved}
+          />
+        ) : null}
       </section>
 
       <section aria-labelledby="plan-payments" className="space-y-3">
         <h2 id="plan-payments" className="text-lg font-semibold">
           Pagos
         </h2>
+        {plan.payments.length === 0 ? (
+          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+            Se inscribió y todavía no ha reportado ningún pago.
+          </p>
+        ) : null}
         <ol className="space-y-3">
           {plan.payments.map((payment, index) => (
             <li key={payment.id} className="space-y-3 rounded-lg border p-4">
@@ -96,6 +114,7 @@ export async function AdminPackagePlanDetailScreen({ planId }: { planId: string 
                   ? ` · ${payment.installmentsCovered} cuota${payment.installmentsCovered === 1 ? "" : "s"}`
                   : ""}
                 {payment.reference ? ` · ref. ${payment.reference}` : ""}
+                {payment.recorded ? " · registrado por el equipo" : ""}
                 {payment.rejectionReason ? ` · Motivo: ${payment.rejectionReason}` : ""}
               </p>
               <div className="flex flex-wrap items-start justify-between gap-3">

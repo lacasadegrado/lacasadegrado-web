@@ -5,7 +5,6 @@ import { SiteHeader } from "@/common/components/site-header/site-header";
 import { formatDateOnly } from "@/common/lib/utils/date.util";
 
 import { PublicForm } from "../components/public-form/public-form";
-import { ResendPlanLink } from "../components/resend-plan-link/resend-plan-link";
 import { getPublicForm } from "../lib/services/public-form.service";
 
 /**
@@ -41,19 +40,13 @@ export async function PublicFormScreen({ slug }: { slug: string }) {
               </h2>
               <p className="mt-2 text-muted-foreground">
                 {form.status === "closed"
-                  ? "Ya no recibe respuestas. Si necesitas reportar un pago, escríbenos."
+                  ? "Ya no recibe respuestas. Si ya te inscribiste, paga tu paquete desde Pagos al entrar con tu correo."
                   : "Vuelve más tarde o pregunta a quien te compartió el link."}
               </p>
             </div>
           )}
         </div>
 
-        {/* Below the form, for whoever comes back; it stays after the form closes, like abonos. */}
-        {form.kind === "package_payment" && form.packages.some((option) => option.installments > 1) ? (
-          <div className="mt-12">
-            <ResendPlanLink slug={form.slug} />
-          </div>
-        ) : null}
       </main>
       <SiteFooter />
     </>

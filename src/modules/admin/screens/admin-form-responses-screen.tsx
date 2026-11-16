@@ -1,6 +1,6 @@
 import { ArrowLeft, Download, Search } from "lucide-react";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { Button } from "@/common/components/ui/button";
@@ -20,7 +20,7 @@ import { ADMIN_PATHS } from "../lib/constants/admin.constants";
 import type { PackagePaymentSearchParams } from "../lib/schemas/package-payment.schema";
 import { getFormForBuilder } from "../lib/services/form.service";
 import { PACKAGE_PAYMENTS_PAGE_SIZE, listPackagePayments } from "../lib/services/package-payment.service";
-import { formResponsesHref } from "../lib/utils/form-links.util";
+import { formPaymentsHref } from "../lib/utils/form-links.util";
 
 function queryString(params: Record<string, string | number | undefined>): string {
   const search = new URLSearchParams();
@@ -37,21 +37,27 @@ type AdminFormResponsesScreenProps = {
 };
 
 /**
- * Answers of one general form (Eventos › Formularios › Respuestas). Payment
- * forms keep theirs in Pagos › Paquetes and are redirected there.
+ * Answers of one form (Eventos › Formularios › Respuestas): a general
+ * form's answers, or a package form's sign-ups (its payments are in
+ * Pagos › Paquetes, linked from here).
  */
 export async function AdminFormResponsesScreen({ formId, params }: AdminFormResponsesScreenProps) {
   if (!z.uuid().safeParse(formId).success) notFound();
   const form = await getFormForBuilder(formId);
   if (!form) notFound();
-  if (form.kind !== "general") redirect(formResponsesHref(form));
+  const signups = form.kind === "package_payment";
 
   const { rows, total } = await listPackagePayments(
-    { formId, kind: "general", query: params.q || undefined },
+    { formId, kind: form.kind, entries: "signups", query: params.q || undefined },
     params.page,
   );
   const pages = Math.max(1, Math.ceil(total / PACKAGE_PAYMENTS_PAGE_SIZE));
-  const exportHref = `${ADMIN_PATHS.packagePaymentsExportApi}${queryString({ form: formId, kind: "general", q: params.q })}`;
+  const exportHref = `${ADMIN_PATHS.packagePaymentsExportApi}${queryString({
+    form: formId,
+    kind: form.kind,
+    entries: signups ? "signups" : undefined,
+    q: params.q,
+  })}`;
   const listHref = ADMIN_PATHS.formResponses(formId);
 
   return (
@@ -65,10 +71,19 @@ export async function AdminFormResponsesScreen({ formId, params }: AdminFormResp
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Respuestas</h1>
+            <h1 className="text-2xl font-bold">{signups ? "Inscripciones" : "Respuestas"}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {form.title} · {form.eventName}
             </p>
+            {signups ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Quienes se inscribieron en un paquete. Sus pagos están en{" "}
+                <Link href={formPaymentsHref({ id: form.id, eventId: form.eventId })} className="underline underline-offset-4">
+                  Pagos › Paquetes
+                </Link>
+                .
+              </p>
+            ) : null}
           </div>
           {total > 0 ? (
             <Button asChild>
@@ -96,7 +111,13 @@ export async function AdminFormResponsesScreen({ formId, params }: AdminFormResp
 
       <section aria-labelledby="responses-heading" className="space-y-3">
         <h2 id="responses-heading" className="text-lg font-semibold">
-          {total === 1 ? "1 respuesta" : `${total} respuestas`}
+          {signups
+            ? total === 1
+              ? "1 inscripción"
+              : `${total} inscripciones`
+            : total === 1
+              ? "1 respuesta"
+              : `${total} respuestas`}
         </h2>
 
         {rows.length === 0 ? (

@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   integer,
   pgTable,
@@ -46,6 +47,12 @@ export const photos = pgTable(
      * sale. Per-email releases live in `photo_releases`.
      */
     releasedAt: timestamp("released_at", { withTimezone: true }),
+    /**
+     * Part of the event's package ("Del paquete") rather than an
+     * additional photo for sale: it frees itself for each tagged person
+     * once their payment plan for the event is paid.
+     */
+    isPackage: boolean("is_package").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -13,6 +13,11 @@ export type PackagePaymentFilters = {
   query?: string;
   /** Review status of package payments. */
   paymentStatus?: PackagePaymentStatus;
+  /**
+   * Package forms only: "payments" (the default, Pagos › Paquetes) or
+   * "signups" (the form's answers, which carry no payment).
+   */
+  entries?: "payments" | "signups";
 };
 
 /**

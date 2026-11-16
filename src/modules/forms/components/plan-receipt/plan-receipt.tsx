@@ -1,13 +1,9 @@
-import { CopyButton } from "@/common/components/copy-button/copy-button";
 import { formatEur, formatVes } from "@/common/lib/utils/money.util";
 
 import type { PlanReceipt as PlanReceiptData } from "../../lib/types/public-form.types";
 
-/**
- * The payment just reported and the plan's balance, plus the private link
- * for the next abonos. Shown on both success screens.
- */
-export function PlanReceipt({ plan, showLink }: { plan: PlanReceiptData; showLink: boolean }) {
+/** The payment just reported and the plan's balance, on the success screen in "Pagos". */
+export function PlanReceipt({ plan }: { plan: PlanReceiptData }) {
   const remaining = Math.max(0, plan.priceCents - plan.confirmedCents - plan.pendingCents);
   const confirmedPercent = Math.min(100, (plan.confirmedCents / plan.priceCents) * 100);
   const pendingPercent = Math.min(100 - confirmedPercent, (plan.pendingCents / plan.priceCents) * 100);
@@ -45,21 +41,6 @@ export function PlanReceipt({ plan, showLink }: { plan: PlanReceiptData; showLin
         <span className="bg-amber/60" style={{ width: `${pendingPercent}%` }} />
       </div>
 
-      {showLink && remaining > 0 ? (
-        <div className="space-y-2 rounded-md border border-amber p-4">
-          <p className="font-medium">Guarda tu enlace para los próximos abonos</p>
-          <p className="text-sm text-muted-foreground">
-            Con él pagas lo que falta sin volver a llenar tus datos y ves cuánto llevas. También te lo
-            enviamos por correo si dejaste uno.
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <a href={plan.url} className="min-w-0 flex-1 truncate font-mono text-xs underline underline-offset-4">
-              {plan.url}
-            </a>
-            <CopyButton text={plan.url} label="Copiar enlace" copiedLabel="Copiado" variant="outline" size="sm" />
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

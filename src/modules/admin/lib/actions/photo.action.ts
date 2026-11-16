@@ -8,6 +8,7 @@ import { ADMIN_PATHS } from "../constants/admin.constants";
 import {
   bulkDeleteSchema,
   bulkReleaseSchema,
+  bulkSetPackageSchema,
   bulkUnreleaseSchema,
   bulkPriceSchema,
   bulkTagPhotosSchema,
@@ -22,6 +23,7 @@ import {
   bulkDeletePhotos,
   releasePhotosToAll,
   releasePhotosToEmails,
+  setPackagePhotos,
   unreleasePhotos,
   bulkTagPhotos,
   bulkUpdatePrice,
@@ -231,6 +233,28 @@ export async function bulkReleasePhotosAction(
     ok: true,
     result,
     message: `${plural(result.affected, "liberación nueva", "liberaciones nuevas")} en ${photoCount}${notes.length > 0 ? ` (${notes.join("; ")})` : ""}.`,
+  };
+}
+
+export async function bulkSetPackageAction(input: { photoIds: string[]; isPackage: boolean }): Promise<BulkActionOutcome> {
+  await requireAdmin();
+
+  const parsed = bulkSetPackageSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Revisa la selección." };
+  }
+
+  const result = await setPackagePhotos(parsed.data.photoIds, parsed.data.isPackage);
+  revalidatePath(ADMIN_PATHS.photos);
+  return {
+    ok: true,
+    result,
+    message:
+      result.affected === 0
+        ? `Las fotos seleccionadas ya eran ${parsed.data.isPackage ? "del paquete" : "adicionales"}.`
+        : parsed.data.isPackage
+          ? `${plural(result.affected, "foto pasa", "fotos pasan")} al paquete: se liberan solas a quien complete su pago.`
+          : `${plural(result.affected, "foto pasa", "fotos pasan")} a adicional: se venden aparte.`,
   };
 }
 

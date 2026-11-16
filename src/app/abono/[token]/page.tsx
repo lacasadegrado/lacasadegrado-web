@@ -1,15 +1,12 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { PlanScreen } from "@/modules/forms/screens/plan-screen";
+import { buildLoginUrl } from "@/modules/auth/lib/utils/auth.util";
+import { PLANS_PATHS } from "@/modules/plans/lib/constants/plans.constants";
 
-/** Private by link: never indexed, never sent as a referrer. */
-export const metadata: Metadata = {
-  title: "Tu plan de pagos",
-  robots: { index: false, follow: false },
-  referrer: "no-referrer",
-};
-
-export default async function Page(props: PageProps<"/abono/[token]">) {
-  const { token } = await props.params;
-  return <PlanScreen token={token} />;
+/**
+ * Old private payment links (before "Pagos"). They no longer open a plan:
+ * the person signs in and lands on their payments.
+ */
+export default function Page(): never {
+  redirect(buildLoginUrl(PLANS_PATHS.list));
 }

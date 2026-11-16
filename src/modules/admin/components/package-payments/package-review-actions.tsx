@@ -40,7 +40,7 @@ type PackageReviewActionsProps = {
 
 /**
  * Confirm counts the money toward the plan (and may complete it); reject
- * frees the parts and emails the reason with a new link. Both behind a
+ * frees the parts and emails the reason; they report again from "Pagos". Both behind a
  * dialog, since the person is emailed either way.
  */
 export function PackageReviewActions({ submissionId, who, amountCents, reference, size = "default" }: PackageReviewActionsProps) {
@@ -111,7 +111,7 @@ export function PackageReviewActions({ submissionId, who, amountCents, reference
               <AlertDialogHeader>
                 <AlertDialogTitle>Rechazar el pago de {who}</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Recibirá este motivo por correo con un enlace nuevo para reportarlo otra vez.
+                  Recibirá este motivo por correo y podrá reportarlo otra vez desde Pagos.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <div className="space-y-2">

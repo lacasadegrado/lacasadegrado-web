@@ -2,22 +2,28 @@
 
 import { CircleCheck } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
 
 import { Alert, AlertDescription } from "@/common/components/ui/alert";
 import { Button } from "@/common/components/ui/button";
 import { formatEur } from "@/common/lib/utils/money.util";
+import { buildLoginUrl } from "@/modules/auth/lib/utils/auth.util";
 import { LEGAL_PATHS } from "@/modules/legal/lib/constants/legal.constants";
+import { PLANS_PATHS } from "@/modules/plans/lib/constants/plans.constants";
 
 import { getRosterPrefillAction, prepareFormUploadAction, submitFormAction } from "../../lib/actions/public-form.action";
 import { FORM_HONEYPOT_FIELD } from "../../lib/constants/forms.constants";
 import { buildAnswersSchema } from "../../lib/schemas/form-answers.schema";
 import type { FormFileAnswer, PrepareUpload } from "../../lib/types/form.types";
-import type { PublicForm as PublicFormData, SubmitReceipt } from "../../lib/types/public-form.types";
+import type {
+  PublicForm as PublicFormData,
+  SignupContinuation,
+  SubmitReceipt,
+} from "../../lib/types/public-form.types";
 import { visibleFieldIds } from "../../lib/utils/form-conditions.util";
-import { InstallmentPicker } from "../installment-picker/installment-picker";
-import { PlanReceipt } from "../plan-receipt/plan-receipt";
 import { RosterPicker, type RosterIdentity } from "../roster-picker/roster-picker";
+import { SignupCodeStep } from "../signup-code-step/signup-code-step";
 import { formText } from "../../lib/schemas/form-texts.schema";
 import { FormFieldInput } from "./form-field-input";
 
@@ -48,10 +54,10 @@ function focusFirstError(fieldIds: string[], errors: Record<string, string>) {
  * `draftId` per attempt keeps each submission's files in their own folder.
  */
 export function PublicForm({ form }: { form: PublicFormData }) {
+  const router = useRouter();
   const [draftId, setDraftId] = useState(() => crypto.randomUUID());
   const [values, setValues] = useState<Record<string, unknown>>({});
-  // Parts of the package paid now; back to one whenever the package changes.
-  const [installments, setInstallments] = useState(1);
+  const [continuation, setContinuation] = useState<SignupContinuation>({ status: "none" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState<Set<string>>(() => new Set());
   const [honeypot, setHoneypot] = useState("");
@@ -69,15 +75,12 @@ export function PublicForm({ form }: { form: PublicFormData }) {
   const text = (key: Parameters<typeof formText>[1]) => formText(form.texts, key, form.kind) ?? "";
   // Conditional questions appear as soon as their trigger option is picked.
   const visible = visibleFieldIds(form.fields, values);
-  const fieldIds = form.fields
-    .filter((field) => visible.has(field.id))
-    .flatMap((field) => (field.system === "package" ? [field.id, "installments"] : [field.id]));
+  const fieldIds = form.fields.filter((field) => visible.has(field.id)).map((field) => field.id);
   // A hidden file field that was mid-upload must not block sending.
   const busy = [...uploading].some((fieldId) => visible.has(fieldId));
 
   const setValue = useCallback((fieldId: string, value: unknown) => {
     setValues((current) => ({ ...current, [fieldId]: value }));
-    if (fieldId === "package") setInstallments(1);
     setErrors((current) => {
       if (!current[fieldId]) return current;
       const next = { ...current };
@@ -106,7 +109,6 @@ export function PublicForm({ form }: { form: PublicFormData }) {
     (input) => prepareFormUploadAction({ slug: form.slug, ...input }),
     [form.slug],
   );
-  const chosenPackage = form.packages.find((option) => option.id === values.package);
 
   const setFieldUploading = useCallback((fieldId: string, busy: boolean) => {
     setUploading((current) => {
@@ -126,7 +128,6 @@ export function PublicForm({ form }: { form: PublicFormData }) {
     setValues({});
     setPrefilled({});
     setMissing(new Set());
-    setInstallments(1);
     setErrors({});
     setMessage(null);
     if (next?.kind !== "listed") return;
@@ -179,12 +180,17 @@ export function PublicForm({ form }: { form: PublicFormData }) {
         slug: form.slug,
         draftId,
         answers: values,
-        installments: chosenPackage ? installments : undefined,
         rosterEntryId: identity?.kind === "listed" ? identity.entryId : null,
         honeypot,
       });
       if (result.ok) {
+        // Signed in with this email already: their package is waiting in "Pagos".
+        if (result.continuation.status === "signed_in") {
+          router.push(PLANS_PATHS.list);
+          return;
+        }
         setReceipt(result.receipt);
+        setContinuation(result.continuation);
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
@@ -206,15 +212,60 @@ export function PublicForm({ form }: { form: PublicFormData }) {
     setMissing(new Set());
     setDraftId(crypto.randomUUID());
     setValues({});
-    setInstallments(1);
     setErrors({});
     setUploading(new Set());
     setMessage(null);
     setReceipt(null);
+    setContinuation({ status: "none" });
+  }
+
+  if (receipt?.signup) {
+    return (
+      <section aria-live="polite" className="space-y-6 rounded-lg border bg-card p-6">
+        <CircleCheck aria-hidden="true" className="size-10 text-primary" />
+        <div className="space-y-2">
+          <h2 className="text-2xl">{text("successTitle")}</h2>
+          {form.texts.successMessage ? (
+            <p className="whitespace-pre-line text-muted-foreground">{form.texts.successMessage}</p>
+          ) : (
+            <p className="text-muted-foreground">
+              {receipt.packageName}
+              {receipt.priceCents !== null ? ` · ${formatEur(receipt.priceCents)}` : ""}
+              {receipt.signup.installments > 1 ? ` en ${receipt.signup.installments} cuotas` : ""}. Ahora entra a tu
+              cuenta para pagarlo desde Pagos.
+            </p>
+          )}
+        </div>
+        {continuation.status === "code_sent" ? (
+          <SignupCodeStep email={continuation.email} sentAt={continuation.sentAt} />
+        ) : (
+          <div className="space-y-3">
+            {continuation.status === "code_failed" ? (
+              <Alert role="alert">
+                <AlertDescription>{continuation.message} Pídelo de nuevo en la página de entrada.</AlertDescription>
+              </Alert>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                La persona entra con <strong className="text-foreground">{receipt.email}</strong> y paga desde Pagos.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {continuation.status === "code_failed" ? (
+                <Button asChild>
+                  <Link href={buildLoginUrl(PLANS_PATHS.list)}>Entrar para pagar</Link>
+                </Button>
+              ) : null}
+              <Button type="button" variant="outline" onClick={startOver}>
+                Inscribir a otra persona
+              </Button>
+            </div>
+          </div>
+        )}
+      </section>
+    );
   }
 
   if (receipt) {
-    const isPayment = receipt.kind === "package_payment";
     return (
       <section aria-live="polite" className="space-y-5 rounded-lg border bg-card p-6">
         <CircleCheck aria-hidden="true" className="size-10 text-primary" />
@@ -224,7 +275,7 @@ export function PublicForm({ form }: { form: PublicFormData }) {
             <p className="whitespace-pre-line text-muted-foreground">{form.texts.successMessage}</p>
           ) : (
             <p className="text-muted-foreground">
-              {isPayment ? "Vamos a verificar tu pago. " : ""}Si falta algún dato te escribimos
+              Si falta algún dato te escribimos
               {receipt.email ? (
                 <>
                   {" "}a <strong className="text-foreground">{receipt.email}</strong>
@@ -236,8 +287,7 @@ export function PublicForm({ form }: { form: PublicFormData }) {
             </p>
           )}
         </div>
-        {receipt.plan ? <PlanReceipt plan={receipt.plan} showLink /> : null}
-        {!receipt.plan && (receipt.packageName || receipt.reference) ? (
+        {receipt.packageName || receipt.reference ? (
           <dl className="grid gap-x-6 gap-y-1 rounded-md bg-muted p-4 text-sm sm:grid-cols-[auto_1fr]">
             {receipt.packageName ? (
               <>
@@ -327,28 +377,6 @@ export function PublicForm({ form }: { form: PublicFormData }) {
             ) : null}
           </div>
         );
-        const picker =
-          field.system === "package" && chosenPackage && chosenPackage.installments > 1 ? (
-            <InstallmentPicker
-              key={`${draftId}-installments`}
-              id="field-installments"
-              priceCents={chosenPackage.priceCents}
-              installments={chosenPackage.installments}
-              reserved={0}
-              value={installments}
-              onChange={(next) => {
-                setInstallments(next);
-                setErrors((current) => {
-                  if (!current.installments) return current;
-                  const rest = { ...current };
-                  delete rest.installments;
-                  return rest;
-                });
-              }}
-              eurToVes={form.eurToVes}
-              error={errors.installments}
-            />
-          ) : null;
         // Indented under the question that revealed it.
         const block = field.showIf ? (
           <div key={`${draftId}-${field.id}`} className="border-l-2 border-primary/40 pl-4">
@@ -357,7 +385,7 @@ export function PublicForm({ form }: { form: PublicFormData }) {
         ) : (
           input
         );
-        return picker ? [block, picker] : block;
+        return block;
       })}
 
       {message ? (
@@ -378,7 +406,7 @@ export function PublicForm({ form }: { form: PublicFormData }) {
           <p className="text-sm text-muted-foreground">
             Los campos con <span aria-hidden="true">*</span>
             <span className="sr-only">asterisco</span> son obligatorios. Usamos tus datos solo para
-            {form.kind === "package_payment" ? " verificar tu pago" : " gestionar tu solicitud"}, como explica la{" "}
+            {form.kind === "package_payment" ? " gestionar tu paquete" : " gestionar tu solicitud"}, como explica la{" "}
             <Link href={LEGAL_PATHS.privacy} className="underline underline-offset-4" target="_blank">
               política de privacidad
             </Link>

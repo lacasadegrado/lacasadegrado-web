@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/common/lib/db";
 import { events, formSubmissions, forms, packagePlans, profiles } from "@/common/lib/db/schema";
@@ -42,6 +42,12 @@ function whereFor(filters: PackagePaymentFilters): SQL | undefined {
   if (filters.packageId) conditions.push(eq(formSubmissions.packageId, filters.packageId));
   if (filters.kind) conditions.push(eq(forms.kind, filters.kind));
   if (filters.paymentStatus) conditions.push(eq(formSubmissions.paymentStatus, filters.paymentStatus));
+  // A package form's sign-up has no payment status; payments always have one.
+  if (filters.kind === "package_payment") {
+    conditions.push(
+      filters.entries === "signups" ? isNull(formSubmissions.paymentStatus) : isNotNull(formSubmissions.paymentStatus),
+    );
+  }
   const query = filters.query?.trim();
   if (query) {
     const pattern = likePattern(query);

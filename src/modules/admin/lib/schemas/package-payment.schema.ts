@@ -17,6 +17,8 @@ export const packagePaymentFiltersSchema = z.object({
   status: z.enum(packagePaymentStatusEnum.enumValues).optional().catch(undefined),
   /** Payment forms unless a general form's page asks otherwise. */
   kind: z.enum(formKindEnum.enumValues).catch("package_payment"),
+  /** Package forms: payments (Pagos › Paquetes) or the sign-ups (the form's Respuestas). */
+  entries: z.enum(["payments", "signups"]).catch("payments"),
   page: z.coerce.number().int().min(1).max(10_000).catch(1),
 });
 
@@ -30,6 +32,7 @@ export function toPackagePaymentFilters(params: PackagePaymentSearchParams) {
     query: params.q || undefined,
     kind: params.kind,
     paymentStatus: params.status,
+    entries: params.entries,
   };
 }
 

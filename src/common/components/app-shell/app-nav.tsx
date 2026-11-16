@@ -7,9 +7,10 @@ import type { ReactNode } from "react";
 import { cn } from "@/common/lib/utils/cn.util";
 
 const LINKS = [
-  { href: "/dashboard", label: "Mis fotos", exact: true, slot: null, commerce: false },
-  { href: "/cart", label: "Carrito", exact: false, slot: "cart", commerce: true },
-  { href: "/dashboard/purchases", label: "Compras", exact: false, slot: null, commerce: true },
+  { href: "/dashboard", label: "Mis fotos", exact: true, slot: null, commerce: false, payments: false },
+  { href: "/dashboard/payments", label: "Pagos", exact: false, slot: null, commerce: false, payments: true },
+  { href: "/cart", label: "Carrito", exact: false, slot: "cart", commerce: true, payments: false },
+  { href: "/dashboard/purchases", label: "Compras", exact: false, slot: null, commerce: true, payments: false },
 ] as const;
 
 function isActive(pathname: string, href: string, exact: boolean): boolean {
@@ -22,12 +23,14 @@ type AppNavProps = {
   cartBadge?: ReactNode;
   /** Hide the cart and purchases links, for people with free access. */
   showCommerce?: boolean;
+  /** "Pagos", for people signed up for a photo package. */
+  showPayments?: boolean;
 };
 
 /** Primary navigation for signed-in pages. Sits under the site header. */
-export function AppNav({ cartBadge, showCommerce = true }: AppNavProps) {
+export function AppNav({ cartBadge, showCommerce = true, showPayments = false }: AppNavProps) {
   const pathname = usePathname();
-  const links = LINKS.filter((link) => showCommerce || !link.commerce);
+  const links = LINKS.filter((link) => (showCommerce || !link.commerce) && (showPayments || !link.payments));
 
   return (
     <nav aria-label="Principal" className="border-b">

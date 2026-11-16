@@ -13,6 +13,7 @@ import { RosterSummary } from "../components/package-payments/roster-summary";
 import { ADMIN_PATHS } from "../lib/constants/admin.constants";
 import { PACKAGE_PAYMENT_STATUS_BADGE, PACKAGE_PAYMENT_STATUS_LABELS } from "../lib/constants/sale.constants";
 import { getPackagePayment } from "../lib/services/package-payment.service";
+import { isPaymentSubmission } from "../lib/utils/form-links.util";
 
 type DetailProps = {
   submissionId: string;
@@ -30,11 +31,11 @@ export async function AdminPackagePaymentDetailScreen({ submissionId, formId }: 
   if (formId !== undefined && !z.uuid().safeParse(formId).success) notFound();
   const payment = await getPackagePayment(submissionId);
   if (!payment) notFound();
-  // Each kind has its own route; a mismatched URL is a 404, not a different layout.
-  if (formId !== undefined ? payment.formId !== formId || payment.formKind !== "general" : payment.formKind !== "package_payment") {
+  // Payments and answers (general forms, package sign-ups) each have their route; a mismatch is a 404.
+  const isPayment = isPaymentSubmission(payment);
+  if (formId !== undefined ? payment.formId !== formId || isPayment : !isPayment) {
     notFound();
   }
-  const isPayment = payment.formKind === "package_payment";
   const backHref = isPayment
     ? `${ADMIN_PATHS.packagePayments}?event=${payment.eventId}&form=${payment.formId}`
     : ADMIN_PATHS.formResponses(payment.formId);

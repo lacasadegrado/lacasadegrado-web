@@ -5,7 +5,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/common/lib/db";
 import { entitlements, events, photoTags, photos } from "@/common/lib/db/schema";
 import type { SessionUser } from "@/modules/auth/lib/types/auth.types";
-import { releasedForEmail } from "@/modules/purchases/lib/utils/photo-release.util";
+import { packagePendingForEmail, releasedForEmail } from "@/modules/purchases/lib/utils/photo-release.util";
 
 import type { CartItem, CartItemsResult, CartLineInput } from "../types/cart.types";
 
@@ -32,6 +32,7 @@ export async function getCartItemsForUser(
       printPriceCents: photos.printPriceCents,
       eventName: events.name,
       owned: sql<boolean>`(${entitlements.id} is not null or ${releasedForEmail(viewer.email)})`,
+      packagePending: packagePendingForEmail(viewer.email),
     })
     .from(photos)
     .innerJoin(events, and(eq(events.id, photos.eventId), eq(events.isActive, true)))
@@ -55,12 +56,19 @@ export async function getCartItemsForUser(
   const unavailableIds: string[] = [];
   for (const line of lines) {
     const row = byId.get(line.photoId);
-    if (!row) {
+    // A package photo of a plan being paid becomes theirs when it is paid: never charge it twice.
+    if (!row || row.packagePending) {
       unavailableIds.push(line.photoId);
       continue;
     }
     items.push({
-      ...row,
+      id: row.id,
+      width: row.width,
+      height: row.height,
+      priceCents: row.priceCents,
+      printPriceCents: row.printPriceCents,
+      eventName: row.eventName,
+      owned: row.owned,
       format: line.format,
       unitPriceCents: line.format === "print" ? row.printPriceCents : row.priceCents,
     });

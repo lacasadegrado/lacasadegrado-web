@@ -9,10 +9,10 @@ export function newFieldId(): string {
 }
 
 /**
- * What a new form starts with. A payment form: the four system fields
- * plus the person's name, in the order someone reporting a payment would
- * fill them. A general form: the email and the person's name; the admin
- * adds the rest. Every field starts required; the admin can relax it.
+ * What a new form starts with. A package form (sign-up): the person's
+ * name, their email and the package; they pay it later from "Pagos". A
+ * general form: the email and the person's name; the admin adds the rest.
+ * Every field starts required.
  */
 export function createDefaultFormFields(kind: FormKind = "package_payment"): FormField[] {
   if (kind === "general") {
@@ -38,29 +38,38 @@ export function createDefaultFormFields(kind: FormKind = "package_payment"): For
   }
   return [
     {
-      id: "email",
-      system: "email",
-      type: "email",
-      label: "Correo electrónico",
-      helpText: "Usa el mismo correo con el que entrarás a ver tus fotos.",
-      required: true,
-    },
-    {
       id: newFieldId(),
       type: "short_text",
-      label: "Nombre y apellido",
+      label: "Nombre y apellido del graduando",
       required: true,
       minLength: 3,
       maxLength: 120,
       personName: true,
     },
     {
+      id: "email",
+      system: "email",
+      type: "email",
+      label: "Correo electrónico",
+      helpText: "Te enviaremos un código a este correo para entrar a tus pagos y, después, a tus fotos.",
+      required: true,
+    },
+    {
       id: "package",
       system: "package",
       type: "package",
-      label: "Paquete que pagaste",
+      label: "Paquete",
       required: true,
     },
+  ];
+}
+
+/**
+ * What every installment asks in "Pagos": the bank reference and the
+ * proof. Fixed, not part of any form, so all plans report the same way.
+ * Files go under the plan's form prefix like any form upload.
+ */
+export const PLAN_PAYMENT_FIELDS: FormField[] = [
     {
       id: "reference",
       system: "reference",
@@ -82,8 +91,7 @@ export function createDefaultFormFields(kind: FormKind = "package_payment"): For
       maxFiles: 1,
       maxSizeMb: FORM_LIMITS.maxFileMb,
     },
-  ];
-}
+];
 
 /** Types the admin can add; `package` exists only as the system field. */
 export type AddableFieldType = Exclude<FormField["type"], "package">;

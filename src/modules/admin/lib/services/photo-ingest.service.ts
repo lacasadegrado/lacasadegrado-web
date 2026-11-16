@@ -49,6 +49,7 @@ type CompleteInput = {
   contentType: string;
   /** Released for everyone tagged (package photo) from the start. */
   released: boolean;
+  isPackage: boolean;
 };
 
 export type CompleteUploadResult =
@@ -99,6 +100,7 @@ export async function completeUpload(input: CompleteInput): Promise<CompleteUplo
       priceCents: input.priceCents,
       printPriceCents: input.printPriceCents,
       releasedAt: input.released ? new Date() : null,
+      isPackage: input.isPackage,
     });
   } catch (error) {
     // Do not leave orphaned objects if processing or the row failed.

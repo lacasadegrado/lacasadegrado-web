@@ -1,10 +1,15 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, ilike, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, isNotNull, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/common/lib/db";
 import { events, formSubmissions, forms, packagePlans } from "@/common/lib/db/schema";
-import { newPlanToken, planBalance, planUrl } from "@/modules/forms/lib/services/package-plan.service";
+import { planBalance } from "@/modules/forms/lib/services/package-plan.service";
+import type { FormField } from "@/modules/forms/lib/types/form.types";
+import { amountForInstallments } from "@/modules/forms/lib/utils/installments.util";
+import { getCurrentRate } from "@/modules/checkout/lib/services/exchange-rate.service";
+
+import type { RecordPackagePaymentInput } from "../schemas/payment-review.schema";
 
 import type { PackagePlanDetail, PackagePlanFilters, PackagePlanRow } from "../types/package-plan.types";
 import { likePattern } from "../utils/package-payment.util";
@@ -24,8 +29,6 @@ export type PackageReviewOutcome =
       confirmedCents: number;
       priceCents: number;
       planId: string | null;
-      /** New plan link after a rejection, so the email can include it. */
-      planUrl: string | null;
     }
   | { ok: false; reason: "not_found" | "wrong_status" };
 
@@ -33,8 +36,7 @@ export type PackageReviewOutcome =
  * Confirms or rejects one package payment, with the submission and its
  * plan locked so two admins cannot count the same money twice. A
  * confirmation that covers the price marks the plan paid. A rejection
- * frees its parts and gets the plan a new link for the person to report
- * again.
+ * frees its parts; the person reports again from "Pagos".
  */
 export async function reviewPackagePayment(
   adminId: string,
@@ -95,18 +97,12 @@ export async function reviewPackagePayment(
     const priceCents = plan?.priceCents ?? submission.packagePriceCents ?? amountCents;
     let confirmedCents = confirming ? amountCents : 0;
     let outcome: "confirmed" | "paid" | "rejected" = confirming ? "confirmed" : "rejected";
-    let link: string | null = null;
 
     if (plan) {
       confirmedCents = (await planBalance(tx, plan.id)).confirmedCents;
       if (confirming && plan.status === "open" && confirmedCents >= plan.priceCents) {
         await tx.update(packagePlans).set({ status: "paid", paidAt: now }).where(eq(packagePlans.id, plan.id));
         outcome = "paid";
-      }
-      if (!confirming && plan.status === "open") {
-        const { token, tokenHash } = newPlanToken();
-        await tx.update(packagePlans).set({ tokenHash }).where(eq(packagePlans.id, plan.id));
-        link = planUrl(token);
       }
     } else if (confirming && amountCents >= priceCents) {
       outcome = "confirmed";
@@ -124,7 +120,97 @@ export async function reviewPackagePayment(
       confirmedCents,
       priceCents,
       planId: plan?.id ?? null,
-      planUrl: link,
+    };
+  });
+}
+
+/** What a payment registered by the team stores, so its detail page reads like any answer. */
+const RECORDED_PAYMENT_FIELDS: FormField[] = [
+  { id: "reference", system: "reference", type: "short_text", label: "Referencia", required: false },
+  { id: "note", type: "long_text", label: "Nota del equipo", required: false },
+];
+
+export type RecordPackagePaymentOutcome =
+  | Extract<PackageReviewOutcome, { ok: true }>
+  | { ok: false; reason: "not_found" | "paid" | "too_many" };
+
+/**
+ * "Registrar pago": the next `installments` parts, received outside the
+ * app (cash, WhatsApp), stored as a confirmed payment with `recorded_by`.
+ * Same locking and paid-marking as a confirmation.
+ */
+export async function recordPackagePayment(
+  adminId: string,
+  input: RecordPackagePaymentInput,
+): Promise<RecordPackagePaymentOutcome> {
+  const rate = await getCurrentRate();
+  return db.transaction(async (tx) => {
+    const [plan] = await tx
+      .select({
+        id: packagePlans.id,
+        status: packagePlans.status,
+        email: packagePlans.email,
+        personName: packagePlans.personName,
+        packageId: packagePlans.packageId,
+        packageName: packagePlans.packageName,
+        priceCents: packagePlans.priceCents,
+        installments: packagePlans.installments,
+        formId: packagePlans.formId,
+        formVersion: forms.version,
+        formSlug: forms.slug,
+        eventName: events.name,
+      })
+      .from(packagePlans)
+      .innerJoin(forms, eq(forms.id, packagePlans.formId))
+      .innerJoin(events, eq(events.id, packagePlans.eventId))
+      .where(eq(packagePlans.id, input.planId))
+      .for("update", { of: packagePlans })
+      .limit(1);
+    if (!plan) return { ok: false, reason: "not_found" };
+    if (plan.status !== "open") return { ok: false, reason: "paid" };
+
+    const before = await planBalance(tx, plan.id);
+    if (input.installments > plan.installments - before.reservedInstallments) return { ok: false, reason: "too_many" };
+    const amountCents = amountForInstallments(plan.priceCents, plan.installments, before.reservedInstallments, input.installments);
+
+    const now = new Date();
+    await tx.insert(formSubmissions).values({
+      formId: plan.formId,
+      packageId: plan.packageId,
+      packageName: plan.packageName,
+      packagePriceCents: plan.priceCents,
+      email: plan.email,
+      reference: input.reference,
+      proofKey: null,
+      answers: { ...(input.reference ? { reference: input.reference } : {}), ...(input.note ? { note: input.note } : {}) },
+      fieldsSnapshot: RECORDED_PAYMENT_FIELDS,
+      formVersion: plan.formVersion,
+      planId: plan.id,
+      installmentsCovered: input.installments,
+      amountCents,
+      eurToVes: rate ? rate.eurToVes.toFixed(4) : null,
+      paymentStatus: "confirmed",
+      reviewedAt: now,
+      reviewedBy: adminId,
+      recordedBy: adminId,
+    });
+
+    const confirmedCents = before.confirmedCents + amountCents;
+    const paid = confirmedCents >= plan.priceCents;
+    if (paid) await tx.update(packagePlans).set({ status: "paid", paidAt: now }).where(eq(packagePlans.id, plan.id));
+
+    return {
+      ok: true,
+      outcome: paid ? "paid" : "confirmed",
+      email: plan.email,
+      personName: plan.personName,
+      eventName: plan.eventName,
+      formSlug: plan.formSlug,
+      packageName: plan.packageName,
+      amountCents,
+      confirmedCents,
+      priceCents: plan.priceCents,
+      planId: plan.id,
     };
   });
 }
@@ -229,21 +315,24 @@ export async function getPackagePlan(planId: string): Promise<PackagePlanDetail 
       rejectionReason: formSubmissions.rejectionReason,
       reviewedAt: formSubmissions.reviewedAt,
       proofKey: formSubmissions.proofKey,
+      recordedBy: formSubmissions.recordedBy,
     })
     .from(formSubmissions)
-    .where(eq(formSubmissions.planId, plan.id))
+    // The sign-up itself has no payment status: it is not a payment.
+    .where(and(eq(formSubmissions.planId, plan.id), isNotNull(formSubmissions.paymentStatus)))
     .orderBy(asc(formSubmissions.submittedAt));
 
   return {
     ...plan,
     lastPaymentAt: plan.lastPaymentAt ? new Date(plan.lastPaymentAt) : null,
-    payments: payments.map(({ proofKey, eurToVes, ...payment }) => ({
+    payments: payments.map(({ proofKey, eurToVes, recordedBy, ...payment }) => ({
       ...payment,
       amountCents: payment.amountCents ?? 0,
       installmentsCovered: payment.installmentsCovered ?? 0,
       status: payment.status ?? "pending",
       eurToVes: eurToVes ? Number(eurToVes) : null,
       hasProof: proofKey !== null,
+      recorded: recordedBy !== null,
     })),
   };
 }

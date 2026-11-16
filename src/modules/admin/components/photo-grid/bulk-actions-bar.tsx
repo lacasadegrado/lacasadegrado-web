@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, Mail, Tag, Trash2 } from "lucide-react";
+import { Lock, Mail, Package, ShoppingBag, Tag, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/common/components/ui/alert";
@@ -31,6 +31,7 @@ import { cn } from "@/common/lib/utils/cn.util";
 
 import {
   bulkDeletePhotosAction,
+  bulkSetPackageAction,
   bulkUnreleasePhotosAction,
   bulkTagPhotosAction,
   bulkUpdatePriceAction,
@@ -293,6 +294,26 @@ export function BulkActionsBar({
               onClick={() => run(() => bulkUnreleasePhotosAction({ photoIds: selectedIds }), () => undefined)}
             >
               <Lock aria-hidden="true" /> Quitar liberación
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              title="Se liberan solas a cada etiquetado cuando completa el pago de su paquete"
+              onClick={() => run(() => bulkSetPackageAction({ photoIds: selectedIds, isPackage: true }), () => undefined)}
+            >
+              <Package aria-hidden="true" /> Del paquete
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              title="Se venden aparte, en el carrito"
+              onClick={() => run(() => bulkSetPackageAction({ photoIds: selectedIds, isPackage: false }), () => undefined)}
+            >
+              <ShoppingBag aria-hidden="true" /> Adicional
             </Button>
 
             <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

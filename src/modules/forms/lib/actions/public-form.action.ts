@@ -3,13 +3,21 @@
 import { headers } from "next/headers";
 
 import { getAdminUser } from "@/modules/admin/lib/services/admin-access.service";
+import { AUTH_MESSAGES } from "@/modules/auth/lib/constants/auth.constants";
+import { requestOtp } from "@/modules/auth/lib/services/auth.service";
+import { getSessionUser } from "@/modules/auth/lib/services/session.service";
 import { getClientIp } from "@/modules/auth/lib/utils/auth.util";
 
 import { FORM_LIMITS } from "../constants/forms.constants";
 import { prepareFormUploadSchema, rosterPrefillSchema, submitFormSchema } from "../schemas/public-form.schema";
 import type { FormClient } from "../services/form-rate-limit.service";
 import { getRosterPrefill, prepareFormUpload, submitPublicForm } from "../services/public-form.service";
-import type { PrepareFormUploadResult, RosterPrefillResult, SubmitFormResult } from "../types/public-form.types";
+import type {
+  PrepareFormUploadResult,
+  RosterPrefillResult,
+  SignupContinuation,
+  SubmitFormResult,
+} from "../types/public-form.types";
 
 /**
  * Public on purpose: these forms are filled without an account. Abuse is
@@ -56,7 +64,6 @@ export async function submitFormAction(input: {
   slug: string;
   draftId: string;
   answers: Record<string, unknown>;
-  installments?: number;
   rosterEntryId?: string | null;
   honeypot?: string;
 }): Promise<SubmitFormResult> {
@@ -67,12 +74,17 @@ export async function submitFormAction(input: {
   if (parsed.data.honeypot) {
     return {
       ok: true,
-      receipt: { kind: "general", packageName: null, priceCents: null, reference: null, email: null, plan: null },
+      receipt: { kind: "general", packageName: null, priceCents: null, reference: null, email: null, plan: null, signup: null },
+      continuation: { status: "none" },
     };
   }
 
-  const result = await submitPublicForm(parsed.data, await formClient());
-  if (result.ok) return result;
+  const client = await formClient();
+  const result = await submitPublicForm(parsed.data, client);
+  if (result.ok) {
+    const email = result.receipt.signup ? result.receipt.email : null;
+    return { ok: true, receipt: result.receipt, continuation: email ? await continueSignup(email, client) : { status: "none" } };
+  }
 
   switch (result.reason) {
     case "invalid":
@@ -87,6 +99,29 @@ export async function submitFormAction(input: {
     case "not_found":
       return { ok: false, message: "Este formulario ya no existe." };
   }
+}
+
+/**
+ * After a package sign-up: straight to "Pagos" when already signed in with
+ * that email, otherwise a login code to that email. An admin filling it
+ * for someone else gets neither; the person signs in on their own.
+ */
+async function continueSignup(email: string, client: FormClient): Promise<SignupContinuation> {
+  const viewer = await getSessionUser();
+  if (viewer?.email === email.toLowerCase()) return { status: "signed_in" };
+  if (client.trusted) return { status: "none" };
+
+  const outcome = await requestOtp(email, client.ip);
+  // "cooldown": a code went out less than a minute ago; that one still works.
+  if (outcome.ok || outcome.code === "cooldown") return { status: "code_sent", email, sentAt: Date.now() };
+  return {
+    status: "code_failed",
+    email,
+    message:
+      outcome.code === "rate_limited"
+        ? AUTH_MESSAGES.rate_limited(Math.max(1, Math.ceil((outcome.retryAfterSeconds ?? 900) / 60)))
+        : "No pudimos enviarte el código ahora.",
+  };
 }
 
 /**

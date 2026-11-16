@@ -9,7 +9,7 @@ import { FORM_KIND_LABELS } from "@/modules/forms/lib/constants/forms.constants"
 import { FormBuilder } from "../components/forms/form-builder/form-builder";
 import { ADMIN_PATHS } from "../lib/constants/admin.constants";
 import { getFormForBuilder } from "../lib/services/form.service";
-import { formResponsesHref } from "../lib/utils/form-links.util";
+import { formPaymentsHref, formResponsesHref } from "../lib/utils/form-links.util";
 
 export async function AdminFormBuilderScreen({ formId }: { formId: string }) {
   // A malformed id would make Postgres throw instead of returning nothing.
@@ -31,11 +31,18 @@ export async function AdminFormBuilderScreen({ formId }: { formId: string }) {
           Editar formulario <span className="text-base font-normal text-muted-foreground">· {FORM_KIND_LABELS[form.kind]}</span>
         </h1>
           {form.submissionCount > 0 ? (
-            <Button asChild variant="outline" size="sm">
-              <Link href={formResponsesHref(form)}>
-                Ver {form.submissionCount === 1 ? "1 respuesta" : `${form.submissionCount} respuestas`}
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href={formResponsesHref(form)}>
+                  {form.kind === "package_payment" ? "Ver inscripciones" : "Ver respuestas"}
+                </Link>
+              </Button>
+              {form.kind === "package_payment" ? (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={formPaymentsHref(form)}>Ver pagos</Link>
+                </Button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </div>

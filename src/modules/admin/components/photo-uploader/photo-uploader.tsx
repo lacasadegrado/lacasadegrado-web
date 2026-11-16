@@ -51,7 +51,7 @@ export function PhotoUploader({
   const [printPriceEur, setPrintPriceEur] = useState((defaultPrintPriceCents / 100).toFixed(2));
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [busy, setBusy] = useState(false);
-  const [released, setReleased] = useState(false);
+  const [isPackage, setIsPackage] = useState(false);
   const [justUploadedIds, setJustUploadedIds] = useState<string[]>([]);
   const [refreshing, startRefresh] = useTransition();
 
@@ -108,7 +108,7 @@ export function PhotoUploader({
       const done = (await fetch("/api/admin/photos/upload/complete", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...meta, photoId: prepared.photoId, released }),
+        body: JSON.stringify({ ...meta, photoId: prepared.photoId, isPackage }),
       }).then((r) => r.json())) as UploadResponse;
       if (done.ok) {
         updateItem(item.id, { status: "done" });
@@ -209,17 +209,18 @@ export function PhotoUploader({
 
       <div className="flex items-start gap-2">
         <Checkbox
-          id={`${inputId}-released`}
-          checked={released}
+          id={`${inputId}-package`}
+          checked={isPackage}
           disabled={busy}
-          onCheckedChange={(checked) => setReleased(checked === true)}
+          onCheckedChange={(checked) => setIsPackage(checked === true)}
           className="mt-0.5"
         />
-        <Label htmlFor={`${inputId}-released`} className="block font-normal">
-          <span className="font-medium">Liberar estas fotos (son del paquete)</span>
+        <Label htmlFor={`${inputId}-package`} className="block font-normal">
+          <span className="font-medium">Son fotos del paquete</span>
           <span className="block text-sm text-muted-foreground">
-            Quien quede etiquetado las verá sin marca de agua y las descargará sin comprarlas. Para
-            liberarlas solo a algunas personas, súbelas sin marcar esto y usa &quot;Liberar&quot; después.
+            Cada persona etiquetada las verá sin marca de agua y las descargará en cuanto su paquete
+            esté pagado completo; mientras paga, no se le venden aparte. Sin marcar, son adicionales y
+            se venden en el carrito. Para regalarlas ya, usa &quot;Liberar&quot; después.
           </span>
         </Label>
       </div>

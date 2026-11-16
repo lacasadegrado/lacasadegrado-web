@@ -5,6 +5,7 @@ import { SignOutButton } from "@/modules/auth/components/sign-out-button";
 import { getViewerAccess } from "@/modules/auth/lib/services/access.service";
 import { requireSessionUser } from "@/modules/auth/lib/services/session.service";
 import { CartCount } from "@/modules/cart/components/cart-count";
+import { hasPlans } from "@/modules/plans/lib/services/customer-plan.service";
 import { SupportLauncher } from "@/modules/support/components/support-launcher/support-launcher";
 
 export default async function ProtectedLayout({
@@ -16,6 +17,7 @@ export default async function ProtectedLayout({
   // their own, but this keeps the shell from rendering for anonymous hits.
   const user = await requireSessionUser();
   const access = await getViewerAccess(user);
+  const showPayments = await hasPlans(user.email);
 
   return (
     <AppShell
@@ -23,6 +25,7 @@ export default async function ProtectedLayout({
       cartBadge={<CartCount />}
       support={<SupportLauncher email={user.email} />}
       showCommerce={!access.complimentary}
+      showPayments={showPayments}
     >
       {children}
     </AppShell>

@@ -24,7 +24,7 @@ import { publicFormUrl } from "@/modules/forms/lib/utils/form-url.util";
 import { deleteFormAction, type FormActionOutcome } from "../../lib/actions/form.action";
 import { ADMIN_PATHS } from "../../lib/constants/admin.constants";
 import type { AdminFormSummary } from "../../lib/types/form-admin.types";
-import { formResponsesHref } from "../../lib/utils/form-links.util";
+import { formPaymentsHref, formResponsesHref } from "../../lib/utils/form-links.util";
 import { FormStatusBadge } from "./form-status-badge";
 
 export function FormsList({ eventId, forms }: { eventId: string; forms: AdminFormSummary[] }) {
@@ -73,11 +73,18 @@ export function FormsList({ eventId, forms }: { eventId: string; forms: AdminFor
                 <Link href={ADMIN_PATHS.formBuilder(form.id)}>Editar</Link>
               </Button>
               {form.submissionCount > 0 ? (
-                <Button asChild size="sm" variant="outline">
-                  <Link href={formResponsesHref({ ...form, eventId })}>
-                    Ver respuestas
-                  </Link>
-                </Button>
+                <>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={formResponsesHref(form)}>
+                      {form.kind === "package_payment" ? "Ver inscripciones" : "Ver respuestas"}
+                    </Link>
+                  </Button>
+                  {form.kind === "package_payment" ? (
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={formPaymentsHref({ id: form.id, eventId })}>Ver pagos</Link>
+                    </Button>
+                  ) : null}
+                </>
               ) : null}
               <AlertDialog>
                 <AlertDialogTrigger asChild>

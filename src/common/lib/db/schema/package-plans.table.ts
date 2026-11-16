@@ -7,11 +7,10 @@ import { forms } from "./forms.table";
 import { photoPackages } from "./photo-packages.table";
 
 /**
- * One person paying one package, possibly in several abonos. Created by
- * the first payment through a package form; later payments come through
- * the plan's private link (`/abono/<token>`), so the person never retypes
- * their data. Only the SHA-256 of the token is stored: a lost link is
- * replaced by a new one, never recovered. Balances come from the
+ * One person paying one package, possibly in several installments.
+ * Created when they sign up through a package form; they pay from "Pagos"
+ * (signed in with that email). `token_hash` is a leftover of the old
+ * private links: now just a random unique value. Balances come from the
  * confirmed `form_submissions` of the plan.
  */
 export const packagePlans = pgTable(

@@ -228,8 +228,9 @@ const ROLE_LABELS: Record<keyof typeof FORM_SYSTEM_FIELDS, string> = {
 };
 
 /**
- * The per-kind rule, checked when the admin saves: a payment form has all
- * four system fields, a general form only the email. Each exactly once.
+ * The per-kind rule, checked when the admin saves: a package form has the
+ * email and the package (both required), a general form only the email.
+ * Each exactly once.
  */
 export function validateFieldsForKind(
   fields: z.infer<typeof formFieldSchema>[],
@@ -245,6 +246,20 @@ export function validateFieldsForKind(
   for (const [index, field] of fields.entries()) {
     if (field.system && !allowed.includes(field.system)) {
       issues.push({ path: [index], message: "Este campo del sistema no corresponde a este tipo de formulario." });
+    }
+    // A package sign-up needs both: the email is how they enter "Pagos".
+    if (kind === "package_payment" && (field.system === "email" || field.system === "package") && !field.required) {
+      issues.push({
+        path: [index],
+        message:
+          field.system === "email"
+            ? "En un formulario de paquete el correo es obligatorio: con él la persona entra a sus pagos."
+            : "En un formulario de paquete el paquete es obligatorio.",
+      });
+    }
+    // A condition could hide them; the sign-up must always ask them.
+    if (kind === "package_payment" && (field.system === "email" || field.system === "package") && field.showIf) {
+      issues.push({ path: [index], message: "Este campo del sistema siempre se muestra." });
     }
   }
   return issues;

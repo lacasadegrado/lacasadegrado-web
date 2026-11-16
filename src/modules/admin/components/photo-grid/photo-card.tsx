@@ -79,6 +79,11 @@ export function PhotoCard({
             {photo.originalFilename}
           </p>
           <div className="flex shrink-0 items-center gap-1.5">
+            {photo.isPackage ? (
+              <Badge variant="secondary" title="Se libera sola a quien complete el pago de su paquete">
+                Del paquete
+              </Badge>
+            ) : null}
             {photo.releasedAt ? (
               <Badge variant="outline" title="Liberada para todos sus etiquetados">
                 Liberada

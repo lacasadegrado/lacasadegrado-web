@@ -79,6 +79,7 @@ export async function completeUploadHandler(request: Request): Promise<Response>
       filename: parsed.data.name,
       contentType: parsed.data.type,
       released: parsed.data.released,
+      isPackage: parsed.data.isPackage,
     });
     if (!result.ok) return json<UploadResponse>({ ok: false, error: COMPLETE_ERRORS[result.reason] }, 400);
     return json<UploadResponse>({ ok: true, id: result.id, filename: parsed.data.name });

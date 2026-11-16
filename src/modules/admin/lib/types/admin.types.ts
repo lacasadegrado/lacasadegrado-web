@@ -39,6 +39,8 @@ export type AdminPhoto = {
   tags: AdminPhotoTag[];
   /** Released for everyone tagged (a package photo); null when for sale. */
   releasedAt: Date | null;
+  /** "Del paquete": frees itself when the tagged person's plan is paid. */
+  isPackage: boolean;
   /** Emails it is released to individually (`photo_releases`). */
   releasedEmails: string[];
 };

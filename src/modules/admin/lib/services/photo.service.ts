@@ -22,6 +22,7 @@ export async function listPhotosForEvent(eventId: string): Promise<AdminPhoto[]>
       priceCents: photos.priceCents,
       printPriceCents: photos.printPriceCents,
       releasedAt: photos.releasedAt,
+      isPackage: photos.isPackage,
       createdAt: photos.createdAt,
       /** How many people own it; a sold photo cannot be deleted. */
       soldCount: count(entitlements.id),
@@ -241,6 +242,20 @@ export async function releasePhotosToEmails(
     invalid: [],
     notTagged: photoIds.length * emails.length - pairs.length,
   };
+}
+
+/**
+ * "Del paquete" or "Adicional". Package photos free themselves for each
+ * tagged person once their payment plan in the event is paid; additional
+ * ones stay for sale. Manual releases are untouched.
+ */
+export async function setPackagePhotos(photoIds: string[], isPackage: boolean): Promise<BulkActionResult> {
+  const changed = await db
+    .update(photos)
+    .set({ isPackage })
+    .where(and(inArray(photos.id, photoIds), eq(photos.isPackage, !isPackage)))
+    .returning({ id: photos.id });
+  return { affected: changed.length, skipped: photoIds.length - changed.length, blocked: [], invalid: [] };
 }
 
 /** Back on sale: clears the release for everyone and every per-email one. */
