@@ -96,3 +96,17 @@ export const notificationKindEnum = pgEnum("notification_kind", [
 ]);
 
 export type NotificationKind = (typeof notificationKindEnum.enumValues)[number];
+
+/**
+ * How a package installment was paid: the method the person picked in
+ * "Pagos" (bank details for the first two, a phone number for the rest),
+ * or the one the admin chose in "Registrar pago".
+ */
+export const planPaymentMethodEnum = pgEnum("plan_payment_method", [
+  "pago_movil",
+  "bank_transfer",
+  "binance",
+  "cash",
+]);
+
+export type PlanPaymentMethod = (typeof planPaymentMethodEnum.enumValues)[number];

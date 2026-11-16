@@ -1,7 +1,7 @@
 import { index, integer, jsonb, numeric, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { citext } from "./citext.type";
-import { formKindEnum, formStatusEnum, packagePaymentStatusEnum } from "./enums.table";
+import { formKindEnum, formStatusEnum, packagePaymentStatusEnum, planPaymentMethodEnum } from "./enums.table";
 import { events } from "./events.table";
 import { packagePlans } from "./package-plans.table";
 import { photoPackages } from "./photo-packages.table";
@@ -108,6 +108,8 @@ export const formSubmissions = pgTable(
     rejectionReason: text("rejection_reason"),
     /** Admin who registered the payment by hand (cash, WhatsApp); null when the person reported it. */
     recordedBy: uuid("recorded_by").references(() => profiles.id, { onDelete: "set null" }),
+    /** How the installment was paid (picked in "Pagos" or by the admin); null before 0019 and on sign-ups. */
+    paymentMethod: planPaymentMethodEnum("payment_method"),
     /**
      * The list person they picked (null: not in the list, or no list) and
      * the values the form was prefilled with (`Record<fieldId, string>`),

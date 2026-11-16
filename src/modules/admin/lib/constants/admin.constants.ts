@@ -22,6 +22,7 @@ export const ADMIN_PATHS = {
   prints: "/admin/prints",
   rates: "/admin/rates",
   paymentMethods: "/admin/payment-methods",
+  paymentForm: "/admin/payment-form",
   users: "/admin/users",
   user: (profileId: string) => `/admin/users/${profileId}`,
   paymentProofApi: (paymentId: string) => `/api/admin/payments/${paymentId}/proof`,

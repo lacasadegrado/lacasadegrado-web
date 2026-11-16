@@ -4,7 +4,7 @@ import { and, asc, desc, eq, sql } from "drizzle-orm";
 
 import { getServerEnv } from "@/common/lib/config/env.config";
 import { db } from "@/common/lib/db";
-import { events, formSubmissions, forms, packagePlans } from "@/common/lib/db/schema";
+import { events, formSubmissions, forms, packagePlans, photoPackages } from "@/common/lib/db/schema";
 import { sendEmail } from "@/common/lib/email/email.service";
 import { formatEur } from "@/common/lib/utils/money.util";
 import { ADMIN_PATHS } from "@/modules/admin/lib/constants/admin.constants";
@@ -12,7 +12,11 @@ import { notifyAdmins } from "@/modules/admin/lib/services/notification.service"
 import type { SessionUser } from "@/modules/auth/lib/types/auth.types";
 import { getCurrentRate, getLatestRate } from "@/modules/checkout/lib/services/exchange-rate.service";
 import { buildAnswersSchema } from "@/modules/forms/lib/schemas/form-answers.schema";
-import { presignFormFile, verifyFileAnswers, type PresignFileOutcome } from "@/modules/forms/lib/services/form-files.service";
+import {
+  presignFormFile,
+  verifyFileAnswers,
+  type PresignFileOutcome,
+} from "@/modules/forms/lib/services/form-files.service";
 import {
   isSubmitAllowed,
   isUploadAllowed,
@@ -23,11 +27,11 @@ import { planBalance, plansUrl } from "@/modules/forms/lib/services/package-plan
 import type { FormAnswers, FormFileAnswer } from "@/modules/forms/lib/types/form.types";
 import type { PlanReceipt } from "@/modules/forms/lib/types/public-form.types";
 import { buildFormSubmittedEmail } from "@/modules/forms/lib/utils/form-email.util";
-import { PLAN_PAYMENT_FIELDS } from "@/modules/forms/lib/utils/form-fields.util";
 import { amountForInstallments } from "@/modules/forms/lib/utils/installments.util";
 
 import type { PreparePlanUploadInput, SubmitPlanPaymentInput } from "../schemas/plans.schema";
 import type { CustomerPlan, CustomerPlanSummary } from "../types/plans.types";
+import { getPlanPaymentFields } from "./plan-payment-form.service";
 
 /**
  * "Pagos": the signed-in person's package plans. Every read and write is
@@ -56,7 +60,11 @@ const summaryColumns = {
 
 /** Whether "Pagos" belongs in this person's menu. */
 export async function hasPlans(email: string): Promise<boolean> {
-  const [row] = await db.select({ id: packagePlans.id }).from(packagePlans).where(eq(packagePlans.email, email)).limit(1);
+  const [row] = await db
+    .select({ id: packagePlans.id })
+    .from(packagePlans)
+    .where(eq(packagePlans.email, email))
+    .limit(1);
   return Boolean(row);
 }
 
@@ -72,9 +80,10 @@ export async function listPlansForEmail(email: string): Promise<CustomerPlanSumm
 
 export async function getPlanForEmail(planId: string, email: string): Promise<CustomerPlan | null> {
   const [plan] = await db
-    .select(summaryColumns)
+    .select({ ...summaryColumns, packageDescription: photoPackages.description })
     .from(packagePlans)
     .innerJoin(events, eq(events.id, packagePlans.eventId))
+    .leftJoin(photoPackages, eq(photoPackages.id, packagePlans.packageId))
     .where(and(eq(packagePlans.id, planId), eq(packagePlans.email, email)))
     .limit(1);
   if (!plan) return null;
@@ -89,6 +98,7 @@ export async function getPlanForEmail(planId: string, email: string): Promise<Cu
       rejectionReason: formSubmissions.rejectionReason,
       reference: formSubmissions.reference,
       recordedBy: formSubmissions.recordedBy,
+      method: formSubmissions.paymentMethod,
     })
     .from(formSubmissions)
     .where(and(eq(formSubmissions.planId, plan.id), sql`${formSubmissions.paymentStatus} is not null`))
@@ -104,7 +114,7 @@ export async function getPlanForEmail(planId: string, email: string): Promise<Cu
       status: payment.status ?? "pending",
       recorded: recordedBy !== null,
     })),
-    fields: PLAN_PAYMENT_FIELDS,
+    fields: await getPlanPaymentFields(),
     eurToVes: rate?.eurToVes ?? null,
   };
 }
@@ -147,7 +157,8 @@ async function loadOwnedPlan(planId: string, email: string): Promise<OwnedPlan |
   return row ? { ...row, email } : null;
 }
 
-export type PreparePlanUploadOutcome = PresignFileOutcome | { ok: false; reason: "not_found" | "paid" | "rate_limited" };
+export type PreparePlanUploadOutcome =
+  PresignFileOutcome | { ok: false; reason: "not_found" | "paid" | "rate_limited" };
 
 /** Presigned PUT for a payment's proof, under the plan form's prefix like any form file. */
 export async function preparePlanUpload(
@@ -163,7 +174,7 @@ export async function preparePlanUpload(
   const outcome = await presignFormFile({
     formId: plan.formId,
     draftId: input.draftId,
-    field: PLAN_PAYMENT_FIELDS.find((field) => field.id === input.fieldId),
+    field: (await getPlanPaymentFields()).find((field) => field.id === input.fieldId),
     type: input.type,
     size: input.size,
   });
@@ -191,7 +202,7 @@ export async function submitPlanPayment(
   if (!plan) return { ok: false, reason: "not_found" };
   if (plan.status !== "open") return { ok: false, reason: "paid" };
 
-  const fields = PLAN_PAYMENT_FIELDS;
+  const fields = await getPlanPaymentFields();
   const parsed = buildAnswersSchema(fields, []).safeParse(input.answers);
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
@@ -251,6 +262,7 @@ export async function submitPlanPayment(
         amountCents,
         eurToVes: rate ? rate.eurToVes.toFixed(4) : null,
         paymentStatus: "pending",
+        paymentMethod: input.method,
       })
       .returning({ id: formSubmissions.id });
     return { ok: true as const, submissionId: row.id, amountCents, balance };

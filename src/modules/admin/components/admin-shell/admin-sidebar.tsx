@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ChevronsUpDown,
   CreditCard,
+  FileText,
   Globe,
   Images,
   LayoutDashboard,
@@ -120,6 +121,7 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     sections: [
       { href: ADMIN_PATHS.rates, label: "Tasa", icon: ArrowLeftRight },
       { href: ADMIN_PATHS.paymentMethods, label: "Métodos de pago", icon: CreditCard },
+      { href: ADMIN_PATHS.paymentForm, label: "Formulario de pagos", icon: FileText },
       { href: ADMIN_PATHS.users, label: "Personas", icon: Users },
     ],
   },

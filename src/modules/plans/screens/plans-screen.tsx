@@ -27,8 +27,8 @@ export async function PlansScreen() {
       <div>
         <h1 className="text-2xl font-bold">Pagos</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tus paquetes de fotos, lo que llevas pagado y lo que falta. Las fotos del paquete se liberan cuando
-          esté pagado completo.
+          Tus paquetes de fotos, lo que llevas pagado y lo que falta. Las fotos del paquete se liberan cuando esté
+          pagado completo.
         </p>
       </div>
 
@@ -56,12 +56,17 @@ export async function PlansScreen() {
                       <p className="text-sm text-muted-foreground">{plan.eventName}</p>
                       <p className="font-semibold">
                         {plan.packageName}
-                        {plan.personName ? <span className="font-normal text-muted-foreground"> · {plan.personName}</span> : null}
+                        {plan.personName ? (
+                          <span className="font-normal text-muted-foreground"> · {plan.personName}</span>
+                        ) : null}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <Badge variant={state.variant}>{state.label}</Badge>
-                      <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground group-hover:text-foreground" />
+                      <ChevronRight
+                        aria-hidden="true"
+                        className="size-4 text-muted-foreground group-hover:text-foreground"
+                      />
                     </div>
                   </div>
                   <PlanProgress
@@ -75,7 +80,9 @@ export async function PlansScreen() {
                     {plan.installments > 1 ? ` · ${plan.installments} cuotas` : ""}
                   </p>
                   {plan.status === "open" && plan.hasRejected && plan.reservedInstallments < plan.installments ? (
-                    <p className="text-sm font-medium text-destructive">Un pago fue rechazado: revisa el motivo y repórtalo de nuevo.</p>
+                    <p className="text-sm font-medium text-destructive">
+                      Un pago fue rechazado: revisa el motivo y repórtalo de nuevo.
+                    </p>
                   ) : null}
                 </Link>
               </li>

@@ -23,6 +23,8 @@ type FieldSettingsProps = {
   previousFields: FormField[];
   /** Columns of the linked people list, or null without one. */
   rosterColumns: { key: string; label: string }[] | null;
+  /** False where a person-name answer means nothing (the "Pagos" payment questions). */
+  personNameAllowed?: boolean;
   onChange: (field: FormField) => void;
 };
 
@@ -213,7 +215,13 @@ function OptionsSetting({ options, onChange }: { options: string[]; onChange: (o
   );
 }
 
-export function FieldSettings({ field, previousFields, rosterColumns, onChange }: FieldSettingsProps) {
+export function FieldSettings({
+  field,
+  previousFields,
+  rosterColumns,
+  personNameAllowed = true,
+  onChange,
+}: FieldSettingsProps) {
   const id = useId();
   const update = (patch: Partial<FormField>) => onChange({ ...field, ...patch } as FormField);
   const system = Boolean(field.system);
@@ -259,7 +267,7 @@ export function FieldSettings({ field, previousFields, rosterColumns, onChange }
         </p>
       ) : null}
 
-      {(PERSON_NAME_FIELD_TYPES as readonly string[]).includes(field.type) ? (
+      {personNameAllowed && (PERSON_NAME_FIELD_TYPES as readonly string[]).includes(field.type) ? (
         <div className="flex items-start gap-2">
           <Checkbox
             id={`${id}-person-name`}

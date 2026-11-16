@@ -1,4 +1,4 @@
-import type { FormKind, PackagePaymentStatus } from "@/common/lib/db/schema";
+import type { FormKind, PackagePaymentStatus, PlanPaymentMethod } from "@/common/lib/db/schema";
 import type { FormField, FormFieldType } from "@/modules/forms/lib/types/form.types";
 
 import type { RosterChange } from "../utils/package-payment.util";
@@ -41,6 +41,8 @@ export type PackagePaymentRow = {
   eventName: string;
   /** Payment fields: null on general forms. */
   paymentStatus: PackagePaymentStatus | null;
+  /** How it was paid (picked in "Pagos" or in "Registrar pago"); null on older payments and sign-ups. */
+  paymentMethod: PlanPaymentMethod | null;
   /** EUR cents of this payment; null on answers sent before abonos existed. */
   amountCents: number | null;
   installmentsCovered: number | null;

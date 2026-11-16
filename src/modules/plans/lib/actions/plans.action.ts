@@ -37,7 +37,10 @@ export async function preparePlanUploadAction(input: {
   if (!viewer) return { ok: false, message: SIGNED_OUT };
   const parsed = preparePlanUploadSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? `Archivo no válido (máximo ${FORM_LIMITS.maxFileMb} MB).` };
+    return {
+      ok: false,
+      message: parsed.error.issues[0]?.message ?? `Archivo no válido (máximo ${FORM_LIMITS.maxFileMb} MB).`,
+    };
   }
   const result = await preparePlanUpload(parsed.data, viewer, { ip: getClientIp(await headers()), trusted: false });
   if (!result.ok) return { ok: false, message: UPLOAD_MESSAGES[result.reason] };
@@ -48,12 +51,18 @@ export async function submitPlanPaymentAction(input: {
   planId: string;
   draftId: string;
   installments: number;
+  /** The method picked in "Cómo pagar"; null when they did not pick one. */
+  method: string | null;
   answers: Record<string, unknown>;
 }): Promise<SubmitPlanPaymentResult> {
   const viewer = await getSessionUser();
   if (!viewer) return { ok: false, message: SIGNED_OUT };
   const parsed = submitPlanPaymentSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, message: "No pudimos leer el pago. Recarga la página." };
+  if (!parsed.success) {
+    const methodIssue = parsed.error.issues.find((issue) => issue.path[0] === "method");
+    if (methodIssue) return { ok: false, message: methodIssue.message, fieldErrors: { method: methodIssue.message } };
+    return { ok: false, message: "No pudimos leer el pago. Recarga la página." };
+  }
 
   const result = await submitPlanPayment(parsed.data, viewer, { ip: getClientIp(await headers()), trusted: false });
   if (result.ok) {

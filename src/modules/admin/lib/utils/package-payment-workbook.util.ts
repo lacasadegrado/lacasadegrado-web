@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import type { FormKind } from "@/common/lib/db/schema";
 import { toCaracasWallClock } from "@/common/lib/utils/date.util";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
+import { PLAN_PAYMENT_METHOD_LABELS } from "@/modules/plans/lib/constants/plans.constants";
 
 import { ADMIN_PATHS } from "../constants/admin.constants";
 import { PACKAGE_PAYMENT_STATUS_LABELS } from "../constants/sale.constants";
@@ -71,6 +72,7 @@ export async function buildPackagePaymentsWorkbook(
           { header: "Tasa", key: "rate", width: 12, style: { numFmt: "#,##0.00" } },
           { header: "Monto en Bs", key: "amountVes", width: 16, style: { numFmt: '#,##0.00 "Bs"' } },
           { header: "Estado", key: "status", width: 14 },
+          { header: "Método", key: "method", width: 20 },
         ]
       : []),
     { header: "Correo", key: "email", width: 30 },
@@ -116,6 +118,7 @@ export async function buildPackagePaymentsWorkbook(
       values.rate = row.eurToVes;
       values.amountVes = amountCents !== null && row.eurToVes ? Math.round(amountCents * row.eurToVes) / 100 : null;
       values.status = row.paymentStatus ? PACKAGE_PAYMENT_STATUS_LABELS[row.paymentStatus] : null;
+      values.method = row.paymentMethod ? PLAN_PAYMENT_METHOD_LABELS[row.paymentMethod] : null;
       // Text, so Excel keeps leading zeros of bank references.
       values.reference = row.reference;
       values.proof = row.hasProof

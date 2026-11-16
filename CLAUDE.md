@@ -317,6 +317,25 @@ Pagos (2026-11-16, migration 0018):
   "Cómo pagar" (`PlanPayMethods`) lets the person pick an enabled manual
   method and shows only its details (checkout's `PaymentDetails`, no
   amount row since the installment count is chosen below).
+  Binance and Efectivo (`PLAN_CONTACT_METHODS`, plans constants) show
+  `BUSINESS.paymentContact` (0412-3162362, not the support WhatsApp) with a
+  wa.me link; they are still reported with the same form (cash: reference
+  "Efectivo" + photo of the bills), as the owner's customer flyer says.
+  The plan page has a collapsible "Ver qué incluye el paquete" (native
+  `<details>`) with the package's current `photo_packages.description`.
+- Payment questions (migration 0019): one global form edited at
+  `/admin/payment-form` (Configuración › Formulario de pagos,
+  `PaymentFormBuilder` reusing the event builder's `FieldCard`), stored in
+  the single-row `plan_payment_form` table and read with
+  `getPlanPaymentFields()` (plans module, falls back to
+  `PLAN_PAYMENT_FIELDS`). Reference and proof are system fields there
+  (`validatePlanPaymentFields`: exactly once, may be reworded or optional);
+  extra questions, conditions included, land in `fields_snapshot`, so the
+  admin detail and the Excel show them with no extra code.
+  `form_submissions.payment_method` (`plan_payment_method` enum:
+  pago_movil, bank_transfer, binance, cash) stores the method picked in
+  "Cómo pagar" (`PlanPayFlow` shares it with the report form; required to
+  send) or in "Registrar pago"; labels in `PLAN_PAYMENT_METHOD_LABELS`.
   Emails (receipt, confirmed, rejected) link to Pagos; no token rotation.
 - A payment is `kind = package_payment AND payment_status IS NOT NULL`
   (`isPaymentSubmission`); sign-ups show under the form's Respuestas

@@ -1,4 +1,4 @@
-import type { PackagePaymentStatus, PackagePlanStatus } from "@/common/lib/db/schema";
+import type { PackagePaymentStatus, PackagePlanStatus, PlanPaymentMethod } from "@/common/lib/db/schema";
 import type { FormField } from "@/modules/forms/lib/types/form.types";
 import type { PlanReceipt } from "@/modules/forms/lib/types/public-form.types";
 
@@ -30,12 +30,16 @@ export type CustomerPlanPayment = {
   reference: string | null;
   /** Registered by the team (cash, WhatsApp), not reported by the person. */
   recorded: boolean;
+  /** Null on payments from before the method was stored. */
+  method: PlanPaymentMethod | null;
 };
 
 /** One plan with its payments and what the next payment asks. Only for its owner. */
 export type CustomerPlan = CustomerPlanSummary & {
+  /** What the package includes, as the admin wrote it (current text, not a snapshot). */
+  packageDescription: string | null;
   payments: CustomerPlanPayment[];
-  /** Reference and proof, the same for every plan. */
+  /** The current payment questions (Configuración › Formulario de pagos), the same for every plan. */
   fields: FormField[];
   /** Latest stored EUR to VES rate, to show bolívares. */
   eurToVes: number | null;
@@ -44,5 +48,4 @@ export type CustomerPlan = CustomerPlanSummary & {
 export type PreparePlanUploadResult = { ok: true; key: string; uploadUrl: string } | { ok: false; message: string };
 
 export type SubmitPlanPaymentResult =
-  | { ok: true; receipt: PlanReceipt }
-  | { ok: false; message: string; fieldErrors?: Record<string, string> };
+  { ok: true; receipt: PlanReceipt } | { ok: false; message: string; fieldErrors?: Record<string, string> };

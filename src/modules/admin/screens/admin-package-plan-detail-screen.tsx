@@ -6,6 +6,7 @@ import { Badge } from "@/common/components/ui/badge";
 import { Button } from "@/common/components/ui/button";
 import { formatDateTime } from "@/common/lib/utils/date.util";
 import { formatEur, formatVes } from "@/common/lib/utils/money.util";
+import { PLAN_PAYMENT_METHOD_LABELS } from "@/modules/plans/lib/constants/plans.constants";
 
 import { PackageReviewActions } from "../components/package-payments/package-review-actions";
 import { PlanProgress } from "../components/package-payments/plan-progress";
@@ -113,6 +114,7 @@ export async function AdminPackagePlanDetailScreen({ planId }: { planId: string 
                 {plan.installments > 1
                   ? ` · ${payment.installmentsCovered} cuota${payment.installmentsCovered === 1 ? "" : "s"}`
                   : ""}
+                {payment.method ? ` · ${PLAN_PAYMENT_METHOD_LABELS[payment.method]}` : ""}
                 {payment.reference ? ` · ref. ${payment.reference}` : ""}
                 {payment.recorded ? " · registrado por el equipo" : ""}
                 {payment.rejectionReason ? ` · Motivo: ${payment.rejectionReason}` : ""}

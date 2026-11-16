@@ -1,9 +1,10 @@
-import { ArrowLeft, CircleCheck } from "lucide-react";
+import { ArrowLeft, ChevronDown, CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { Badge } from "@/common/components/ui/badge";
+import { BUSINESS } from "@/common/lib/config/business.config";
 import { formatDateTime } from "@/common/lib/utils/date.util";
 import { formatEur, formatVes } from "@/common/lib/utils/money.util";
 import { requireSessionUser } from "@/modules/auth/lib/services/session.service";
@@ -11,10 +12,9 @@ import { PAYMENT_METHODS } from "@/modules/checkout/lib/constants/checkout.const
 import { getPaymentAccounts } from "@/modules/checkout/lib/services/payment-account.service";
 import { installmentAmounts } from "@/modules/forms/lib/utils/installments.util";
 
-import { PlanPaymentForm } from "../components/plan-payment-form/plan-payment-form";
-import { PlanPayMethods } from "../components/plan-pay-methods/plan-pay-methods";
+import { PlanPayFlow } from "../components/plan-pay-flow/plan-pay-flow";
 import { PlanProgress } from "../components/plan-progress/plan-progress";
-import { PLANS_PATHS } from "../lib/constants/plans.constants";
+import { PLAN_CONTACT_METHODS, PLAN_PAYMENT_METHOD_LABELS, PLANS_PATHS } from "../lib/constants/plans.constants";
 import { getPlanForEmail } from "../lib/services/customer-plan.service";
 
 /** Methods a person can pay a package with by hand (Pago Móvil, transferencia). */
@@ -37,6 +37,12 @@ export async function PlanDetailScreen({ planId }: { planId: string }) {
   const remainingParts = plan.installments - plan.reservedInstallments;
   const parts = installmentAmounts(plan.priceCents, plan.installments);
   const nextAmount = parts[plan.reservedInstallments] ?? null;
+  const contactAbout = `mi ${plan.packageName} de ${plan.eventName}${plan.personName ? ` (${plan.personName})` : ""}. Mi correo es ${user.email}.`;
+  const nextAmountText = `Pago Móvil y transferencia se pagan en bolívares a la tasa del día.${
+    nextAmount !== null
+      ? ` ${plan.installments > 1 ? "La próxima cuota es de" : "El monto es"} ${formatEur(nextAmount)}${plan.eurToVes ? ` (${formatVes(nextAmount, plan.eurToVes)} hoy)` : ""}.`
+      : ""
+  }`;
   const accounts = plan.status === "open" && remainingParts > 0 ? (await getPaymentAccounts()).accounts : null;
 
   return (
@@ -55,6 +61,20 @@ export async function PlanDetailScreen({ planId }: { planId: string }) {
           {plan.installments > 1 ? ` en ${plan.installments} cuotas` : ""}
           {plan.personName ? ` · ${plan.personName}` : ""}
         </p>
+        {plan.packageDescription ? (
+          <details className="group rounded-md border">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
+              Ver qué incluye el paquete
+              <ChevronDown
+                aria-hidden="true"
+                className="size-4 shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none"
+              />
+            </summary>
+            <p className="border-t px-3 py-2 text-sm whitespace-pre-line text-muted-foreground">
+              {plan.packageDescription}
+            </p>
+          </details>
+        ) : null}
       </div>
 
       <section aria-labelledby="plan-progress" className="space-y-4 rounded-lg border bg-card p-5">
@@ -111,6 +131,7 @@ export async function PlanDetailScreen({ planId }: { planId: string }) {
                   </p>
                   <p className="text-muted-foreground">
                     {formatDateTime(payment.submittedAt)}
+                    {payment.method ? ` · ${PLAN_PAYMENT_METHOD_LABELS[payment.method]}` : ""}
                     {payment.reference ? ` · Ref. ${payment.reference}` : ""}
                     {payment.recorded ? " · Registrado por el equipo" : ""}
                   </p>
@@ -148,45 +169,20 @@ export async function PlanDetailScreen({ planId }: { planId: string }) {
           </p>
         </section>
       ) : (
-        <>
-          {accounts ? (
-            <section aria-labelledby="plan-pay" className="space-y-4">
-              <div>
-                <h2 id="plan-pay" className="text-xl">
-                  Cómo pagar
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Paga desde la app de tu banco, en bolívares a la tasa del día.
-                  {nextAmount !== null
-                    ? ` ${plan.installments > 1 ? "La próxima cuota es de" : "El monto es"} ${formatEur(nextAmount)}${plan.eurToVes ? ` (${formatVes(nextAmount, plan.eurToVes)} hoy)` : ""}.`
-                    : ""}
-                </p>
-              </div>
-              <PlanPayMethods
-                methods={MANUAL_METHODS.map(({ id, label, description }) => ({ id, label, description }))}
-                accounts={accounts}
-              />
-            </section>
-          ) : null}
-          <section aria-labelledby="plan-next" className="space-y-6">
-            <div>
-              <h2 id="plan-next" className="text-xl">
-                Reportar un pago
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Cuando hayas pagado, elige cuántas cuotas cubre y envíanos la referencia y el comprobante.
-              </p>
-            </div>
-            <PlanPaymentForm
-              planId={plan.id}
-              fields={plan.fields}
-              priceCents={plan.priceCents}
-              installments={plan.installments}
-              reserved={plan.reservedInstallments}
-              eurToVes={plan.eurToVes}
-            />
-          </section>
-        </>
+        <PlanPayFlow
+          planId={plan.id}
+          fields={plan.fields}
+          priceCents={plan.priceCents}
+          installments={plan.installments}
+          reserved={plan.reservedInstallments}
+          eurToVes={plan.eurToVes}
+          nextAmountText={nextAmountText}
+          methods={MANUAL_METHODS.map(({ id, label, description }) => ({ id, label, description }))}
+          accounts={accounts ?? (await getPaymentAccounts()).accounts}
+          contactMethods={PLAN_CONTACT_METHODS}
+          contact={BUSINESS.paymentContact}
+          contactAbout={contactAbout}
+        />
       )}
     </div>
   );

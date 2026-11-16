@@ -15,8 +15,10 @@ import {
 } from "@/common/components/ui/dialog";
 import { Input } from "@/common/components/ui/input";
 import { Label } from "@/common/components/ui/label";
+import { NativeSelect, NativeSelectOption } from "@/common/components/ui/native-select";
 import { Textarea } from "@/common/components/ui/textarea";
 import { InstallmentPicker } from "@/modules/forms/components/installment-picker/installment-picker";
+import { PLAN_PAYMENT_METHOD_LABELS } from "@/modules/plans/lib/constants/plans.constants";
 
 import { recordPackagePaymentAction } from "../../lib/actions/package-review.action";
 import type { ActionState } from "../../lib/types/admin.types";
@@ -65,7 +67,7 @@ export function RecordPlanPayment({ planId, who, priceCents, installments, reser
             <DialogHeader>
               <DialogTitle className="leading-snug">Registrar un pago de {who}</DialogTitle>
               <DialogDescription>
-                Para pagos que recibiste fuera de la página (efectivo, WhatsApp). Queda confirmado de una vez y le
+                Para pagos que recibiste fuera de la página (efectivo, Binance, WhatsApp). Queda confirmado de una vez y le
                 avisamos por correo.
               </DialogDescription>
             </DialogHeader>
@@ -80,6 +82,21 @@ export function RecordPlanPayment({ planId, who, priceCents, installments, reser
               error={fieldErrors?.installments}
             />
             <div className="space-y-2">
+              <Label htmlFor={`${id}-method`}>Cómo te pagaron</Label>
+              <NativeSelect
+                id={`${id}-method`}
+                name="method"
+                defaultValue="cash"
+                aria-invalid={Boolean(fieldErrors?.method) || undefined}
+              >
+                {Object.entries(PLAN_PAYMENT_METHOD_LABELS).map(([value, label]) => (
+                  <NativeSelectOption key={value} value={value}>
+                    {label}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor={`${id}-reference`}>Referencia (opcional)</Label>
               <Input id={`${id}-reference`} name="reference" maxLength={60} aria-invalid={Boolean(fieldErrors?.reference) || undefined} />
             </div>
@@ -90,7 +107,7 @@ export function RecordPlanPayment({ planId, who, priceCents, installments, reser
                 name="note"
                 rows={2}
                 maxLength={300}
-                placeholder="Por ejemplo: efectivo, recibido por Kiara"
+                placeholder="Por ejemplo: recibido por Kiara en la entrega de togas"
                 aria-invalid={Boolean(fieldErrors?.note) || undefined}
               />
             </div>

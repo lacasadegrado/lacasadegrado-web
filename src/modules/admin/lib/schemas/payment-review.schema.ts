@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { PLAN_LIMITS } from "@/modules/forms/lib/constants/forms.constants";
+import { PLAN_PAYMENT_METHOD_IDS } from "@/modules/plans/lib/constants/plans.constants";
 
 export const approvePaymentSchema = z.object({
   orderId: z.uuid(),
@@ -32,6 +33,7 @@ export const rejectPaymentSchema = z.object({
 export const recordPackagePaymentSchema = z.object({
   planId: z.uuid(),
   installments: z.coerce.number().int().min(1, { error: "Elige cuántas cuotas recibiste." }).max(PLAN_LIMITS.maxInstallments),
+  method: z.enum(PLAN_PAYMENT_METHOD_IDS, { error: "Elige cómo te pagaron." }),
   reference: z
     .string()
     .trim()

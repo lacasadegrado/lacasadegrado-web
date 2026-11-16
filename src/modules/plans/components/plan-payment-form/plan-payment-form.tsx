@@ -6,11 +6,13 @@ import { useCallback, useState, useTransition } from "react";
 
 import { Alert, AlertDescription } from "@/common/components/ui/alert";
 import { Button } from "@/common/components/ui/button";
+import type { PlanPaymentMethod } from "@/common/lib/db/schema";
 import { InstallmentPicker } from "@/modules/forms/components/installment-picker/installment-picker";
 import { PlanReceipt } from "@/modules/forms/components/plan-receipt/plan-receipt";
 import { FormFieldInput } from "@/modules/forms/components/public-form/form-field-input";
 import { buildAnswersSchema } from "@/modules/forms/lib/schemas/form-answers.schema";
 import type { FormField, FormFileAnswer, PrepareUpload } from "@/modules/forms/lib/types/form.types";
+import { visibleFieldIds } from "@/modules/forms/lib/utils/form-conditions.util";
 import type { PlanReceipt as PlanReceiptData } from "@/modules/forms/lib/types/public-form.types";
 
 import { preparePlanUploadAction, submitPlanPaymentAction } from "../../lib/actions/plans.action";
@@ -22,6 +24,8 @@ type PlanPaymentFormProps = {
   installments: number;
   reserved: number;
   eurToVes: number | null;
+  /** Picked in "Cómo pagar" above; required to send. */
+  method: PlanPaymentMethod | null;
 };
 
 function firstErrors(issues: { path: PropertyKey[]; message: string }[]): Record<string, string> {
@@ -30,8 +34,16 @@ function firstErrors(issues: { path: PropertyKey[]; message: string }[]): Record
   return errors;
 }
 
-/** The next payment: how many installments, the reference and the proof. */
-export function PlanPaymentForm({ planId, fields, priceCents, installments, reserved, eurToVes }: PlanPaymentFormProps) {
+/** The next payment: how many installments and the admin's payment questions (reference, proof and any extra). */
+export function PlanPaymentForm({
+  planId,
+  fields,
+  priceCents,
+  installments,
+  reserved,
+  eurToVes,
+  method,
+}: PlanPaymentFormProps) {
   const router = useRouter();
   const [draftId] = useState(() => crypto.randomUUID());
   const [count, setCount] = useState(1);
@@ -66,6 +78,7 @@ export function PlanPaymentForm({ planId, fields, priceCents, installments, rese
       return next;
     });
   }, []);
+  const visible = visibleFieldIds(fields, values);
   const prepareUpload = useCallback<PrepareUpload>((input) => preparePlanUploadAction({ planId, ...input }), [planId]);
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -75,6 +88,10 @@ export function PlanPaymentForm({ planId, fields, priceCents, installments, rese
       setMessage("Espera a que terminen de subir los archivos.");
       return;
     }
+    if (!method) {
+      setMessage("Elige arriba cómo pagaste.");
+      return;
+    }
     const local = buildAnswersSchema(fields, []).safeParse(values);
     if (!local.success) {
       setErrors(firstErrors(local.error.issues));
@@ -82,7 +99,7 @@ export function PlanPaymentForm({ planId, fields, priceCents, installments, rese
       return;
     }
     startSubmitting(async () => {
-      const result = await submitPlanPaymentAction({ planId, draftId, installments: count, answers: values });
+      const result = await submitPlanPaymentAction({ planId, draftId, installments: count, method, answers: values });
       if (result.ok) {
         setReceipt(result.receipt);
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -125,20 +142,22 @@ export function PlanPaymentForm({ planId, fields, priceCents, installments, rese
           error={errors.installments}
         />
       ) : null}
-      {fields.map((field) => (
-        <FormFieldInput
-          key={field.id}
-          field={field}
-          value={values[field.id]}
-          error={errors[field.id]}
-          prepareUpload={prepareUpload}
-          draftId={draftId}
-          packages={[]}
-          onValue={setValue}
-          onFiles={setFiles}
-          onUploadingChange={setFieldUploading}
-        />
-      ))}
+      {fields
+        .filter((field) => visible.has(field.id))
+        .map((field) => (
+          <FormFieldInput
+            key={field.id}
+            field={field}
+            value={values[field.id]}
+            error={errors[field.id]}
+            prepareUpload={prepareUpload}
+            draftId={draftId}
+            packages={[]}
+            onValue={setValue}
+            onFiles={setFiles}
+            onUploadingChange={setFieldUploading}
+          />
+        ))}
       {message ? (
         <Alert role="alert">
           <AlertDescription>{message}</AlertDescription>

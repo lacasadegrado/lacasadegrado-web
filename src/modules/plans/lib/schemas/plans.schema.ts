@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { FORM_LIMITS, PLAN_LIMITS } from "@/modules/forms/lib/constants/forms.constants";
 
+import { PLAN_PAYMENT_METHOD_IDS } from "../constants/plans.constants";
+
 /**
  * Random id the page picks when it opens; the proof sits under
  * `forms/<formId>/<draftId>/`, so a payment can only claim files uploaded
@@ -22,11 +24,12 @@ export const preparePlanUploadSchema = z.object({
     .max(FORM_LIMITS.maxFileMb * 1024 * 1024, { error: `El archivo pesa más de ${FORM_LIMITS.maxFileMb} MB.` }),
 });
 
-/** `answers` (reference and proof) is validated afterwards against PLAN_PAYMENT_FIELDS. */
+/** `answers` is validated afterwards against the current payment questions (`getPlanPaymentFields`). */
 export const submitPlanPaymentSchema = z.object({
   planId: z.uuid(),
   draftId: draftIdSchema,
   installments: z.int().min(1).max(PLAN_LIMITS.maxInstallments),
+  method: z.enum(PLAN_PAYMENT_METHOD_IDS, { error: "Elige arriba cómo pagaste." }),
   answers: z.record(z.string(), z.unknown()),
 });
 

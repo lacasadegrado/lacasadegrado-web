@@ -17,6 +17,8 @@ type FieldCardProps = {
   previousFields: FormField[];
   /** Columns of the linked people list, or null without one. */
   rosterColumns: { key: string; label: string }[] | null;
+  /** Passed to the settings: false hides "Es el nombre de la persona". */
+  personNameAllowed?: boolean;
   index: number;
   total: number;
   expanded: boolean;
@@ -31,6 +33,7 @@ export function FieldCard({
   field,
   previousFields,
   rosterColumns,
+  personNameAllowed,
   index,
   total,
   expanded,
@@ -145,7 +148,13 @@ export function FieldCard({
         ) : null}
 
         <CollapsibleContent className="border-t p-4 pl-11">
-          <FieldSettings field={field} previousFields={previousFields} rosterColumns={rosterColumns} onChange={onChange} />
+          <FieldSettings
+            field={field}
+            previousFields={previousFields}
+            rosterColumns={rosterColumns}
+            personNameAllowed={personNameAllowed}
+            onChange={onChange}
+          />
         </CollapsibleContent>
       </li>
     </Collapsible>

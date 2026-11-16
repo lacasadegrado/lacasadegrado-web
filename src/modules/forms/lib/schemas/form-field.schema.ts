@@ -264,3 +264,29 @@ export function validateFieldsForKind(
   }
   return issues;
 }
+
+/**
+ * The rule for the "Pagos" payment questions (Configuración › Formulario
+ * de pagos): the reference and the proof exist exactly once (the admin
+ * may reword them or make them optional), no email or package, and no
+ * people list or person name, which only make sense on a sign-up.
+ */
+export function validatePlanPaymentFields(
+  fields: z.infer<typeof formFieldSchema>[],
+): { path: (string | number)[]; message: string }[] {
+  const issues: { path: (string | number)[]; message: string }[] = [];
+  for (const role of ["reference", "proof"] as const) {
+    if (!fields.some((field) => field.system === role)) {
+      issues.push({ path: [], message: `Falta el campo del sistema "${ROLE_LABELS[role]}".` });
+    }
+  }
+  for (const [index, field] of fields.entries()) {
+    if (field.system === "email" || field.system === "package") {
+      issues.push({ path: [index], message: "Este campo del sistema no va en el formulario de pagos." });
+    }
+    if (field.rosterColumn) {
+      issues.push({ path: [index], message: "El formulario de pagos no se rellena desde un listado." });
+    }
+  }
+  return issues;
+}

@@ -122,6 +122,7 @@ export async function recordPackagePaymentAction(
   const parsed = recordPackagePaymentSchema.safeParse({
     planId: formData.get("planId"),
     installments: formData.get("installments"),
+    method: formData.get("method"),
     reference: formData.get("reference") ?? "",
     note: formData.get("note") ?? "",
   });

@@ -74,6 +74,7 @@ const rowColumns = {
   answers: formSubmissions.answers,
   fieldsSnapshot: formSubmissions.fieldsSnapshot,
   paymentStatus: formSubmissions.paymentStatus,
+  paymentMethod: formSubmissions.paymentMethod,
   amountCents: formSubmissions.amountCents,
   installmentsCovered: formSubmissions.installmentsCovered,
   planInstallments: packagePlans.installments,
@@ -101,6 +102,7 @@ type RawRow = {
   answers: unknown;
   fieldsSnapshot: unknown;
   paymentStatus: PackagePaymentRow["paymentStatus"];
+  paymentMethod: PackagePaymentRow["paymentMethod"];
   amountCents: number | null;
   installmentsCovered: number | null;
   planInstallments: number | null;
@@ -139,6 +141,7 @@ function toRow(raw: RawRow): {
     formTitle: raw.formTitle,
     eventName: raw.eventName,
     paymentStatus: raw.paymentStatus,
+    paymentMethod: raw.paymentMethod,
     amountCents: raw.amountCents,
     installmentsCovered: raw.installmentsCovered,
     planInstallments: raw.planInstallments,

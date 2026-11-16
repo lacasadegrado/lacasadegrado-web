@@ -1,4 +1,4 @@
-import type { PackagePaymentStatus, PackagePlanStatus } from "@/common/lib/db/schema";
+import type { PackagePaymentStatus, PackagePlanStatus, PlanPaymentMethod } from "@/common/lib/db/schema";
 
 export type PackagePlanFilters = {
   eventId?: string;
@@ -40,6 +40,7 @@ export type PackagePlanPayment = {
   hasProof: boolean;
   /** Registered by an admin ("Registrar pago"), not reported by the person. */
   recorded: boolean;
+  method: PlanPaymentMethod | null;
 };
 
 export type PackagePlanDetail = PackagePlanRow & {

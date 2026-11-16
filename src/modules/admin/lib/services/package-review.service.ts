@@ -193,6 +193,7 @@ export async function recordPackagePayment(
       reviewedAt: now,
       reviewedBy: adminId,
       recordedBy: adminId,
+      paymentMethod: input.method,
     });
 
     const confirmedCents = before.confirmedCents + amountCents;
@@ -316,6 +317,7 @@ export async function getPackagePlan(planId: string): Promise<PackagePlanDetail 
       reviewedAt: formSubmissions.reviewedAt,
       proofKey: formSubmissions.proofKey,
       recordedBy: formSubmissions.recordedBy,
+      method: formSubmissions.paymentMethod,
     })
     .from(formSubmissions)
     // The sign-up itself has no payment status: it is not a payment.

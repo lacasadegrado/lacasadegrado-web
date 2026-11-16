@@ -7,6 +7,7 @@ import { Badge } from "@/common/components/ui/badge";
 import { formatDateTime } from "@/common/lib/utils/date.util";
 import { formatEur, formatVes } from "@/common/lib/utils/money.util";
 import { FORM_SYSTEM_FIELDS } from "@/modules/forms/lib/constants/forms.constants";
+import { PLAN_PAYMENT_METHOD_LABELS } from "@/modules/plans/lib/constants/plans.constants";
 
 import { PackageReviewActions } from "../components/package-payments/package-review-actions";
 import { RosterSummary } from "../components/package-payments/roster-summary";
@@ -105,6 +106,12 @@ export async function AdminPackagePaymentDetailScreen({ submissionId, formId }: 
               <dt className="text-sm text-muted-foreground">Referencia</dt>
               <dd className="font-mono font-medium">{payment.reference ?? "—"}</dd>
             </div>
+            {payment.paymentMethod ? (
+              <div>
+                <dt className="text-sm text-muted-foreground">Método</dt>
+                <dd className="font-medium">{PLAN_PAYMENT_METHOD_LABELS[payment.paymentMethod]}</dd>
+              </div>
+            ) : null}
           </dl>
           {payment.reviewedAt ? (
             <p className="text-sm text-muted-foreground">

@@ -30,6 +30,17 @@ export const BUSINESS = {
     idNumber: "J-00000000-0",
   },
 
+  /**
+   * Package payments arranged by message (Binance, efectivo): the person
+   * writes here and the admin records the money with "Registrar pago".
+   * Not the support WhatsApp (NEXT_PUBLIC_WHATSAPP_NUMBER).
+   */
+  paymentContact: {
+    phone: "0412-3162362",
+    /** wa.me format: country code, digits only. */
+    whatsapp: "584123162362",
+  },
+
   /** What we promise on the "we're verifying" screen and in email. */
   verificationSlaHours: 24,
 
