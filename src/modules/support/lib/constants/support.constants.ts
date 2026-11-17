@@ -20,3 +20,12 @@ export const ORDER_ID_ROUTE_PATTERNS = [
   /^\/orders\/([0-9a-f-]{36})/i,
   /^\/checkout\/([0-9a-f-]{36})\/payment/i,
 ] as const;
+
+/**
+ * Window event that opens the help dialog from anywhere, for screens that
+ * hide the floating button (the "Pagar" stepper, whose bottom bar it would cover).
+ */
+export const OPEN_SUPPORT_EVENT = "lcg:open-support";
+
+/** Pages that show their own "Ayuda" button instead of the floating one. */
+export const SUPPORT_INLINE_ROUTES = [/^\/dashboard\/payments\/[^/]+\/pay$/];

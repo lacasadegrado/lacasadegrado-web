@@ -1,52 +1,58 @@
-import { ArrowLeft, ChevronDown, CircleCheck } from "lucide-react";
+import { ArrowLeft, CircleCheck, Clock, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { Badge } from "@/common/components/ui/badge";
-import { BUSINESS } from "@/common/lib/config/business.config";
+import { Button } from "@/common/components/ui/button";
 import { formatDateTime } from "@/common/lib/utils/date.util";
-import { formatEur, formatVes } from "@/common/lib/utils/money.util";
+import { formatEur } from "@/common/lib/utils/money.util";
 import { requireSessionUser } from "@/modules/auth/lib/services/session.service";
-import { PAYMENT_METHODS } from "@/modules/checkout/lib/constants/checkout.constants";
-import { getPaymentAccounts } from "@/modules/checkout/lib/services/payment-account.service";
-import { installmentAmounts } from "@/modules/forms/lib/utils/installments.util";
 
-import { PlanPayFlow } from "../components/plan-pay-flow/plan-pay-flow";
+import { PackageDetailsSheet } from "../components/package-details-sheet/package-details-sheet";
 import { PlanProgress } from "../components/plan-progress/plan-progress";
-import { PLAN_CONTACT_METHODS, PLAN_PAYMENT_METHOD_LABELS, PLANS_PATHS } from "../lib/constants/plans.constants";
+import { PLAN_PAYMENT_METHOD_LABELS, PLANS_PATHS } from "../lib/constants/plans.constants";
 import { getPlanForEmail } from "../lib/services/customer-plan.service";
-
-/** Methods a person can pay a package with by hand (Pago Móvil, transferencia). */
-const MANUAL_METHODS = PAYMENT_METHODS.filter((method) => method.enabled && method.kind === "manual");
+import { installmentLines, type InstallmentState } from "../lib/utils/plan-installments.util";
 
 const PAYMENT_STATUS = {
-  pending: { label: "En revisión", variant: "secondary" },
-  confirmed: { label: "Confirmado", variant: "default" },
+  pending: { label: "Verificando", variant: "secondary" },
+  confirmed: { label: "Aprobado", variant: "default" },
   rejected: { label: "Rechazado", variant: "destructive" },
 } as const;
 
-/** `/dashboard/payments/<planId>`: one package, its payments and the form for the next one. */
-export async function PlanDetailScreen({ planId }: { planId: string }) {
+const INSTALLMENT_STATE: Record<InstallmentState, { label: string; className: string }> = {
+  paid: { label: "Pagada", className: "text-foreground" },
+  checking: { label: "Estamos verificando tu pago", className: "text-foreground" },
+  due: { label: "Por pagar", className: "text-muted-foreground" },
+};
+
+function InstallmentIcon({ state }: { state: InstallmentState }) {
+  if (state === "paid") return <CircleCheck aria-hidden="true" className="size-5 shrink-0 text-primary" />;
+  if (state === "checking") return <Clock aria-hidden="true" className="size-5 shrink-0 text-amber" />;
+  return <span aria-hidden="true" className="size-5 shrink-0 rounded-full border-2 border-muted-foreground/40" />;
+}
+
+/**
+ * `/dashboard/payments/<planId>`: one package in plain words. One big
+ * "Pagar" button (the stepper), then what is paid, each installment and
+ * the payments sent.
+ */
+export async function PlanDetailScreen({ planId, sent }: { planId: string; sent: boolean }) {
   if (!z.uuid().safeParse(planId).success) notFound();
   const user = await requireSessionUser(PLANS_PATHS.plan(planId));
   const plan = await getPlanForEmail(planId, user.email);
   if (!plan) notFound();
 
+  const lines = installmentLines(plan);
   const remainingCents = Math.max(0, plan.priceCents - plan.confirmedCents);
-  const remainingParts = plan.installments - plan.reservedInstallments;
-  const parts = installmentAmounts(plan.priceCents, plan.installments);
-  const nextAmount = parts[plan.reservedInstallments] ?? null;
-  const contactAbout = `mi ${plan.packageName} de ${plan.eventName}${plan.personName ? ` (${plan.personName})` : ""}. Mi correo es ${user.email}.`;
-  const nextAmountText = `Pago Móvil y transferencia se pagan en bolívares a la tasa del día.${
-    nextAmount !== null
-      ? ` ${plan.installments > 1 ? "La próxima cuota es de" : "El monto es"} ${formatEur(nextAmount)}${plan.eurToVes ? ` (${formatVes(nextAmount, plan.eurToVes)} hoy)` : ""}.`
-      : ""
-  }`;
-  const accounts = plan.status === "open" && remainingParts > 0 ? (await getPaymentAccounts()).accounts : null;
+  const canPay = plan.status === "open" && plan.reservedInstallments < plan.installments;
+  const nextLine = lines.find((line) => line.state === "due") ?? null;
+  const lastPayment = plan.payments.at(-1) ?? null;
+  const rejected = canPay && lastPayment?.status === "rejected" ? lastPayment : null;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-10">
+    <div className="mx-auto max-w-lg space-y-8">
       <div className="space-y-2">
         <Link
           href={PLANS_PATHS.list}
@@ -62,52 +68,105 @@ export async function PlanDetailScreen({ planId }: { planId: string }) {
           {plan.personName ? ` · ${plan.personName}` : ""}
         </p>
         {plan.packageDescription ? (
-          <details className="group rounded-md border">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
-              Ver qué incluye el paquete
-              <ChevronDown
-                aria-hidden="true"
-                className="size-4 shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none"
-              />
-            </summary>
-            <p className="border-t px-3 py-2 text-sm whitespace-pre-line text-muted-foreground">
-              {plan.packageDescription}
-            </p>
-          </details>
+          <PackageDetailsSheet packageName={plan.packageName} description={plan.packageDescription} />
         ) : null}
       </div>
 
+      {sent ? (
+        <div role="status" className="flex items-start gap-3 rounded-lg border border-primary bg-primary/10 p-4">
+          <CircleCheck aria-hidden="true" className="size-6 shrink-0 text-primary" />
+          <div>
+            <p className="font-semibold">¡Recibimos tu pago!</p>
+            <p className="text-sm text-muted-foreground">
+              Lo vamos a verificar y te avisamos por correo. No tienes que hacer nada más.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {rejected ? (
+        <div role="alert" className="flex items-start gap-3 rounded-lg border border-destructive p-4">
+          <TriangleAlert aria-hidden="true" className="size-6 shrink-0 text-destructive" />
+          <div>
+            <p className="font-semibold">No pudimos aprobar tu último pago</p>
+            <p className="text-sm text-muted-foreground">
+              {rejected.rejectionReason ? `Motivo: ${rejected.rejectionReason}. ` : ""}Toca «Pagar» para enviarlo de
+              nuevo.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {plan.status === "paid" ? (
+        <div className="flex items-start gap-3 rounded-lg border border-primary p-5">
+          <CircleCheck aria-hidden="true" className="size-6 shrink-0 text-primary" />
+          <div>
+            <h2 className="text-xl">Tu paquete está pagado</h2>
+            <p className="text-muted-foreground">
+              No tienes que hacer nada más. Las fotos del paquete aparecen sin marca de agua en{" "}
+              <Link href="/dashboard" className="underline underline-offset-4">
+                Mis fotos
+              </Link>{" "}
+              a medida que las etiquetamos.
+            </p>
+          </div>
+        </div>
+      ) : canPay ? (
+        <div className="space-y-2">
+          {/* Right after sending a payment the main message is the confirmation, not another payment. */}
+          <Button asChild size="lg" variant={sent ? "outline" : "default"} className="h-14 w-full text-lg">
+            <Link href={PLANS_PATHS.pay(plan.id)}>
+              {sent
+                ? "Pagar otra cuota"
+                : plan.installments > 1 && nextLine
+                  ? `Pagar cuota ${nextLine.number}`
+                  : "Pagar"}
+            </Link>
+          </Button>
+          {nextLine ? (
+            <p className="text-center text-sm text-muted-foreground">
+              {plan.installments > 1
+                ? `Tu próxima cuota es la ${nextLine.number} de ${plan.installments}: ${formatEur(nextLine.amountCents)}.`
+                : `Monto a pagar: ${formatEur(nextLine.amountCents)}.`}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <div className="flex items-start gap-3 rounded-lg border border-dashed p-5">
+          <Clock aria-hidden="true" className="size-6 shrink-0 text-amber" />
+          <div>
+            <h2 className="text-lg font-semibold">Estamos verificando tus pagos</h2>
+            <p className="text-sm text-muted-foreground">
+              Ya enviaste todo. Te avisamos por correo cuando lo aprobemos. No tienes que hacer nada más.
+            </p>
+          </div>
+        </div>
+      )}
+
       <section aria-labelledby="plan-progress" className="space-y-4 rounded-lg border bg-card p-5">
-        <h2 id="plan-progress" className="sr-only">
-          Lo que llevas pagado
-        </h2>
-        <dl className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <dt className="text-sm text-muted-foreground">Confirmado</dt>
-            <dd className="text-2xl font-semibold tabular-nums">{formatEur(plan.confirmedCents)}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-muted-foreground">En revisión</dt>
-            <dd className="text-2xl font-semibold tabular-nums">{formatEur(plan.pendingCents)}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-muted-foreground">Falta</dt>
-            <dd className="text-2xl font-semibold tabular-nums">{formatEur(remainingCents)}</dd>
-          </div>
-        </dl>
-        <PlanProgress
-          priceCents={plan.priceCents}
-          confirmedCents={plan.confirmedCents}
-          pendingCents={plan.pendingCents}
-        />
+        <div className="space-y-2">
+          <h2 id="plan-progress" className="text-base font-semibold">
+            Lo que llevas pagado
+          </h2>
+          <p className="text-2xl font-semibold tabular-nums">
+            {formatEur(plan.confirmedCents)}{" "}
+            <span className="text-base font-normal text-muted-foreground">de {formatEur(plan.priceCents)}</span>
+          </p>
+          <PlanProgress priceCents={plan.priceCents} paidCents={plan.confirmedCents} />
+          {plan.status === "open" ? (
+            <p className="text-sm text-muted-foreground tabular-nums">Te falta {formatEur(remainingCents)}.</p>
+          ) : null}
+        </div>
         {plan.installments > 1 ? (
-          <ol className="flex flex-wrap gap-2 text-xs tabular-nums" aria-label="Cuotas">
-            {parts.map((amount, index) => (
-              <li
-                key={index}
-                className={`rounded-full border px-2.5 py-1 ${index < plan.reservedInstallments ? "border-primary text-foreground" : "text-muted-foreground"}`}
-              >
-                Cuota {index + 1}: {formatEur(amount)}
+          <ol className="divide-y border-t" aria-label="Tus cuotas">
+            {lines.map((line) => (
+              <li key={line.number} className="flex items-center gap-3 py-3 text-sm">
+                <InstallmentIcon state={line.state} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">Cuota {line.number}</p>
+                  <p className={INSTALLMENT_STATE[line.state].className}>{INSTALLMENT_STATE[line.state].label}</p>
+                </div>
+                <span className="font-semibold tabular-nums">{formatEur(line.amountCents)}</span>
               </li>
             ))}
           </ol>
@@ -117,10 +176,10 @@ export async function PlanDetailScreen({ planId }: { planId: string }) {
       {plan.payments.length > 0 ? (
         <section aria-labelledby="plan-payments" className="space-y-3">
           <h2 id="plan-payments" className="text-lg font-semibold">
-            Tus pagos
+            Pagos que enviaste
           </h2>
           <ol className="divide-y rounded-lg border">
-            {plan.payments.map((payment) => (
+            {[...plan.payments].reverse().map((payment) => (
               <li key={payment.id} className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm">
                 <div>
                   <p className="font-medium tabular-nums">
@@ -145,45 +204,6 @@ export async function PlanDetailScreen({ planId }: { planId: string }) {
           </ol>
         </section>
       ) : null}
-
-      {plan.status === "paid" ? (
-        <section className="flex items-start gap-3 rounded-lg border border-primary p-5">
-          <CircleCheck aria-hidden="true" className="size-6 shrink-0 text-primary" />
-          <div>
-            <h2 className="text-xl">Tu paquete está pagado</h2>
-            <p className="text-muted-foreground">
-              No tienes que hacer nada más. Las fotos del paquete aparecen sin marca de agua en{" "}
-              <Link href="/dashboard" className="underline underline-offset-4">
-                Mis fotos
-              </Link>{" "}
-              a medida que las etiquetamos.
-            </p>
-          </div>
-        </section>
-      ) : remainingParts <= 0 ? (
-        <section className="rounded-lg border border-dashed p-5">
-          <h2 className="text-xl">Tus pagos están en revisión</h2>
-          <p className="mt-1 text-muted-foreground">
-            Ya reportaste todas las cuotas. Te avisamos por correo cuando las confirmemos. Si rechazamos alguna, podrás
-            reportarla de nuevo aquí.
-          </p>
-        </section>
-      ) : (
-        <PlanPayFlow
-          planId={plan.id}
-          fields={plan.fields}
-          priceCents={plan.priceCents}
-          installments={plan.installments}
-          reserved={plan.reservedInstallments}
-          eurToVes={plan.eurToVes}
-          nextAmountText={nextAmountText}
-          methods={MANUAL_METHODS.map(({ id, label, description }) => ({ id, label, description }))}
-          accounts={accounts ?? (await getPaymentAccounts()).accounts}
-          contactMethods={PLAN_CONTACT_METHODS}
-          contact={BUSINESS.paymentContact}
-          contactAbout={contactAbout}
-        />
-      )}
     </div>
   );
 }

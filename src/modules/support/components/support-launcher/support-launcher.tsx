@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/common/components/ui/button";
 import {
@@ -13,7 +14,7 @@ import {
 } from "@/common/components/ui/dialog";
 
 import { logWhatsappContactAction } from "../../lib/actions/support.action";
-import { SUPPORT_MESSAGES } from "../../lib/constants/support.constants";
+import { OPEN_SUPPORT_EVENT, SUPPORT_INLINE_ROUTES, SUPPORT_MESSAGES } from "../../lib/constants/support.constants";
 import { useCurrentOrderId } from "../../lib/hooks/use-current-order-id.hook";
 import { buildWhatsAppUrl } from "../../lib/utils/whatsapp.util";
 import { SupportForm } from "./support-form";
@@ -26,9 +27,15 @@ import { SupportForm } from "./support-form";
 export function SupportLauncher({ email }: { email: string }) {
   const [open, setOpen] = useState(false);
   const orderId = useCurrentOrderId();
-  const whatsappText = orderId
-    ? SUPPORT_MESSAGES.order(email, orderId)
-    : SUPPORT_MESSAGES.general(email);
+  // Screens with their own "Ayuda" button (the "Pagar" stepper) hide this one and open the dialog by event.
+  const pathname = usePathname();
+  const inline = SUPPORT_INLINE_ROUTES.some((pattern) => pattern.test(pathname));
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener(OPEN_SUPPORT_EVENT, show);
+    return () => window.removeEventListener(OPEN_SUPPORT_EVENT, show);
+  }, []);
+  const whatsappText = orderId ? SUPPORT_MESSAGES.order(email, orderId) : SUPPORT_MESSAGES.general(email);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -36,7 +43,7 @@ export function SupportLauncher({ email }: { email: string }) {
         <Button
           type="button"
           size="lg"
-          className="fixed right-4 bottom-4 z-40 h-11 rounded-full px-5 shadow-[0_2px_12px_rgba(0,0,0,0.25)] sm:right-6 sm:bottom-6"
+          className={`fixed right-4 bottom-4 z-40 h-11 rounded-full px-5 shadow-[0_2px_12px_rgba(0,0,0,0.25)] sm:right-6 sm:bottom-6 ${inline ? "hidden" : ""}`}
           aria-label="Ayuda y soporte"
         >
           Ayuda

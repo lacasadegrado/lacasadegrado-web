@@ -1,27 +1,23 @@
 import { formatEur } from "@/common/lib/utils/money.util";
 
-/** Confirmed (teal) and under review (amber) over the package price. */
+/** How much of the package is paid (confirmed money only), as a bar. */
 export function PlanProgress({
   priceCents,
-  confirmedCents,
-  pendingCents,
+  paidCents,
   className,
 }: {
   priceCents: number;
-  confirmedCents: number;
-  pendingCents: number;
+  paidCents: number;
   className?: string;
 }) {
-  const confirmedPercent = priceCents > 0 ? Math.min(100, (confirmedCents / priceCents) * 100) : 100;
-  const pendingPercent = priceCents > 0 ? Math.min(100 - confirmedPercent, (pendingCents / priceCents) * 100) : 0;
+  const percent = priceCents > 0 ? Math.min(100, (paidCents / priceCents) * 100) : 100;
   return (
     <div
-      className={`flex h-2.5 overflow-hidden rounded-full bg-muted ${className ?? ""}`}
+      className={`h-2.5 overflow-hidden rounded-full bg-muted ${className ?? ""}`}
       role="img"
-      aria-label={`Confirmado ${formatEur(confirmedCents)}, en revisión ${formatEur(pendingCents)}, de ${formatEur(priceCents)}`}
+      aria-label={`Pagado ${formatEur(paidCents)} de ${formatEur(priceCents)}`}
     >
-      <span className="bg-primary" style={{ width: `${confirmedPercent}%` }} />
-      <span className="bg-amber/60" style={{ width: `${pendingPercent}%` }} />
+      <span className="block h-full bg-amber" style={{ width: `${percent}%` }} />
     </div>
   );
 }

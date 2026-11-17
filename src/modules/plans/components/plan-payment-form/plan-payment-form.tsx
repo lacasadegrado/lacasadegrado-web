@@ -1,31 +1,26 @@
 "use client";
 
-import { CircleCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
 
 import { Alert, AlertDescription } from "@/common/components/ui/alert";
 import { Button } from "@/common/components/ui/button";
 import type { PlanPaymentMethod } from "@/common/lib/db/schema";
-import { InstallmentPicker } from "@/modules/forms/components/installment-picker/installment-picker";
-import { PlanReceipt } from "@/modules/forms/components/plan-receipt/plan-receipt";
 import { FormFieldInput } from "@/modules/forms/components/public-form/form-field-input";
 import { buildAnswersSchema } from "@/modules/forms/lib/schemas/form-answers.schema";
 import type { FormField, FormFileAnswer, PrepareUpload } from "@/modules/forms/lib/types/form.types";
 import { visibleFieldIds } from "@/modules/forms/lib/utils/form-conditions.util";
-import type { PlanReceipt as PlanReceiptData } from "@/modules/forms/lib/types/public-form.types";
 
 import { preparePlanUploadAction, submitPlanPaymentAction } from "../../lib/actions/plans.action";
+import { PLANS_PATHS } from "../../lib/constants/plans.constants";
 
 type PlanPaymentFormProps = {
   planId: string;
   fields: FormField[];
-  priceCents: number;
-  installments: number;
-  reserved: number;
-  eurToVes: number | null;
-  /** Picked in "Cómo pagar" above; required to send. */
-  method: PlanPaymentMethod | null;
+  /** Chosen in step 1. */
+  count: number;
+  /** Chosen in step 2. */
+  method: PlanPaymentMethod;
 };
 
 function firstErrors(issues: { path: PropertyKey[]; message: string }[]): Record<string, string> {
@@ -34,24 +29,17 @@ function firstErrors(issues: { path: PropertyKey[]; message: string }[]): Record
   return errors;
 }
 
-/** The next payment: how many installments and the admin's payment questions (reference, proof and any extra). */
-export function PlanPaymentForm({
-  planId,
-  fields,
-  priceCents,
-  installments,
-  reserved,
-  eurToVes,
-  method,
-}: PlanPaymentFormProps) {
+/**
+ * Step 4 of "Pagar": the admin's payment questions (reference, proof and
+ * any extra). Sent, the person lands on the package with the confirmation.
+ */
+export function PlanPaymentForm({ planId, fields, count, method }: PlanPaymentFormProps) {
   const router = useRouter();
   const [draftId] = useState(() => crypto.randomUUID());
-  const [count, setCount] = useState(1);
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState<Set<string>>(() => new Set());
   const [message, setMessage] = useState<string | null>(null);
-  const [receipt, setReceipt] = useState<PlanReceiptData | null>(null);
   const [submitting, startSubmitting] = useTransition();
 
   const setValue = useCallback((fieldId: string, value: unknown) => {
@@ -88,10 +76,6 @@ export function PlanPaymentForm({
       setMessage("Espera a que terminen de subir los archivos.");
       return;
     }
-    if (!method) {
-      setMessage("Elige arriba cómo pagaste.");
-      return;
-    }
     const local = buildAnswersSchema(fields, []).safeParse(values);
     if (!local.success) {
       setErrors(firstErrors(local.error.issues));
@@ -101,8 +85,7 @@ export function PlanPaymentForm({
     startSubmitting(async () => {
       const result = await submitPlanPaymentAction({ planId, draftId, installments: count, method, answers: values });
       if (result.ok) {
-        setReceipt(result.receipt);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        router.push(PLANS_PATHS.plan(planId, true));
         return;
       }
       setMessage(result.message);
@@ -110,38 +93,8 @@ export function PlanPaymentForm({
     });
   }
 
-  if (receipt) {
-    return (
-      <section aria-live="polite" className="space-y-5 rounded-lg border bg-card p-6">
-        <CircleCheck aria-hidden="true" className="size-10 text-primary" />
-        <div className="space-y-2">
-          <h2 className="text-2xl">Recibimos tu pago</h2>
-          <p className="text-muted-foreground">
-            Vamos a verificarlo. Cuando lo confirmemos te avisamos por correo y aparece como confirmado aquí.
-          </p>
-        </div>
-        <PlanReceipt plan={receipt} />
-        <Button type="button" variant="outline" onClick={() => router.refresh()}>
-          Ver mi paquete actualizado
-        </Button>
-      </section>
-    );
-  }
-
   return (
     <form onSubmit={submit} noValidate className="space-y-8">
-      {installments - reserved > 1 ? (
-        <InstallmentPicker
-          id="field-installments"
-          priceCents={priceCents}
-          installments={installments}
-          reserved={reserved}
-          value={count}
-          onChange={setCount}
-          eurToVes={eurToVes}
-          error={errors.installments}
-        />
-      ) : null}
       {fields
         .filter((field) => visible.has(field.id))
         .map((field) => (
@@ -158,12 +111,17 @@ export function PlanPaymentForm({
             onUploadingChange={setFieldUploading}
           />
         ))}
+      {errors.installments || errors.method ? (
+        <Alert role="alert">
+          <AlertDescription>{errors.installments ?? errors.method}</AlertDescription>
+        </Alert>
+      ) : null}
       {message ? (
         <Alert role="alert">
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       ) : null}
-      <Button type="submit" size="lg" disabled={submitting || uploading.size > 0}>
+      <Button type="submit" size="lg" className="h-12 w-full text-base" disabled={submitting || uploading.size > 0}>
         {submitting ? "Enviando…" : uploading.size > 0 ? "Subiendo archivos…" : "Enviar pago"}
       </Button>
     </form>

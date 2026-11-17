@@ -261,3 +261,18 @@
     }
   }
 }
+
+/* ------------------------------------------------------------------
+   Full-screen flows on phones
+   ------------------------------------------------------------------
+   A screen that renders an element with `data-immersive` (the "Pagar"
+   stepper) hides the site header, nav and footer below the md
+   breakpoint, so it feels like a native app screen. Desktop keeps them. */
+@media (width < 48rem) {
+  body:has([data-immersive]) [data-app-chrome] {
+    display: none;
+  }
+  body:has([data-immersive]) #contenido {
+    padding-top: 0.75rem;
+  }
+}

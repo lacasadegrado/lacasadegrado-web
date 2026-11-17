@@ -68,7 +68,8 @@ export function createDefaultFormFields(kind: FormKind = "package_payment"): For
  * The default questions of every installment in "Pagos": the reference and
  * the proof. The admin can reword them and add more in Configuración ›
  * Formulario de pagos (`getPlanPaymentFields`); these apply until then.
- * Files go under the plan's form prefix like any form upload.
+ * Files go under the plan's form prefix like any form upload. No help
+ * text: the "Pagar" stepper says what to write for the method chosen.
  */
 export const PLAN_PAYMENT_FIELDS: FormField[] = [
     {
@@ -76,7 +77,6 @@ export const PLAN_PAYMENT_FIELDS: FormField[] = [
       system: "reference",
       type: "short_text",
       label: "Número de referencia del pago",
-      helpText: "La referencia del Pago Móvil o la transferencia, el ID de la orden de Binance, o \"Efectivo\".",
       required: true,
       minLength: 4,
       maxLength: 60,
@@ -86,7 +86,6 @@ export const PLAN_PAYMENT_FIELDS: FormField[] = [
       system: "proof",
       type: "file",
       label: "Comprobante de pago",
-      helpText: "Captura o PDF del pago. En efectivo, una foto de los billetes.",
       required: true,
       accept: "image_or_pdf",
       maxFiles: 1,

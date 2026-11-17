@@ -13,7 +13,7 @@ import type { CustomerPlanSummary } from "../lib/types/plans.types";
 /** What the person sees next to each package: the next step, in plain words. */
 function planState(plan: CustomerPlanSummary): { label: string; variant: "default" | "secondary" | "outline" } {
   if (plan.status === "paid") return { label: "Pagado", variant: "default" };
-  if (plan.reservedInstallments >= plan.installments) return { label: "En revisión", variant: "secondary" };
+  if (plan.reservedInstallments >= plan.installments) return { label: "Verificando tu pago", variant: "secondary" };
   return { label: "Por pagar", variant: "outline" };
 }
 
@@ -69,19 +69,15 @@ export async function PlansScreen() {
                       />
                     </div>
                   </div>
-                  <PlanProgress
-                    priceCents={plan.priceCents}
-                    confirmedCents={plan.confirmedCents}
-                    pendingCents={plan.pendingCents}
-                  />
+                  <PlanProgress priceCents={plan.priceCents} paidCents={plan.confirmedCents} />
                   <p className="text-sm tabular-nums text-muted-foreground">
-                    {formatEur(plan.confirmedCents)} de {formatEur(plan.priceCents)} confirmado
+                    Pagado {formatEur(plan.confirmedCents)} de {formatEur(plan.priceCents)}
                     {plan.status === "open" && remainingCents > 0 ? ` · faltan ${formatEur(remainingCents)}` : ""}
                     {plan.installments > 1 ? ` · ${plan.installments} cuotas` : ""}
                   </p>
                   {plan.status === "open" && plan.hasRejected && plan.reservedInstallments < plan.installments ? (
                     <p className="text-sm font-medium text-destructive">
-                      Un pago fue rechazado: revisa el motivo y repórtalo de nuevo.
+                      Un pago fue rechazado. Entra para ver por qué y pagar de nuevo.
                     </p>
                   ) : null}
                 </Link>

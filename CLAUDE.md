@@ -314,15 +314,29 @@ Pagos (2026-11-16, migration 0018):
   `package_plans.email = session email`. Each payment asks the fixed
   `PLAN_PAYMENT_FIELDS` (reference + proof, forms utils), files under the
   plan form's prefix. The nav shows "Pagos" only when `hasPlans`.
-  "Cómo pagar" (`PlanPayMethods`) lets the person pick an enabled manual
-  method and shows only its details (checkout's `PaymentDetails`, no
-  amount row since the installment count is chosen below).
+  UX rule (2026-11-16, from Brandon): customer screens are "for dummies",
+  one question per screen, Cashea-style. The plan page is a summary: one
+  big "Pagar" button, "Lo que llevas pagado" (confirmed money only) and one
+  line per cuota (Pagada / Estamos verificando tu pago / Por pagar,
+  `installmentLines`), then "Pagos que enviaste"; `?enviado=1` shows
+  "¡Recibimos tu pago!". "Pagar" opens the stepper at
+  `/dashboard/payments/[planId]/pay` (`PlanPayScreen`), step and choices in
+  the query (`?paso=cuotas|metodo|datos|reportar&cuotas=&metodo=`,
+  `PLANS_PATHS.pay`; invalid values fall back to the step that fixes
+  them): 1 cuántas cuotas (`PlanSummaryCard` with "Ver qué incluye" sheet
+  = `photo_packages.description`), 2 método (cards, tap = next),
+  3 datos (amount + checkout's `PaymentDetails`, or WhatsApp for
+  Binance/Efectivo), 4 reportar (`PlanPaymentForm`, then back to the plan
+  with `?enviado=1`). Fixed bottom bar with Total Bs/€ and "N cuotas"
+  (`installmentCountLabel`; "Cuota 1 de 3" style labels confused people). On phones the stepper hides the site header,
+  nav and footer (`data-immersive` marker + `data-app-chrome` wrappers in
+  `AppShell`, rule in globals.css); the floating Ayuda hides there too and
+  the step header's Ayuda opens it via `OPEN_SUPPORT_EVENT`. No "Otro
+  monto": payments are whole installments.
   Binance and Efectivo (`PLAN_CONTACT_METHODS`, plans constants) show
   `BUSINESS.paymentContact` (0412-3162362, not the support WhatsApp) with a
   wa.me link; they are still reported with the same form (cash: reference
   "Efectivo" + photo of the bills), as the owner's customer flyer says.
-  The plan page has a collapsible "Ver qué incluye el paquete" (native
-  `<details>`) with the package's current `photo_packages.description`.
 - Payment questions (migration 0019): one global form edited at
   `/admin/payment-form` (Configuración › Formulario de pagos,
   `PaymentFormBuilder` reusing the event builder's `FieldCard`), stored in
@@ -334,8 +348,7 @@ Pagos (2026-11-16, migration 0018):
   admin detail and the Excel show them with no extra code.
   `form_submissions.payment_method` (`plan_payment_method` enum:
   pago_movil, bank_transfer, binance, cash) stores the method picked in
-  "Cómo pagar" (`PlanPayFlow` shares it with the report form; required to
-  send) or in "Registrar pago"; labels in `PLAN_PAYMENT_METHOD_LABELS`.
+  step 2 of "Pagar" or in "Registrar pago"; labels in `PLAN_PAYMENT_METHOD_LABELS`.
   Emails (receipt, confirmed, rejected) link to Pagos; no token rotation.
 - A payment is `kind = package_payment AND payment_status IS NOT NULL`
   (`isPaymentSubmission`); sign-ups show under the form's Respuestas

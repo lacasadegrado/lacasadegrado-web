@@ -8,5 +8,6 @@ export const metadata: Metadata = {
 
 export default async function Page(props: PageProps<"/dashboard/payments/[planId]">) {
   const { planId } = await props.params;
-  return <PlanDetailScreen planId={planId} />;
+  const { enviado } = await props.searchParams;
+  return <PlanDetailScreen planId={planId} sent={enviado === "1"} />;
 }

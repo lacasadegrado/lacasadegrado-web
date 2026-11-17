@@ -20,18 +20,27 @@ type AppShellProps = {
 };
 
 /** Layout for every signed-in page: header, primary nav, content, footer. */
-export function AppShell({ actions, cartBadge, support, showCommerce = true, showPayments = false, children }: AppShellProps) {
+export function AppShell({
+  actions,
+  cartBadge,
+  support,
+  showCommerce = true,
+  showPayments = false,
+  children,
+}: AppShellProps) {
   return (
     <>
-      <SiteHeader>{actions}</SiteHeader>
-      <AppNav cartBadge={showCommerce ? cartBadge : null} showCommerce={showCommerce} showPayments={showPayments} />
-      <main
-        id="contenido"
-        className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-24 sm:px-6"
-      >
+      {/* `data-app-chrome`: hidden on phones by full-screen flows (see `data-immersive` in globals.css). */}
+      <div data-app-chrome className="contents">
+        <SiteHeader>{actions}</SiteHeader>
+        <AppNav cartBadge={showCommerce ? cartBadge : null} showCommerce={showCommerce} showPayments={showPayments} />
+      </div>
+      <main id="contenido" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-24 sm:px-6">
         {children}
       </main>
-      <SiteFooter />
+      <div data-app-chrome className="contents">
+        <SiteFooter />
+      </div>
       {support}
     </>
   );
