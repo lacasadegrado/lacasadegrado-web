@@ -5,6 +5,8 @@ export const PLANS_PATHS = {
   list: "/dashboard/payments",
   /** `sent`: just reported a payment, the page opens with the confirmation. */
   plan: (planId: string, sent = false) => `/dashboard/payments/${planId}${sent ? "?enviado=1" : ""}`,
+  /** Printable receipt of a fully paid package. */
+  receipt: (planId: string) => `/dashboard/payments/${planId}/receipt`,
   /** The "Pagar" stepper; the step and the choices so far live in the query string. */
   pay: (planId: string, state: PlanPayState = {}) => {
     const params = new URLSearchParams();

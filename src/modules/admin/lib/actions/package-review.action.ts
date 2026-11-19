@@ -37,7 +37,11 @@ async function afterReview(result: Extract<PackageReviewOutcome, { ok: true }>, 
       confirmedCents: result.confirmedCents,
       priceCents: result.priceCents,
       reason,
-      plansUrl: `${appUrl}${PLANS_PATHS.list}`,
+      // Fully paid: straight to the receipt.
+      plansUrl:
+        result.outcome === "paid" && result.planId
+          ? `${appUrl}${PLANS_PATHS.receipt(result.planId)}`
+          : `${appUrl}${PLANS_PATHS.list}`,
       appUrl,
     });
     const sent = await sendEmail({ to: result.email, ...email });

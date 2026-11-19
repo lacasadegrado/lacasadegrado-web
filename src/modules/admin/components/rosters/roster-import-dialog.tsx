@@ -30,46 +30,13 @@ import {
 } from "@/modules/forms/lib/utils/roster.util";
 
 import { importRosterRowsAction, prepareRosterImportAction } from "../../lib/actions/roster.action";
-
-type Sheet = { name: string; rows: string[][] };
+import { readSheets, type Sheet } from "../../lib/utils/spreadsheet-file.util";
 
 type RosterImportDialogProps = {
   eventId: string;
   /** Set to update an existing list; otherwise a new one is created. */
   roster?: { id: string; name: string };
 };
-
-/** One cell as text: formulas give their result, dates become YYYY-MM-DD. */
-function cellText(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  if (typeof value === "object") {
-    const cell = value as { result?: unknown; text?: unknown; richText?: { text: string }[]; error?: unknown };
-    if (cell.richText) return cell.richText.map((part) => part.text).join("").trim();
-    if ("result" in cell) return cellText(cell.result);
-    if (typeof cell.text === "string") return cell.text.trim();
-    return "";
-  }
-  return String(value).trim();
-}
-
-/** Excel in the browser (loaded only when needed), CSV as text. */
-async function readSheets(file: File): Promise<Sheet[]> {
-  if (/\.(csv|txt|tsv)$/i.test(file.name)) {
-    return [{ name: file.name, rows: parseDelimited(await file.text()) }];
-  }
-  const { default: ExcelJS } = await import("exceljs");
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(await file.arrayBuffer());
-  return workbook.worksheets.map((sheet) => {
-    const rows: string[][] = [];
-    sheet.eachRow({ includeEmpty: true }, (row, number) => {
-      const cells = Array.from({ length: row.cellCount }, (_, index) => cellText(row.getCell(index + 1).value));
-      rows[number - 1] = cells;
-    });
-    return { name: sheet.name, rows: Array.from(rows, (row) => row ?? []) };
-  });
-}
 
 type Preview = {
   headers: string[];

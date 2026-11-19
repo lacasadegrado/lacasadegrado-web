@@ -110,7 +110,7 @@ export function buildPackagePaymentReviewedEmail(input: {
   confirmedCents: number;
   priceCents: number;
   reason: string | null;
-  /** "Pagos", where they see the plan and report again. */
+  /** "Pagos", where they see the plan and report again; the receipt when fully paid. */
   plansUrl: string;
   appUrl: string;
 }) {
@@ -138,8 +138,9 @@ export function buildPackagePaymentReviewedEmail(input: {
       ? "Revisa los datos y vuelve a reportarlo desde Pagos, entrando con este correo."
       : input.outcome === "confirmed"
         ? "Tus próximas cuotas las pagas desde Pagos, entrando con este correo."
-        : null;
-  const button = input.outcome === "rejected" ? "Reportar el pago de nuevo" : "Ver mis pagos";
+        : "Tu recibo de pago ya está listo: ábrelo con el botón de abajo para verlo o descargarlo.";
+  const button =
+    input.outcome === "rejected" ? "Reportar el pago de nuevo" : input.outcome === "paid" ? "Ver mi recibo" : "Ver mis pagos";
 
   const text = [
     lead,
@@ -160,6 +161,42 @@ export function buildPackagePaymentReviewedEmail(input: {
       emailDetails(rows.map(({ label, value }) => ({ label, value }))) +
       (next ? emailParagraph(escapeHtml(next)) : "") +
       emailButton(input.plansUrl, button),
+  });
+  return { subject: `${title}: ${input.packageName}`, html, text };
+}
+
+/** After an admin imports people from an Excel: their package is waiting in "Pagos". */
+export function buildPlanEnrolledEmail(input: {
+  personName: string | null;
+  eventName: string;
+  packageName: string;
+  priceCents: number;
+  installments: number;
+  /** "Pagos", behind login with this email. */
+  plansUrl: string;
+  appUrl: string;
+}) {
+  const title = "Tu paquete está listo para pagar";
+  const greeting = input.personName ? `Hola, ${input.personName}.` : "Hola.";
+  const lead = `${greeting} Te inscribimos en el ${input.packageName} de ${input.eventName}.`;
+  const price =
+    input.installments > 1
+      ? `${formatEur(input.priceCents)} en ${input.installments} cuotas`
+      : formatEur(input.priceCents);
+  const rows: Row[] = [plainRow("Paquete", input.packageName), plainRow("Precio", price)];
+  const how =
+    "Para pagar, entra con este correo: te enviamos un código para iniciar sesión y en «Pagos» tocas «Pagar».";
+
+  const text = [lead, "", ...rows.map((row) => `${row.label}: ${row.text}`), "", how, "", input.plansUrl].join("\n");
+  const html = renderEmailLayout({
+    preheader: lead,
+    title,
+    appUrl: input.appUrl,
+    bodyHtml:
+      emailParagraph(escapeHtml(lead)) +
+      emailDetails(rows.map(({ label, value }) => ({ label, value }))) +
+      emailParagraph(escapeHtml(how)) +
+      emailButton(input.plansUrl, "Ir a pagar mi paquete"),
   });
   return { subject: `${title}: ${input.packageName}`, html, text };
 }

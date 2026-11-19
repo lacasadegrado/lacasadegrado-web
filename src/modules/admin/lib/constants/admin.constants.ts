@@ -14,6 +14,7 @@ export const ADMIN_PATHS = {
   packagePayment: (submissionId: string) => `/admin/payments/packages/${submissionId}`,
   packagePlans: "/admin/payments/plans",
   packagePlan: (planId: string) => `/admin/payments/plans/${planId}`,
+  packagePlanReceipt: (planId: string) => `/admin/payments/plans/${planId}/receipt`,
   packagePaymentFileApi: (submissionId: string, fieldId: string, index: number) =>
     `/api/admin/package-payments/${submissionId}/files/${fieldId}/${index}`,
   packagePaymentsExportApi: "/api/admin/package-payments/export",

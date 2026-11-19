@@ -49,3 +49,28 @@ export type PreparePlanUploadResult = { ok: true; key: string; uploadUrl: string
 
 export type SubmitPlanPaymentResult =
   { ok: true; receipt: PlanReceipt } | { ok: false; message: string; fieldErrors?: Record<string, string> };
+
+/** A fully paid package as printed on its receipt. Only confirmed payments count. */
+export type PlanReceiptData = {
+  planId: string;
+  /** "LCG-3C747D63": the plan id's first block, stable and unique enough to quote. */
+  number: string;
+  email: string | null;
+  personName: string | null;
+  eventName: string;
+  packageName: string;
+  priceCents: number;
+  installments: number;
+  paidAt: Date;
+  payments: {
+    id: string;
+    date: Date;
+    method: PlanPaymentMethod | null;
+    reference: string | null;
+    amountCents: number;
+    installmentsCovered: number;
+    /** Rate stored with the payment, to show what it was in bolívares. */
+    eurToVes: number | null;
+  }[];
+  totalCents: number;
+};

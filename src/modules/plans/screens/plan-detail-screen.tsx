@@ -1,4 +1,4 @@
-import { ArrowLeft, CircleCheck, Clock, TriangleAlert } from "lucide-react";
+import { ArrowLeft, CircleCheck, Clock, ReceiptText, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
@@ -109,6 +109,12 @@ export async function PlanDetailScreen({ planId, sent }: { planId: string; sent:
               </Link>{" "}
               a medida que las etiquetamos.
             </p>
+            <Button asChild size="lg" className="mt-4 h-12 w-full text-base sm:w-auto">
+              <Link href={PLANS_PATHS.receipt(plan.id)}>
+                <ReceiptText aria-hidden="true" />
+                Ver mi recibo
+              </Link>
+            </Button>
           </div>
         </div>
       ) : canPay ? (

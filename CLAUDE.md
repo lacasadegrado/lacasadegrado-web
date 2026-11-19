@@ -358,6 +358,24 @@ Pagos (2026-11-16, migration 0018):
   installments received outside the app, stored confirmed with
   `recorded_by` (`recordPackagePayment`), marks the plan paid if covered,
   emails like a confirmation.
+- Receipts (2026-11-19): a `paid` plan has a receipt at
+  `/dashboard/payments/[planId]/receipt` (owner by email) and
+  `/admin/payments/plans/[planId]/receipt`; `PlanReceiptScreen` +
+  `PackageReceipt`, data from `getPlanReceipt` (confirmed payments only,
+  number `LCG-<first 8 of plan id>`). "Descargar recibo (PDF)" is
+  `window.print()`; `data-receipt` makes it the only printed element, teal
+  on white (globals.css). The "paquete pagado" email links to it. Not a
+  fiscal invoice; RIF/legal name stay off it while they are placeholders.
+- Personas › "Importar desde Excel" (`ImportPeopleDialog`, 2026-11-19):
+  event + package, Excel/CSV/pasted cells read in the browser
+  (`spreadsheet-file.util.ts`, shared with the roster import), email and
+  name columns guessed. `importPeopleAction` in batches of 25:
+  `importPeopleToPackage` creates the account (`createUserWithAccess`,
+  fills an empty `full_name`), `enrollInPlan` (an open plan for the same
+  package is reused) and, if checked, emails `buildPlanEnrolledEmail`
+  (600 ms apart for Resend). Plans need a form: the event's newest package
+  form, else a draft "Inscripciones importadas" is created. No sign-up
+  submission is stored, so imported people show in Abonos, not Inscripciones.
 - Package photos: `photos.is_package` ("Del paquete"/"Adicional" in
   `BulkActionsBar`, checkbox in the uploader). `releasedForEmail` also
   frees them when that email has a `paid` plan in the photo's event;

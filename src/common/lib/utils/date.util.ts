@@ -23,6 +23,18 @@ export function formatDateOnly(isoDate: string): string {
   return longDate.format(new Date(year, month - 1, day));
 }
 
+const longDateInCaracas = new Intl.DateTimeFormat("es-VE", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: TIME_ZONE,
+});
+
+/** An instant as its Caracas calendar day: "16 de noviembre de 2026". */
+export function formatDateLong(date: Date): string {
+  return longDateInCaracas.format(date);
+}
+
 export function formatDateTime(date: Date): string {
   return shortDateTime.format(date);
 }

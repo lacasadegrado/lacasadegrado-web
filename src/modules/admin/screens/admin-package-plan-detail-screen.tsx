@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ReceiptText } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -69,6 +69,14 @@ export async function AdminPackagePlanDetailScreen({ planId }: { planId: string 
         </dl>
         <PlanProgress confirmedCents={plan.confirmedCents} pendingCents={plan.pendingCents} priceCents={plan.priceCents} />
         {plan.paidAt ? <p className="text-sm text-muted-foreground">Pagado completo el {formatDateTime(plan.paidAt)}.</p> : null}
+        {plan.status === "paid" ? (
+          <Button asChild variant="outline">
+            <Link href={ADMIN_PATHS.packagePlanReceipt(plan.id)}>
+              <ReceiptText aria-hidden="true" />
+              Ver recibo
+            </Link>
+          </Button>
+        ) : null}
         {plan.status === "open" && reserved < plan.installments ? (
           <RecordPlanPayment
             planId={plan.id}

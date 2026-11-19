@@ -276,3 +276,27 @@
     padding-top: 0.75rem;
   }
 }
+
+/* ------------------------------------------------------------------
+   Printing a receipt
+   ------------------------------------------------------------------
+   A page with `data-receipt` prints only that element (whatever shell
+   surrounds it: customer or admin), teal on white in both themes. */
+@media print {
+  body:has([data-receipt]) * {
+    visibility: hidden;
+  }
+  [data-receipt],
+  [data-receipt] * {
+    visibility: visible;
+    color: #135065 !important;
+    border-color: #c9d4d8 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  [data-receipt] {
+    position: absolute;
+    inset: 0 0 auto 0;
+    border: 0 !important;
+  }
+}
