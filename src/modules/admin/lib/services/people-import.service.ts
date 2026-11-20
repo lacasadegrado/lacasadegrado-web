@@ -6,11 +6,13 @@ import { getServerEnv } from "@/common/lib/config/env.config";
 import { db } from "@/common/lib/db";
 import { events, forms, photoPackages, profiles } from "@/common/lib/db/schema";
 import { sendEmail } from "@/common/lib/email/email.service";
-import { enrollInPlan, plansUrl } from "@/modules/forms/lib/services/package-plan.service";
-import { buildPlanEnrolledEmail } from "@/modules/forms/lib/utils/form-email.util";
+import { enrollInPlan, planBalance, plansUrl } from "@/modules/forms/lib/services/package-plan.service";
+import { buildPackagePaymentReviewedEmail, buildPlanEnrolledEmail } from "@/modules/forms/lib/utils/form-email.util";
+import { PLANS_PATHS } from "@/modules/plans/lib/constants/plans.constants";
 
 import type { ImportPeopleInput } from "../schemas/people-import.schema";
 import { createForm } from "./form.service";
+import { recordPackagePayment } from "./package-review.service";
 import { createUserWithAccess } from "./user.service";
 
 /** Events with their active packages, for the import dialog's two selects. */
@@ -71,6 +73,10 @@ export type ImportPersonResult = {
   /** enrolled: new plan; already: an open plan for this package existed; failed: see message. */
   status: "enrolled" | "already" | "failed";
   accountCreated: boolean;
+  /** Installments recorded now from the "cuotas pagadas" column. */
+  recordedInstallments: number;
+  /** The package ended fully paid (it has a receipt). */
+  paid: boolean;
   emailed: boolean;
   message?: string;
 };
@@ -81,8 +87,9 @@ export type ImportPeopleOutcome =
 /**
  * "Importar personas": for each row, the account (created if new, so they
  * show in Personas and their first code attaches to it) and the plan for
- * the chosen package (reused when an open one exists). Optionally emails
- * the newly enrolled. One person failing never stops the rest.
+ * the chosen package (reused when an open one exists), the installments
+ * already paid as confirmed "Registrar pago" payments, and optionally an
+ * email to the newly enrolled (the receipt email when fully paid). One person failing never stops the rest.
  */
 export async function importPeopleToPackage(input: ImportPeopleInput, adminId: string): Promise<ImportPeopleOutcome> {
   const [pkg] = await db
@@ -117,6 +124,8 @@ export async function importPeopleToPackage(input: ImportPeopleInput, adminId: s
           email: person.email,
           status: "failed",
           accountCreated: false,
+          recordedInstallments: 0,
+          paid: false,
           emailed: false,
           message: account.message,
         });
@@ -130,7 +139,7 @@ export async function importPeopleToPackage(input: ImportPeopleInput, adminId: s
           .where(and(eq(profiles.email, person.email), isNull(profiles.fullName)));
       }
 
-      const { created } = await db.transaction((tx) =>
+      const { planId, created } = await db.transaction((tx) =>
         enrollInPlan(tx, {
           eventId: input.eventId,
           formId,
@@ -140,19 +149,54 @@ export async function importPeopleToPackage(input: ImportPeopleInput, adminId: s
         }),
       );
 
+      // "Cuotas pagadas" is the total paid so far: importing the same row again records nothing new.
+      let recordedInstallments = 0;
+      let paid = false;
+      let confirmedCents = 0;
+      const target = Math.min(person.paidInstallments, Math.max(1, pkg.installments));
+      const before = await planBalance(db, planId);
+      confirmedCents = before.confirmedCents;
+      if (target > before.reservedInstallments) {
+        const recorded = await recordPackagePayment(adminId, {
+          planId,
+          installments: target - before.reservedInstallments,
+          method: input.paymentMethod,
+          reference: null,
+          note: "Pago anterior a la página, importado desde Excel.",
+        });
+        if (recorded.ok) {
+          recordedInstallments = target - before.reservedInstallments;
+          paid = recorded.outcome === "paid";
+          confirmedCents = recorded.confirmedCents;
+        }
+      }
+
       let emailed = false;
       if (created && input.notify) {
         emailed = await sendEmail({
           to: person.email,
-          ...buildPlanEnrolledEmail({
-            personName: person.name,
-            eventName: pkg.eventName,
-            packageName: pkg.name,
-            priceCents: pkg.priceCents,
-            installments: Math.max(1, pkg.installments),
-            plansUrl: plansUrl(),
-            appUrl,
-          }),
+          ...(paid
+            ? buildPackagePaymentReviewedEmail({
+                outcome: "paid",
+                eventName: pkg.eventName,
+                packageName: pkg.name,
+                amountCents: confirmedCents,
+                confirmedCents,
+                priceCents: pkg.priceCents,
+                reason: null,
+                plansUrl: `${appUrl}${PLANS_PATHS.receipt(planId)}`,
+                appUrl,
+              })
+            : buildPlanEnrolledEmail({
+                personName: person.name,
+                eventName: pkg.eventName,
+                packageName: pkg.name,
+                priceCents: pkg.priceCents,
+                installments: Math.max(1, pkg.installments),
+                paidCents: confirmedCents,
+                plansUrl: plansUrl(),
+                appUrl,
+              })),
         });
         // Resend allows a few requests per second; stay under it.
         await new Promise((resolve) => setTimeout(resolve, 600));
@@ -161,6 +205,8 @@ export async function importPeopleToPackage(input: ImportPeopleInput, adminId: s
         email: person.email,
         status: created ? "enrolled" : "already",
         accountCreated: account.ok,
+        recordedInstallments,
+        paid,
         emailed,
       });
     } catch (error) {
@@ -169,6 +215,8 @@ export async function importPeopleToPackage(input: ImportPeopleInput, adminId: s
         email: person.email,
         status: "failed",
         accountCreated: false,
+        recordedInstallments: 0,
+        paid: false,
         emailed: false,
         message: "Error inesperado.",
       });

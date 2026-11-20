@@ -20,7 +20,9 @@ import { Input } from "@/common/components/ui/input";
 import { Label } from "@/common/components/ui/label";
 import { NativeSelect, NativeSelectOption } from "@/common/components/ui/native-select";
 import { Textarea } from "@/common/components/ui/textarea";
+import type { PlanPaymentMethod } from "@/common/lib/db/schema";
 import { formatEur } from "@/common/lib/utils/money.util";
+import { PLAN_PAYMENT_METHOD_IDS, PLAN_PAYMENT_METHOD_LABELS } from "@/modules/plans/lib/constants/plans.constants";
 import { findHeaderRow, guessNameColumn, parseDelimited } from "@/modules/forms/lib/utils/roster.util";
 
 import { importPeopleAction } from "../../lib/actions/people-import.action";
@@ -35,7 +37,7 @@ type EventOption = {
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const NO_NAME = -1;
+const NO_COLUMN = -1;
 
 /** The column titled like an email, else the one whose cells look like emails. */
 function guessEmailColumn(headers: string[], body: string[][]): number {
@@ -53,43 +55,86 @@ function guessEmailColumn(headers: string[], body: string[][]): number {
   return best;
 }
 
+type PreviewPerson = { email: string; name: string; paid: number };
+
 type Preview = {
   headers: string[];
   emailColumn: number;
   nameColumn: number;
-  people: { email: string; name: string }[];
+  paidColumn: number;
+  people: PreviewPerson[];
   invalid: string[];
   repeated: number;
+  /** Rows whose "cuotas pagadas" is not a whole number the package allows. */
+  badPaid: string[];
 };
 
-function buildPreview(rows: string[][], emailColumn: number | null, nameColumn: number | null): Preview | null {
+/** A column titled like "cuotas pagadas" / "abonos", else none. */
+function guessPaidColumn(headers: string[], taken: number[]): number {
+  const index = headers.findIndex((header, position) => !taken.includes(position) && /cuota|pagad|abono/i.test(header));
+  return index >= 0 ? index : NO_COLUMN;
+}
+
+/** "2", "2 cuotas", "" (= 0). Null when it is not a count the package allows. */
+function parsePaid(raw: string, maxInstallments: number): number | null {
+  const text = raw.trim();
+  if (!text) return 0;
+  const match = /^(\d+)(\s*cuotas?)?$/i.exec(text);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return value <= maxInstallments ? value : null;
+}
+
+function buildPreview(
+  rows: string[][],
+  columns: { email: number | null; name: number | null; paid: number | null },
+  maxInstallments: number,
+): Preview | null {
   const nonEmpty = rows.filter((row) => row.some((cell) => cell !== ""));
   if (nonEmpty.length < 2) return null;
   const headerIndex = findHeaderRow(nonEmpty);
   const body = nonEmpty.slice(headerIndex + 1);
   const width = Math.max(...nonEmpty.map((row) => row.length));
   const headers = Array.from({ length: width }, (_, index) => nonEmpty[headerIndex][index] || `Columna ${index + 1}`);
-  const email = emailColumn ?? guessEmailColumn(headers, body);
+  const email = columns.email ?? guessEmailColumn(headers, body);
   const guessedName = guessNameColumn(headers);
-  const name = nameColumn ?? (guessedName === email ? NO_NAME : guessedName);
+  const name = columns.name ?? (guessedName === email ? NO_COLUMN : guessedName);
+  const paidColumn = columns.paid ?? guessPaidColumn(headers, [email, name]);
 
-  const byEmail = new Map<string, { email: string; name: string }>();
+  const byEmail = new Map<string, PreviewPerson>();
   const invalid: string[] = [];
+  const badPaid: string[] = [];
   let repeated = 0;
   for (const row of body) {
     const raw = (row[email] ?? "").trim().toLowerCase();
-    const personName = name === NO_NAME ? "" : (row[name] ?? "").trim();
+    const personName = name === NO_COLUMN ? "" : (row[name] ?? "").trim();
     if (!EMAIL_PATTERN.test(raw)) {
       invalid.push(raw || personName || "(fila sin correo)");
       continue;
+    }
+    let paid = 0;
+    if (paidColumn !== NO_COLUMN) {
+      const parsed = parsePaid(row[paidColumn] ?? "", maxInstallments);
+      if (parsed === null) badPaid.push(`${raw} («${row[paidColumn]}»)`);
+      paid = parsed ?? 0;
     }
     const existing = byEmail.get(raw);
     if (existing) {
       repeated++;
       if (!existing.name) existing.name = personName;
-    } else byEmail.set(raw, { email: raw, name: personName });
+      existing.paid = Math.max(existing.paid, paid);
+    } else byEmail.set(raw, { email: raw, name: personName, paid });
   }
-  return { headers, emailColumn: email, nameColumn: name, people: [...byEmail.values()], invalid, repeated };
+  return {
+    headers,
+    emailColumn: email,
+    nameColumn: name,
+    paidColumn,
+    people: [...byEmail.values()],
+    invalid,
+    repeated,
+    badPaid,
+  };
 }
 
 /**
@@ -108,6 +153,8 @@ export function ImportPeopleDialog({ events }: { events: EventOption[] }) {
   const [pasted, setPasted] = useState("");
   const [emailColumn, setEmailColumn] = useState<number | null>(null);
   const [nameColumn, setNameColumn] = useState<number | null>(null);
+  const [paidColumn, setPaidColumn] = useState<number | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PlanPaymentMethod>("cash");
   const [notify, setNotify] = useState(true);
   const [reading, setReading] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
@@ -116,9 +163,17 @@ export function ImportPeopleDialog({ events }: { events: EventOption[] }) {
 
   const event = events.find((item) => item.id === eventId) ?? null;
   const pkg = event?.packages.find((item) => item.id === packageId) ?? null;
+  const maxInstallments = Math.max(1, pkg?.installments ?? 1);
   const preview = useMemo(
-    () => (sheets[sheetIndex] ? buildPreview(sheets[sheetIndex].rows, emailColumn, nameColumn) : null),
-    [sheets, sheetIndex, emailColumn, nameColumn],
+    () =>
+      sheets[sheetIndex]
+        ? buildPreview(
+            sheets[sheetIndex].rows,
+            { email: emailColumn, name: nameColumn, paid: paidColumn },
+            maxInstallments,
+          )
+        : null,
+    [sheets, sheetIndex, emailColumn, nameColumn, paidColumn, maxInstallments],
   );
   const busy = reading || progress !== null;
 
@@ -130,7 +185,9 @@ export function ImportPeopleDialog({ events }: { events: EventOption[] }) {
     setPasted("");
     setEmailColumn(null);
     setNameColumn(null);
+    setPaidColumn(null);
     setNotify(true);
+    setPaymentMethod("cash");
     setProgress(null);
     setResults(null);
     setMessage(null);
@@ -141,6 +198,7 @@ export function ImportPeopleDialog({ events }: { events: EventOption[] }) {
     setSheetIndex(0);
     setEmailColumn(null);
     setNameColumn(null);
+    setPaidColumn(null);
     setResults(null);
   }
 
@@ -169,7 +227,12 @@ export function ImportPeopleDialog({ events }: { events: EventOption[] }) {
         eventId: event.id,
         packageId: pkg.id,
         notify,
-        people: batch.map((person) => ({ email: person.email, name: person.name.slice(0, 160) })),
+        paymentMethod,
+        people: batch.map((person) => ({
+          email: person.email,
+          name: person.name.slice(0, 160),
+          paidInstallments: person.paid,
+        })),
       });
       if (!result.ok) {
         setMessage(`${result.message} Se importaron ${done.length} antes del error.`);
@@ -187,6 +250,8 @@ export function ImportPeopleDialog({ events }: { events: EventOption[] }) {
   const already = results?.filter((row) => row.status === "already").length ?? 0;
   const failed = results?.filter((row) => row.status === "failed") ?? [];
   const emailed = results?.filter((row) => row.emailed).length ?? 0;
+  const recorded = results?.reduce((sum, row) => sum + row.recordedInstallments, 0) ?? 0;
+  const fullyPaid = results?.filter((row) => row.paid).length ?? 0;
   const finished = results !== null && progress === null;
 
   return (
@@ -207,9 +272,9 @@ export function ImportPeopleDialog({ events }: { events: EventOption[] }) {
         <DialogHeader>
           <DialogTitle>Importar personas a un paquete</DialogTitle>
           <DialogDescription>
-            Sube un Excel con el correo de cada persona (y su nombre si lo tienes). Se crean sus cuentas y quedan
-            inscritas en el paquete: solo tienen que entrar con su correo y pagar desde «Pagos». No hace falta
-            formulario.
+            Sube un Excel con el correo de cada persona (y si quieres su nombre y cuántas cuotas ya pagó). Se crean sus
+            cuentas y quedan inscritas en el paquete con sus pagos: solo tienen que entrar con su correo y pagar lo que
+            falte desde «Pagos». No hace falta formulario.
           </DialogDescription>
         </DialogHeader>
 
@@ -222,6 +287,16 @@ export function ImportPeopleDialog({ events }: { events: EventOption[] }) {
                   ? `, ${already} ya estaba${already === 1 ? "" : "n"} inscrita${already === 1 ? "" : "s"}`
                   : ""}
                 {notify ? ` · ${emailed} correo${emailed === 1 ? "" : "s"} enviado${emailed === 1 ? "" : "s"}` : ""}.
+                {recorded > 0 ? (
+                  <span className="mt-1 block">
+                    Se {recorded === 1 ? "registró" : "registraron"} {recorded} cuota{recorded === 1 ? "" : "s"} ya
+                    pagada{recorded === 1 ? "" : "s"}
+                    {fullyPaid > 0
+                      ? `; ${fullyPaid} paquete${fullyPaid === 1 ? " quedó pagado" : "s quedaron pagados"} completo${fullyPaid === 1 ? "" : "s"} y ya tiene${fullyPaid === 1 ? "" : "n"} su recibo`
+                      : ""}
+                    .
+                  </span>
+                ) : null}
               </AlertDescription>
             </Alert>
             {failed.length > 0 ? (
@@ -337,6 +412,7 @@ export function ImportPeopleDialog({ events }: { events: EventOption[] }) {
                     setSheetIndex(Number(change.target.value));
                     setEmailColumn(null);
                     setNameColumn(null);
+                    setPaidColumn(null);
                   }}
                 >
                   {sheets.map((sheet, index) => (
@@ -380,7 +456,7 @@ export function ImportPeopleDialog({ events }: { events: EventOption[] }) {
                       disabled={busy}
                       onChange={(change) => setNameColumn(Number(change.target.value))}
                     >
-                      <NativeSelectOption value={String(NO_NAME)}>Sin nombre</NativeSelectOption>
+                      <NativeSelectOption value={String(NO_COLUMN)}>Sin nombre</NativeSelectOption>
                       {preview.headers.map((header, index) => (
                         <NativeSelectOption key={index} value={String(index)}>
                           {header}
@@ -388,6 +464,42 @@ export function ImportPeopleDialog({ events }: { events: EventOption[] }) {
                       ))}
                     </NativeSelect>
                   </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`${id}-paid-column`}>Columna con las cuotas ya pagadas</Label>
+                    <NativeSelect
+                      id={`${id}-paid-column`}
+                      value={String(preview.paidColumn)}
+                      disabled={busy}
+                      onChange={(change) => setPaidColumn(Number(change.target.value))}
+                    >
+                      <NativeSelectOption value={String(NO_COLUMN)}>Ninguna (nadie ha pagado)</NativeSelectOption>
+                      {preview.headers.map((header, index) => (
+                        <NativeSelectOption key={index} value={String(index)}>
+                          {header}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                    <p className="text-xs text-muted-foreground">
+                      Un número por persona: cuántas cuotas pagó antes (0, 1, 2…). Se registran como pagos aprobados.
+                    </p>
+                  </div>
+                  {preview.paidColumn !== NO_COLUMN ? (
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`${id}-paid-method`}>Cómo pagaron esas cuotas</Label>
+                      <NativeSelect
+                        id={`${id}-paid-method`}
+                        value={paymentMethod}
+                        disabled={busy}
+                        onChange={(change) => setPaymentMethod(change.target.value as PlanPaymentMethod)}
+                      >
+                        {PLAN_PAYMENT_METHOD_IDS.map((method) => (
+                          <NativeSelectOption key={method} value={method}>
+                            {PLAN_PAYMENT_METHOD_LABELS[method]}
+                          </NativeSelectOption>
+                        ))}
+                      </NativeSelect>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="space-y-2">
@@ -405,12 +517,22 @@ export function ImportPeopleDialog({ events }: { events: EventOption[] }) {
                       {preview.invalid.length > 5 ? "…" : ""}
                     </p>
                   ) : null}
+                  {preview.badPaid.length > 0 ? (
+                    <p className="text-sm text-destructive">
+                      {preview.badPaid.length} fila{preview.badPaid.length === 1 ? "" : "s"} con cuotas que no se
+                      entienden se importan sin pagos: {preview.badPaid.slice(0, 3).join(", ")}
+                      {preview.badPaid.length > 3 ? "…" : ""}. Usa un número del 0 al {pkg?.installments ?? 1}.
+                    </p>
+                  ) : null}
                   <div className="max-w-full overflow-x-auto rounded-md border">
                     <table className="w-full text-left text-sm">
                       <thead className="bg-muted">
                         <tr>
                           <th className="px-3 py-2 font-medium">Correo</th>
                           <th className="px-3 py-2 font-medium">Nombre</th>
+                          {preview.paidColumn !== NO_COLUMN ? (
+                            <th className="px-3 py-2 font-medium whitespace-nowrap">Cuotas pagadas</th>
+                          ) : null}
                         </tr>
                       </thead>
                       <tbody>
@@ -418,6 +540,11 @@ export function ImportPeopleDialog({ events }: { events: EventOption[] }) {
                           <tr key={person.email} className="border-t">
                             <td className="px-3 py-2 whitespace-nowrap">{person.email}</td>
                             <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{person.name || "—"}</td>
+                            {preview.paidColumn !== NO_COLUMN ? (
+                              <td className="px-3 py-2 tabular-nums">
+                                {person.paid} de {pkg?.installments ?? 1}
+                              </td>
+                            ) : null}
                           </tr>
                         ))}
                       </tbody>

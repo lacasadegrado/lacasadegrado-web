@@ -376,6 +376,13 @@ Pagos (2026-11-16, migration 0018):
   (600 ms apart for Resend). Plans need a form: the event's newest package
   form, else a draft "Inscripciones importadas" is created. No sign-up
   submission is stored, so imported people show in Abonos, not Inscripciones.
+  Optional "cuotas ya pagadas" column (a number per person, "2" or "2
+  cuotas"; guessed from titles like cuota/pagad/abono) plus one method for
+  them: recorded as confirmed `recordPackagePayment` payments (note "Pago
+  anterior a la página"); the count is the total paid, so re-importing only
+  records the difference. A fully paid import gets the "paquete pagado"
+  email with the receipt instead of the enrolled one. Receipt dates for
+  these are the import date (Kiara confirmed real dates are not needed).
 - Package photos: `photos.is_package` ("Del paquete"/"Adicional" in
   `BulkActionsBar`, checkbox in the uploader). `releasedForEmail` also
   frees them when that email has a `paid` plan in the photo's event;

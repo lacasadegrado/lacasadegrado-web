@@ -172,18 +172,30 @@ export function buildPlanEnrolledEmail(input: {
   packageName: string;
   priceCents: number;
   installments: number;
+  /** Already paid (imported payments); shown with what is left. */
+  paidCents?: number;
   /** "Pagos", behind login with this email. */
   plansUrl: string;
   appUrl: string;
 }) {
   const title = "Tu paquete está listo para pagar";
+  const paidCents = input.paidCents ?? 0;
   const greeting = input.personName ? `Hola, ${input.personName}.` : "Hola.";
   const lead = `${greeting} Te inscribimos en el ${input.packageName} de ${input.eventName}.`;
   const price =
     input.installments > 1
       ? `${formatEur(input.priceCents)} en ${input.installments} cuotas`
       : formatEur(input.priceCents);
-  const rows: Row[] = [plainRow("Paquete", input.packageName), plainRow("Precio", price)];
+  const rows: Row[] = [
+    plainRow("Paquete", input.packageName),
+    plainRow("Precio", price),
+    ...(paidCents > 0
+      ? [
+          plainRow("Ya pagaste", formatEur(paidCents)),
+          plainRow("Te falta", formatEur(Math.max(0, input.priceCents - paidCents))),
+        ]
+      : []),
+  ];
   const how =
     "Para pagar, entra con este correo: te enviamos un código para iniciar sesión y en «Pagos» tocas «Pagar».";
 
