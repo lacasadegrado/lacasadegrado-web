@@ -391,8 +391,13 @@ Pagos (2026-11-16, migration 0018):
   are ordinary photos for sale.
 Previews have NO blur since 2026-10-21 (`blurSigma: 0`; it was 12, then 5
 from 2026-09-30, and did not help sell). The only protection is the dense,
-fairly opaque tiled watermark in `buildWatermarkSvg` (`WATERMARK_DENSITY`
-0.6, white 0.6 / outline 0.4). `npm run photos:regenerate-previews -- --yes`
+fairly opaque tiled watermark in `buildWatermarkSvg`: the full logo lockup
+(letters included) as path data, never SVG `<text>` (the serverless runtime
+has no fonts, so text rendered as boxes until 2026-11-25), placed one by one
+in a rotated brick grid (not `<pattern>`, which librsvg resamples into
+dotted seams). Size is `WATERMARK_LOCKUP_SHARE` 0.26 of the short edge,
+white fill over a dark outline at group opacity 0.55. Made denser on
+2026-11-25 after Brandon asked three times. `npm run photos:regenerate-previews -- --yes`
 rebuilds every preview from its original with the current settings.
 Photo releases (2026-09-30, migration 0011): package photos the admin
 frees for specific photos, unlike Personas' free_download which frees
