@@ -1,21 +1,11 @@
-import { BRAND, LOGO_MARK } from "@/common/lib/constants/brand";
+import { LOGO_PATHS } from "@/common/assets/logo/logo-paths";
 
 /**
- * The house mark as SVG path elements, for contexts without React: the
- * sharp watermark composite. Same geometry as the <Logo /> component.
+ * Lockup width as a share of the image's short edge. Smaller = more
+ * repetitions. 0.26 puts roughly 25 to 35 lockups on a 1400px preview
+ * (owner asked three times for "más denso", 2026-11-25).
  */
-export function logoMarkSvgPaths(color: string): string {
-  return LOGO_MARK.paths
-    .map((path) =>
-      path.kind === "fill"
-        ? `<path d="${path.d}" fill="${color}"/>`
-        : `<path d="${path.d}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/>`,
-    )
-    .join("");
-}
-
-/** Tile size relative to the original layout; smaller = more repetitions. */
-const WATERMARK_DENSITY = 0.6;
+const WATERMARK_LOCKUP_SHARE = 0.26;
 
 type WatermarkOptions = {
   width: number;
@@ -23,46 +13,55 @@ type WatermarkOptions = {
 };
 
 /**
- * A full-size SVG that tiles the mark and brand name diagonally across
- * the image. Light and dark strokes are layered so it reads on both light
- * and dark photographs. Since previews have no blur (2026-10-21) this is
- * the only protection, so it is dense (tiles at 0.6 of the old size, so it
- * crosses faces) and fairly opaque, hard to crop around or clean up.
+ * A full-size SVG that tiles the full logo lockup (house, ring and the
+ * "LA CASA DE GRADO" letters) diagonally across the image in a staggered
+ * brick layout. Everything is path data from the brand SVG, never <text>:
+ * librsvg on the serverless runtime has no system fonts, so text rendered
+ * as empty boxes (tofu) in production until 2026-11-25.
+ *
+ * Since previews have no blur (2026-10-21) this is the only protection,
+ * so it is dense (crosses every face) and fairly opaque: white with a
+ * dark outline, so it reads on both light and dark photographs.
  */
 export function buildWatermarkSvg({ width, height }: WatermarkOptions): string {
-  const label = BRAND.name.toUpperCase();
-  const unit = Math.max(132, Math.round((Math.min(width, height) / 2.6) * WATERMARK_DENSITY));
-  const [vx, vy, vw, vh] = LOGO_MARK.viewBox.split(" ").map(Number);
-  const markHeight = Math.round(unit * 0.16);
-  const scale = markHeight / vh;
-  const markWidth = Math.round(vw * scale);
-  const fontSize = Math.round(unit * 0.1);
-  const gap = Math.round(markHeight * 0.4);
-  // Bold sans glyphs average ~0.62em wide; generous so nothing clips.
-  const textWidth = Math.ceil(fontSize * 0.66 * label.length);
-  const contentWidth = markWidth + gap + textWidth;
-  // The tile is sized to its content, so the label never clips at the edge.
-  const tileWidth = contentWidth + Math.round(unit * 0.45);
-  const tileHeight = Math.round(unit * 0.75);
-  const originX = Math.round(unit * 0.15);
-  const originY = Math.round((tileHeight - markHeight) / 2);
-  const textX = markWidth + gap;
-  const textY = Math.round(markHeight * 0.78);
+  const [, , vw, vh] = LOGO_PATHS.viewBoxFull.split(" ").map(Number);
+  const lockupWidth = Math.max(150, Math.round(Math.min(width, height) * WATERMARK_LOCKUP_SHARE));
+  const scale = lockupWidth / vw;
+  const lockupHeight = Math.round(vh * scale);
+  // Tight spacing; the second row is shifted half a tile (brick layout),
+  // so there is no clean diagonal lane to crop along.
+  const tileWidth = Math.round(lockupWidth * 1.25);
+  const tileHeight = Math.round(lockupHeight * 2.6);
+  // Dark outline under a white fill, both opaque inside one group opacity,
+  // so overlaps never stack. Width in path units, ~2.5px (half shows).
+  const outline = (Math.max(2, lockupWidth / 110) / scale).toFixed(2);
 
-  const tileContent = (color: string, strokeColor: string) => `
-    <g transform="translate(${originX}, ${originY})">
-      <g transform="scale(${scale.toFixed(4)})" viewBox="${vx} ${vy} ${vw} ${vh}">
-        ${logoMarkSvgPaths(color)}
-      </g>
-      <text x="${textX}" y="${textY}" font-family="Helvetica, Arial, sans-serif" font-size="${fontSize}" font-weight="700" fill="${color}" stroke="${strokeColor}" stroke-width="${Math.max(1, Math.round(fontSize * 0.06))}" paint-order="stroke" letter-spacing="0.04em">${label}</text>
-    </g>`;
+  // Lockups are placed one by one in a rotated grid that covers the
+  // image's diagonal, not with <pattern>: librsvg rasterizes a pattern
+  // tile and then resamples it rotated, which left dotted seams.
+  const reach = Math.ceil(Math.hypot(width, height) / 2) + lockupWidth;
+  const positions: string[] = [];
+  for (let row = -Math.ceil(reach / (tileHeight / 2)); row * (tileHeight / 2) <= reach; row += 1) {
+    const shift = row % 2 === 0 ? 0 : tileWidth / 2;
+    for (let col = -Math.ceil(reach / tileWidth) - 1; col * tileWidth <= reach; col += 1) {
+      const x = Math.round(col * tileWidth + shift - lockupWidth / 2);
+      const y = Math.round(row * (tileHeight / 2) - lockupHeight / 2);
+      positions.push(`<use href="#lcg" x="${x}" y="${y}"/>`);
+    }
+  }
+  const grid = positions.join("");
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <defs>
-    <pattern id="wm" width="${tileWidth}" height="${tileHeight}" patternUnits="userSpaceOnUse" patternTransform="rotate(-30)">
-      ${tileContent("rgba(255,255,255,0.6)", "rgba(0,0,0,0.4)")}
-    </pattern>
+    <g id="lcg" transform="scale(${scale.toFixed(4)})">
+      <path d="${LOGO_PATHS.letters}"/>
+      <path d="${LOGO_PATHS.house}"/>
+      <path d="${LOGO_PATHS.circle}"/>
+    </g>
   </defs>
-  <rect width="${width}" height="${height}" fill="url(#wm)"/>
+  <g opacity="0.55" transform="translate(${Math.round(width / 2)}, ${Math.round(height / 2)}) rotate(-30)">
+    <g fill="#1A1A1A" stroke="#1A1A1A" stroke-width="${outline}" stroke-linejoin="round">${grid}</g>
+    <g fill="#FFFFFF">${grid}</g>
+  </g>
 </svg>`;
 }
