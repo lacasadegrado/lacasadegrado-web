@@ -389,6 +389,17 @@ Pagos (2026-11-16, migration 0018):
   `packagePendingForEmail` (open plan) shows "Disponible al completar tu
   paquete" in the gallery and the cart refuses them. Without any plan they
   are ordinary photos for sale.
+Photo folders (2026-11-25, no migration): admin Fotos is Drive-like.
+`/admin/photos` shows one folder per event plus "¿Buscas las fotos de
+alguien?" (`?buscar=`, name or email across all events,
+`searchPersonFolders`); `?event=` shows one folder per tagged email
+(`listPersonFolders`, name from forms then Personas, badges for package
+plan and purchases), "Sin etiquetar" first and "Todas las fotos" last;
+`?event=&carpeta=<email|sin-etiquetar|todas>` (`PHOTO_FOLDERS`) is the
+grid, filtered server-side by `listPhotosForEvent(eventId, filter)`, with
+quick filter chips (Vendidas, Del paquete, Liberadas). Folders are only
+`photo_tags`; a group photo is in each person's folder. Uploading inside a
+person's folder tags the batch with that email (`PhotoUploader.tagEmail`).
 Previews have NO blur since 2026-10-21 (`blurSigma: 0`; it was 12, then 5
 from 2026-09-30, and did not help sell). The only protection is the dense,
 fairly opaque tiled watermark in `buildWatermarkSvg` (`WATERMARK_DENSITY`

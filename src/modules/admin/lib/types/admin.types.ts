@@ -75,3 +75,39 @@ export type UploadResponse =
  * marked as the person's name, when there is one.
  */
 export type EmailSuggestion = { email: string; name: string | null };
+
+/** An event as a folder on the Fotos page. */
+export type PhotoEventFolder = AdminEvent & {
+  /** First uploaded photo, shown as the folder's cover. */
+  coverPhotoId: string | null;
+  /** Photos nobody is tagged in yet. */
+  untaggedCount: number;
+  /** People (tagged emails) with at least one photo. */
+  peopleCount: number;
+};
+
+/** A person's folder inside an event: every photo tagged with that email. */
+export type PersonPhotoFolder = {
+  email: string;
+  name: string | null;
+  photoCount: number;
+  coverPhotoId: string;
+  /** Photos of this event the person bought. */
+  boughtCount: number;
+  /** Their package plan in this event, if any. */
+  plan: "paid" | "open" | null;
+};
+
+/** A person's folder found by the search across all events. */
+export type PersonSearchHit = {
+  email: string;
+  name: string | null;
+  eventId: string;
+  eventName: string;
+  institution: string;
+  photoCount: number;
+  coverPhotoId: string;
+};
+
+/** Which photos of an event a listing takes. */
+export type PhotoListFilter = { kind: "all" } | { kind: "untagged" } | { kind: "person"; email: string };

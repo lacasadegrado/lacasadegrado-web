@@ -6,13 +6,24 @@ import { db } from "@/common/lib/db";
 import { entitlements, orderItems, photoReleases, photoTags, photos } from "@/common/lib/db/schema";
 import { deleteObject } from "@/common/lib/storage/storage.service";
 
-import type { AdminPhoto, BulkActionResult } from "../types/admin.types";
+import type { AdminPhoto, BulkActionResult, PhotoListFilter } from "../types/admin.types";
 
 /**
  * Admin listing. Selects explicit columns: `original_key` is not among
  * them and must never be (security rule 3).
  */
-export async function listPhotosForEvent(eventId: string): Promise<AdminPhoto[]> {
+export async function listPhotosForEvent(
+  eventId: string,
+  filter: PhotoListFilter = { kind: "all" },
+): Promise<AdminPhoto[]> {
+  const tagged = sql`exists (select 1 from ${photoTags} where ${photoTags.photoId} = ${photos.id})`;
+  const folder =
+    filter.kind === "untagged"
+      ? sql`not ${tagged}`
+      : filter.kind === "person"
+        ? sql`exists (select 1 from ${photoTags} where ${photoTags.photoId} = ${photos.id} and ${photoTags.email} = ${filter.email})`
+        : undefined;
+
   const rows = await db
     .select({
       id: photos.id,
@@ -29,11 +40,11 @@ export async function listPhotosForEvent(eventId: string): Promise<AdminPhoto[]>
     })
     .from(photos)
     .leftJoin(entitlements, eq(entitlements.photoId, photos.id))
-    .where(eq(photos.eventId, eventId))
+    .where(and(eq(photos.eventId, eventId), folder))
     .groupBy(photos.id)
     // Untagged photos first (they still need work), then sold, then by filename.
     .orderBy(
-      asc(sql`exists (select 1 from ${photoTags} where ${photoTags.photoId} = ${photos.id})`),
+      asc(tagged),
       desc(sql`count(${entitlements.id}) > 0`),
       asc(photos.originalFilename),
       asc(photos.createdAt),

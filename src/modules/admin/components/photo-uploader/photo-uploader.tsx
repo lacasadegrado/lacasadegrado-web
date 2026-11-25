@@ -9,7 +9,8 @@ import { Input } from "@/common/components/ui/input";
 import { Label } from "@/common/components/ui/label";
 import { eurToCents } from "@/common/lib/utils/money.util";
 
-import { PHOTO_UPLOAD } from "../../lib/constants/admin.constants";
+import { bulkTagPhotosAction } from "../../lib/actions/photo.action";
+import { BULK_LIMITS, PHOTO_UPLOAD } from "../../lib/constants/admin.constants";
 import type {
   AdminPhoto,
   EmailSuggestion,
@@ -27,6 +28,8 @@ type PhotoUploaderProps = {
   emailSuggestions: EmailSuggestion[];
   defaultPriceCents: number;
   defaultPrintPriceCents: number;
+  /** Uploading inside a person's folder: the batch is tagged with this email. */
+  tagEmail?: string;
 };
 
 let nextItemId = 0;
@@ -43,6 +46,7 @@ export function PhotoUploader({
   emailSuggestions,
   defaultPriceCents,
   defaultPrintPriceCents,
+  tagEmail,
 }: PhotoUploaderProps) {
   const router = useRouter();
   const inputId = useId();
@@ -54,6 +58,7 @@ export function PhotoUploader({
   const [isPackage, setIsPackage] = useState(false);
   const [justUploadedIds, setJustUploadedIds] = useState<string[]>([]);
   const [refreshing, startRefresh] = useTransition();
+  const [tagError, setTagError] = useState<string | null>(null);
 
   const priceCents = eurToCents(Number(priceEur.replace(",", ".")) || 0);
   const printPriceCents = eurToCents(Number(printPriceEur.replace(",", ".")) || 0);
@@ -135,6 +140,21 @@ export function PhotoUploader({
       }
     });
     await Promise.all(workers);
+    setTagError(null);
+    if (tagEmail && uploadedIds.length > 0) {
+      // Tagged before the refresh, so the photos land in this person's folder.
+      let failed = false;
+      for (let start = 0; start < uploadedIds.length; start += BULK_LIMITS.maxPhotos) {
+        const photoIds = uploadedIds.slice(start, start + BULK_LIMITS.maxPhotos);
+        const tagged = await bulkTagPhotosAction({ photoIds, emails: tagEmail }).catch(() => null);
+        if (!tagged?.ok) failed = true;
+      }
+      if (failed) {
+        setTagError(
+          `Las fotos se subieron, pero algunas no se pudieron etiquetar con ${tagEmail}. Búscalas en “Sin etiquetar”.`,
+        );
+      }
+    }
     setBusy(false);
     setJustUploadedIds(uploadedIds);
     startRefresh(() => router.refresh());
@@ -224,6 +244,12 @@ export function PhotoUploader({
           </span>
         </Label>
       </div>
+
+      {tagError ? (
+        <p role="alert" className="text-sm text-destructive">
+          {tagError}
+        </p>
+      ) : null}
 
       {queue.length > 0 ? (
         <div className="space-y-3">

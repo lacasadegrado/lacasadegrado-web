@@ -3,93 +3,269 @@ import Link from "next/link";
 import { Button } from "@/common/components/ui/button";
 import { formatDateOnly } from "@/common/lib/utils/date.util";
 
-import { EventPicker } from "../components/event-picker";
+import { FolderCard, photoCountLabel } from "../components/photo-folders/folder-card";
+import { PeopleSearchForm } from "../components/photo-folders/people-search-form";
+import { PersonFolderList } from "../components/photo-folders/person-folder-list";
+import { PhotosBreadcrumb } from "../components/photo-folders/photos-breadcrumb";
+import { UploadPhotosPanel } from "../components/photo-folders/upload-photos-panel";
 import { PhotoGrid } from "../components/photo-grid/photo-grid";
-import { PhotoUploader } from "../components/photo-uploader/photo-uploader";
 import {
   ADMIN_PATHS,
   DEFAULT_PHOTO_PRICE_CENTS,
   DEFAULT_PRINT_PRICE_CENTS,
+  PHOTO_FOLDERS,
 } from "../lib/constants/admin.constants";
-import { listEvents } from "../lib/services/event.service";
 import { listEmailSuggestionsForEvent } from "../lib/services/email-suggestion.service";
+import {
+  listEventFolders,
+  listPersonFolders,
+  personFolderName,
+  searchPersonFolders,
+} from "../lib/services/photo-folder.service";
 import { listPhotosForEvent } from "../lib/services/photo.service";
+import type { PhotoEventFolder, PhotoListFilter } from "../lib/types/admin.types";
 
 type AdminPhotosScreenProps = {
   eventId?: string;
+  /** `PHOTO_FOLDERS.untagged`, `PHOTO_FOLDERS.all` or a tagged email. */
+  folder?: string;
+  /** Search across every event, by name or email. */
+  search?: string;
 };
 
-export async function AdminPhotosScreen({ eventId }: AdminPhotosScreenProps) {
-  const events = await listEvents();
+/**
+ * Fotos as Drive-like folders: events, then one folder per tagged person
+ * (plus "Sin etiquetar" and "Todas las fotos"), then the photos. Folders
+ * are read from the tags; nothing is stored for them.
+ */
+export async function AdminPhotosScreen({ eventId, folder, search }: AdminPhotosScreenProps) {
+  const events = await listEventFolders();
   const event = eventId ? events.find((item) => item.id === eventId) : undefined;
-  const [photos, emailSuggestions] = event
-    ? await Promise.all([listPhotosForEvent(event.id), listEmailSuggestionsForEvent(event.id)])
-    : [[], []];
 
+  if (!event) return <EventsView events={events} search={search?.trim()} />;
+  if (!folder) return <EventView event={event} />;
+  return <FolderView event={event} folder={folder} />;
+}
+
+function EventsView({ events, search }: { events: PhotoEventFolder[]; search?: string }) {
   return (
     <div className="space-y-8">
-      <div>
+      <div className="space-y-2">
+        <PhotosBreadcrumb crumbs={search ? [{ label: "Fotos", href: ADMIN_PATHS.photos }, { label: "Búsqueda" }] : [{ label: "Fotos" }]} />
         <h1 className="text-2xl font-bold">Fotos</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Sube las fotos de un evento y asocia cada una con los correos de las
-          personas que salen en ella.
+        <p className="text-sm text-muted-foreground">
+          Cada evento es una carpeta, y dentro hay una carpeta por persona.
         </p>
       </div>
 
       {events.length === 0 ? (
         <div className="rounded-md border border-dashed p-6">
-          <p className="text-sm text-muted-foreground">
-            Primero necesitas un evento donde guardar las fotos.
-          </p>
+          <p className="text-sm text-muted-foreground">Primero necesitas un evento donde guardar las fotos.</p>
           <Button asChild className="mt-4">
             <Link href={ADMIN_PATHS.events}>Crear un evento</Link>
           </Button>
         </div>
       ) : (
-        <EventPicker events={events} selectedId={event?.id} />
-      )}
-
-      {event ? (
         <>
-          <section aria-labelledby="upload-heading" className="space-y-4 rounded-md border p-4 sm:p-6">
-            <div>
-              <h2 id="upload-heading" className="text-lg font-semibold">
-                Subir fotos a {event.name}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {event.institution}
-                {event.eventDate ? ` · ${formatDateOnly(event.eventDate)}` : null}. Cada foto se
-                guarda en original y se genera una vista previa con marca de agua.
-              </p>
-            </div>
-            <PhotoUploader
-              eventId={event.id}
-              photos={photos}
-              emailSuggestions={emailSuggestions}
-              defaultPriceCents={DEFAULT_PHOTO_PRICE_CENTS}
-              defaultPrintPriceCents={DEFAULT_PRINT_PRICE_CENTS}
-            />
-          </section>
-
-          <section aria-labelledby="grid-heading" className="space-y-4">
-            <div>
-              <h2 id="grid-heading" className="text-lg font-semibold">
-                {photos.length} foto{photos.length === 1 ? "" : "s"}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Marca varias fotos para etiquetarlas, cambiarles los precios o eliminarlas de una
-                vez. Las fotos sin correo salen primero. Cada foto tiene dos precios: la digital y la impresa, que incluye la
-                digital. Cada tarjeta también acepta un correo, precios o borrarse por separado.
-              </p>
-            </div>
-            <PhotoGrid photos={photos} emailSuggestions={emailSuggestions} />
-          </section>
+          <PeopleSearchForm key={search ?? ""} defaultValue={search} />
+          {search ? <SearchResults search={search} /> : <EventFolders events={events} />}
         </>
-      ) : events.length > 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Elige un evento para ver y subir sus fotos.
+      )}
+    </div>
+  );
+}
+
+async function SearchResults({ search }: { search: string }) {
+  const hits = await searchPersonFolders(search);
+
+  return (
+    <section aria-labelledby="search-heading" className="space-y-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="search-heading" className="text-lg font-semibold">
+          {hits.length === 0
+            ? `Nadie con “${search}” tiene fotos`
+            : `${hits.length} carpeta${hits.length === 1 ? "" : "s"} con “${search}”`}
+        </h2>
+        <Link href={ADMIN_PATHS.photos} className="text-sm underline underline-offset-4">
+          Ver todos los eventos
+        </Link>
+      </div>
+      {hits.length === 0 ? (
+        <p className="max-w-prose text-sm text-muted-foreground">
+          Puede que sus fotos todavía no tengan su correo. Entra al evento y revisa la carpeta
+          “Sin etiquetar”.
         </p>
-      ) : null}
+      ) : (
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {hits.map((hit) => (
+            <li key={`${hit.eventId}-${hit.email}`}>
+              <FolderCard
+                href={ADMIN_PATHS.photoFolder(hit.eventId, hit.email)}
+                title={hit.name ?? hit.email}
+                subtitle={hit.name ? hit.email : undefined}
+                detail={`${hit.eventName} · ${photoCountLabel(hit.photoCount)}`}
+                coverPhotoId={hit.coverPhotoId}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function EventFolders({ events }: { events: PhotoEventFolder[] }) {
+  return (
+    <section aria-labelledby="events-heading" className="space-y-4">
+      <h2 id="events-heading" className="text-lg font-semibold">
+        Eventos
+      </h2>
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {events.map((event) => (
+          <li key={event.id}>
+            <FolderCard
+              href={ADMIN_PATHS.photoFolder(event.id)}
+              title={event.name}
+              subtitle={[event.institution, event.eventDate ? formatDateOnly(event.eventDate) : null]
+                .filter(Boolean)
+                .join(" · ")}
+              detail={`${photoCountLabel(event.photoCount)} · ${event.peopleCount} persona${event.peopleCount === 1 ? "" : "s"}`}
+              coverPhotoId={event.coverPhotoId}
+              tone={event.untaggedCount > 0 ? "attention" : "default"}
+            >
+              {event.untaggedCount > 0 ? (
+                <span className="text-sm text-muted-foreground">
+                  {event.untaggedCount} sin etiquetar
+                </span>
+              ) : null}
+            </FolderCard>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+async function EventView({ event }: { event: PhotoEventFolder }) {
+  const emailSuggestions = await listEmailSuggestionsForEvent(event.id);
+  // Only the untagged photos: a fresh upload lands there, and the dialog after it reads them.
+  const [folders, untagged] = await Promise.all([
+    listPersonFolders(event.id, emailSuggestions),
+    listPhotosForEvent(event.id, { kind: "untagged" }),
+  ]);
+
+  return (
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <PhotosBreadcrumb crumbs={[{ label: "Fotos", href: ADMIN_PATHS.photos }, { label: event.name }]} />
+        <h1 className="text-2xl font-bold">{event.name}</h1>
+        <p className="text-sm text-muted-foreground">
+          {event.institution}
+          {event.eventDate ? ` · ${formatDateOnly(event.eventDate)}` : null} ·{" "}
+          {photoCountLabel(event.photoCount)}. Entra a la carpeta de una persona para ver, etiquetar o
+          subir sus fotos.
+        </p>
+      </div>
+
+      <UploadPhotosPanel
+        eventId={event.id}
+        eventName={event.name}
+        photos={untagged}
+        emailSuggestions={emailSuggestions}
+        defaultPriceCents={DEFAULT_PHOTO_PRICE_CENTS}
+        defaultPrintPriceCents={DEFAULT_PRINT_PRICE_CENTS}
+        defaultOpen={event.photoCount === 0}
+      />
+
+      {event.photoCount === 0 ? (
+        <p className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+          Este evento todavía no tiene fotos. Súbelas arriba.
+        </p>
+      ) : (
+        <PersonFolderList
+          eventId={event.id}
+          folders={folders}
+          untaggedCount={event.untaggedCount}
+          totalPhotos={event.photoCount}
+          coverPhotoId={event.coverPhotoId}
+        />
+      )}
+    </div>
+  );
+}
+
+async function FolderView({ event, folder }: { event: PhotoEventFolder; folder: string }) {
+  const filter: PhotoListFilter =
+    folder === PHOTO_FOLDERS.untagged
+      ? { kind: "untagged" }
+      : folder === PHOTO_FOLDERS.all
+        ? { kind: "all" }
+        : { kind: "person", email: folder.trim().toLowerCase() };
+
+  const emailSuggestions = await listEmailSuggestionsForEvent(event.id);
+  const photos = await listPhotosForEvent(event.id, filter);
+
+  const person =
+    filter.kind === "person"
+      ? { email: filter.email, name: await personFolderName(filter.email, emailSuggestions) }
+      : undefined;
+  const title =
+    filter.kind === "untagged" ? "Sin etiquetar" : filter.kind === "all" ? "Todas las fotos" : (person?.name ?? filter.email);
+  const description =
+    filter.kind === "untagged"
+      ? "Fotos que aún no tienen el correo de nadie. Márcalas y usa “Etiquetar” para pasarlas a la carpeta de esa persona."
+      : filter.kind === "all"
+        ? "Todas las fotos del evento. Las fotos sin correo salen primero."
+        : `${person?.name ? `${filter.email} · ` : ""}Las fotos donde sale esta persona. Una foto de grupo aparece en la carpeta de cada persona etiquetada.`;
+
+  return (
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <PhotosBreadcrumb
+          crumbs={[
+            { label: "Fotos", href: ADMIN_PATHS.photos },
+            { label: event.name, href: ADMIN_PATHS.photoFolder(event.id) },
+            { label: title },
+          ]}
+        />
+        <h1 className="text-2xl font-bold break-words">{title}</h1>
+        <p className="max-w-prose text-sm text-muted-foreground">{description}</p>
+      </div>
+
+      <UploadPhotosPanel
+        eventId={event.id}
+        eventName={event.name}
+        photos={photos}
+        emailSuggestions={emailSuggestions}
+        defaultPriceCents={DEFAULT_PHOTO_PRICE_CENTS}
+        defaultPrintPriceCents={DEFAULT_PRINT_PRICE_CENTS}
+        person={person}
+      />
+
+      <section aria-labelledby="grid-heading" className="space-y-4">
+        <div>
+          <h2 id="grid-heading" className="text-lg font-semibold">
+            {photoCountLabel(photos.length)}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Marca varias fotos para etiquetarlas, cambiarles los precios o eliminarlas de una vez.
+          </p>
+        </div>
+        <PhotoGrid
+          // A new folder starts with its own selection and filters.
+          key={folder}
+          photos={photos}
+          emailSuggestions={emailSuggestions}
+          searchable={filter.kind === "all"}
+          emptyMessage={
+            filter.kind === "untagged"
+              ? "Todas las fotos de este evento ya tienen a alguien. ¡Bien!"
+              : filter.kind === "person"
+                ? "Esta persona no tiene fotos en este evento. Súbelas con el botón de arriba."
+                : "Este evento todavía no tiene fotos. Súbelas arriba."
+          }
+        />
+      </section>
     </div>
   );
 }
