@@ -7,6 +7,12 @@ export const metadata: Metadata = {
 };
 
 export default async function Page(props: PageProps<"/admin/photos">) {
-  const { event } = await props.searchParams;
-  return <AdminPhotosScreen eventId={typeof event === "string" ? event : undefined} />;
+  const { event, carpeta, buscar } = await props.searchParams;
+  return (
+    <AdminPhotosScreen
+      eventId={typeof event === "string" ? event : undefined}
+      folder={typeof carpeta === "string" ? carpeta : undefined}
+      search={typeof buscar === "string" ? buscar : undefined}
+    />
+  );
 }

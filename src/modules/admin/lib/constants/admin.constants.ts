@@ -9,6 +9,12 @@ export const ADMIN_PATHS = {
   formResponse: (formId: string, submissionId: string) =>
     `/admin/events/forms/${formId}/responses/${submissionId}`,
   photos: "/admin/photos",
+  /** An event's folders, or one folder inside it (`PHOTO_FOLDERS` or a tagged email). */
+  photoFolder: (eventId: string, folder?: string) =>
+    folder
+      ? `/admin/photos?event=${eventId}&carpeta=${encodeURIComponent(folder)}`
+      : `/admin/photos?event=${eventId}`,
+  photoSearch: (query: string) => `/admin/photos?buscar=${encodeURIComponent(query)}`,
   payments: "/admin/payments",
   packagePayments: "/admin/payments/packages",
   packagePayment: (submissionId: string) => `/admin/payments/packages/${submissionId}`,
@@ -27,6 +33,15 @@ export const ADMIN_PATHS = {
   users: "/admin/users",
   user: (profileId: string) => `/admin/users/${profileId}`,
   paymentProofApi: (paymentId: string) => `/api/admin/payments/${paymentId}/proof`,
+} as const;
+
+/**
+ * The two folders of an event that are not a person. Any other `carpeta`
+ * value is a tagged email; neither of these contains an "@".
+ */
+export const PHOTO_FOLDERS = {
+  untagged: "sin-etiquetar",
+  all: "todas",
 } as const;
 
 export const PHOTO_UPLOAD = {

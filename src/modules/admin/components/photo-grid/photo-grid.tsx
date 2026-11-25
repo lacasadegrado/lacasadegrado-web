@@ -10,6 +10,20 @@ import type { AdminPhoto, EmailSuggestion } from "../../lib/types/admin.types";
 import { BulkActionsBar } from "./bulk-actions-bar";
 import { PhotoCard } from "./photo-card";
 
+/** Quick filters over the loaded photos, shown as chips above the grid. */
+const PHOTO_FILTERS = [
+  { key: "all", label: "Todas", test: () => true },
+  { key: "sold", label: "Vendidas", test: (photo: AdminPhoto) => photo.soldCount > 0 },
+  { key: "package", label: "Del paquete", test: (photo: AdminPhoto) => photo.isPackage },
+  {
+    key: "released",
+    label: "Liberadas",
+    test: (photo: AdminPhoto) => photo.releasedAt !== null || photo.releasedEmails.length > 0,
+  },
+] as const;
+
+type PhotoFilterKey = (typeof PHOTO_FILTERS)[number]["key"];
+
 /** Photos tagged with an email that contains the query (case-insensitive). */
 function matchesEmail(photo: AdminPhoto, query: string): boolean {
   if (!query) return true;
@@ -24,6 +38,10 @@ type PhotoGridProps = {
   defaultSelectedIds?: string[];
   /** "dialog" drops the email search and pins the toolbar to the modal's top. */
   variant?: "page" | "dialog";
+  /** False hides the email search (a person's folder is already one email). */
+  searchable?: boolean;
+  /** Shown instead of the default when there are no photos. */
+  emptyMessage?: string;
 };
 
 /**
@@ -37,14 +55,18 @@ export function PhotoGrid({
   emailSuggestions,
   defaultSelectedIds,
   variant = "page",
+  searchable = true,
+  emptyMessage = "Este evento todavía no tiene fotos. Súbelas arriba.",
 }: PhotoGridProps) {
   const searchId = useId();
   const emailListId = useId();
   const [selected, setSelected] = useState<Set<string>>(() => new Set(defaultSelectedIds));
   const [rawQuery, setRawQuery] = useState("");
+  const [filterKey, setFilterKey] = useState<PhotoFilterKey>("all");
   const query = rawQuery.trim().toLowerCase();
+  const filter = PHOTO_FILTERS.find((item) => item.key === filterKey) ?? PHOTO_FILTERS[0];
 
-  const visible = photos.filter((photo) => matchesEmail(photo, query));
+  const visible = photos.filter((photo) => matchesEmail(photo, query) && filter.test(photo));
   const selectedPhotos = visible.filter((photo) => selected.has(photo.id));
   const selectedIds = selectedPhotos.map((photo) => photo.id);
   const selectedEmails = [
@@ -63,7 +85,7 @@ export function PhotoGrid({
   if (photos.length === 0) {
     return (
       <p className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-        Este evento todavía no tiene fotos. Súbelas arriba.
+        {emptyMessage}
       </p>
     );
   }
@@ -71,6 +93,27 @@ export function PhotoGrid({
   return (
     <div className="space-y-4">
       {variant === "page" ? (
+        <div role="group" aria-label="Mostrar" className="flex flex-wrap gap-2">
+          {PHOTO_FILTERS.map((item) => {
+            const count = photos.filter(item.test).length;
+            if (item.key !== "all" && count === 0) return null;
+            return (
+              <Button
+                key={item.key}
+                type="button"
+                size="sm"
+                variant={filterKey === item.key ? "default" : "outline"}
+                aria-pressed={filterKey === item.key}
+                onClick={() => setFilterKey(item.key)}
+              >
+                {item.label} ({count})
+              </Button>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {variant === "page" && searchable ? (
         <div role="search" className="flex max-w-md items-center gap-2">
           <div className="relative flex-1">
             <Search
@@ -99,6 +142,10 @@ export function PhotoGrid({
             </Button>
           ) : null}
         </div>
+      ) : null}
+
+      {!query && visible.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Ninguna foto de esta carpeta entra en ese filtro.</p>
       ) : null}
 
       {query ? (
